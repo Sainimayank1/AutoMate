@@ -1,14 +1,18 @@
-import type {
-  ActionItem,
-  ExpiryItem,
-  StatusItem,
-  StatusSeverity,
-  UntrackedArea,
-  Vehicle,
-  VehicleStatus,
+import {
+  type ActionItem,
+  type ExpiryItem,
+  PaymentState,
+  type RecurringPayment,
+  type StatusItem,
+  type StatusSeverity,
+  type UntrackedArea,
+  type Vehicle,
+  type VehicleStatus,
 } from "@automate/shared";
 
-import { day, km } from "./format";
+import { Prisma } from "@/generated/prisma/client";
+
+import { day, km, rupees } from "./format";
 
 /** Expiring soon (design skill: documents ≤ 30 days are a warning). */
 export const EXPIRING_DAYS = 30;
@@ -34,10 +38,13 @@ export function vehicleStatus({
   vehicle,
   insurance,
   maintenance,
+  payments = [],
   today,
 }: {
   vehicle: Vehicle;
   insurance: InsuranceOnRecord | null;
+  /** Recurring payments and EMIs (Expenses): only due and overdue ones become items. */
+  payments?: RecurringPayment[];
   /** From MaintenanceService.snapshot().status: due and overdue schedules; tracked = has an active one. */
   maintenance: { items: StatusItem[]; tracked: boolean };
   today: string;
@@ -46,6 +53,7 @@ export function vehicleStatus({
     insuranceItem(insurance, today),
     warrantyItem(vehicle, today),
     ...maintenance.items.map(maintenanceItem),
+    ...payments.map((payment) => paymentItem(payment, today)),
   ]
     .filter((item): item is ActionItem => item !== null)
     .sort((a, b) => RANK[a.severity] - RANK[b.severity]);
@@ -156,6 +164,36 @@ function maintenanceItem(item: StatusItem): ActionItem {
     action: {
       label: "Log service",
       href: `/maintenance/records/new?schedule=${item.id.replace(/^maintenance:/, "")}`,
+    },
+  };
+}
+
+/**
+ * A recurring payment or EMI that's due (within its reminder window) or overdue; one scheduled
+ * further out isn't an item. Recording it is the action (the Recurring tab opens its dialog).
+ */
+function paymentItem(payment: RecurringPayment, today: string): ActionItem | null {
+  const overdue = payment.state === PaymentState.OVERDUE;
+  if (!overdue && payment.state !== PaymentState.DUE) return null;
+  const left = daysUntil(today, payment.date);
+  const amount = rupees(new Prisma.Decimal(payment.amount));
+  return {
+    id: `payment:${payment.recurringId}:${payment.dueDate}`,
+    severity: overdue ? "critical" : "warning",
+    title: overdue
+      ? `${payment.title} is overdue`
+      : left === 0
+        ? `${payment.title} is due today`
+        : `${payment.title} is due ${inDays(left)}`,
+    detail:
+      (payment.loan ? `${amount} · EMI ${payment.loan.number} of ${payment.loan.of}` : amount) +
+      (overdue ? ` · was due ${day(payment.date)}` : ""),
+    href: "/expenses/recurring",
+    source: "payment",
+    state: overdue ? "overdue" : left === 0 ? "due_today" : "due_soon",
+    action: {
+      label: "Record payment",
+      href: `/expenses/recurring?${new URLSearchParams({ pay: payment.recurringId, due: payment.dueDate }).toString()}`,
     },
   };
 }

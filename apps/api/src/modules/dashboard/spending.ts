@@ -99,7 +99,7 @@ export function drivingOverview(
   lastReading: { km: number; date: string } | null,
   period: DateWindow,
   today: string,
-): DrivingOverview | null {
+): Omit<DrivingOverview, "trips"> | null {
   if (!usage.readings && !lastReading) return null;
   const end = period.to < today ? period.to : today;
   const days = Math.round((Date.parse(end) - Date.parse(period.from)) / 86_400_000) + 1;

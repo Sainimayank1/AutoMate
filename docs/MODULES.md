@@ -435,6 +435,8 @@ Manage vehicle documents, their details, digital copies, and expiration reminder
 
 > **Dashboard:** when this module is built, wire it into the dashboard in the same change (trips overview, trip distance kept apart from odometer distance, activity, quick action): [docs/architecture/dashboard.md §6](architecture/dashboard.md#6-pending-integrations-do-these-when-the-module-is-built).
 
+> **Built in phases:** plan, rules, API and pending integrations in [docs/architecture/trips.md](architecture/trips.md).
+
 Record trips, journeys, travel costs, and driving history.
 
 ### Trip record

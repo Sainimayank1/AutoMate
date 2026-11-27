@@ -46,4 +46,21 @@ describe("mergeNewest", () => {
       all.slice(0, 2),
     );
   });
+
+  it("merges any number of feeds the same way", () => {
+    const expenses = [item("toll", "2026-11-25", "2026-11-25T03:00:00.000Z")];
+    const services = [item("service", "2026-11-24", "2026-11-24T09:00:00.000Z")];
+    const trips = [
+      item("trip-new", "2026-11-26", "2026-11-26T08:00:00.000Z"),
+      item("trip-same-day", "2026-11-25", "2026-11-25T03:00:00.000Z"), // a tie: the earlier feed first
+      item("trip-old", "2026-11-20", "2026-11-20T08:00:00.000Z"),
+    ];
+    expect(ids(mergeNewest(expenses, services, trips))).toEqual([
+      "trip-new",
+      "toll",
+      "trip-same-day",
+      "service",
+      "trip-old",
+    ]);
+  });
 });

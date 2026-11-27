@@ -1,0 +1,401 @@
+/**
+ * Trips API through the real HTTP pipeline and database (docker compose up -d).
+ * Users are created under a throwaway domain and deleted afterwards (everything cascades).
+ */
+import { randomUUID } from "node:crypto";
+
+import {
+  addDays,
+  type ApiErrorResponse,
+  type ApiSuccessResponse,
+  type DashboardOverview,
+  istToday,
+  type PageMeta,
+  type Trip,
+  type TripCategory,
+  type TripOverview,
+  type Vehicle,
+} from "@automate/shared";
+import type { NestExpressApplication } from "@nestjs/platform-express";
+import { Test } from "@nestjs/testing";
+import request from "supertest";
+import { afterAll, beforeAll, describe, expect, it } from "vitest";
+
+import { AppModule } from "@/app.module";
+import { configureApp } from "@/app.setup";
+import { PrismaService } from "@/database/prisma.service";
+import { AuthService } from "@/modules/auth/auth.service";
+import { seedSystemExpenseCategories } from "@/modules/expenses/expense-categories.seed";
+
+const DOMAIN = "trips.e2e.automate.test";
+
+describe("Trips (e2e)", () => {
+  let app: NestExpressApplication;
+  let prisma: PrismaService;
+  let arjun: string;
+  let priya: string;
+  let types: TripCategory[];
+  const today = istToday(new Date());
+  const typeId = (key: string) => types.find((type) => type.key === key)!.id;
+
+  beforeAll(async () => {
+    const moduleRef = await Test.createTestingModule({ imports: [AppModule] }).compile();
+    app = moduleRef.createNestApplication<NestExpressApplication>({
+      bodyParser: false,
+      bufferLogs: true,
+    });
+    configureApp(app);
+    await app.init();
+    prisma = app.get(PrismaService);
+    await seedSystemExpenseCategories(prisma);
+    const signUp = async (name: string) =>
+      (
+        await app.get(AuthService).register(
+          {
+            name,
+            email: `trips-${randomUUID()}@${DOMAIN}`,
+            password: "Drive2026safe",
+            acceptedTerms: true,
+          },
+          {},
+        )
+      ).session.accessToken;
+    arjun = await signUp("Arjun Mehta");
+    priya = await signUp("Priya Nair");
+    types = dataOf<TripCategory[]>(
+      await as(arjun).get("/api/v1/trip-categories?pageSize=100").expect(200),
+    );
+  });
+
+  afterAll(async () => {
+    await prisma?.user.deleteMany({ where: { email: { endsWith: `@${DOMAIN}` } } });
+    await app?.close();
+  });
+
+  const as = (token: string) => ({
+    get: (url: string) => request(app.getHttpServer()).get(url).auth(token, { type: "bearer" }),
+    post: (url: string, body?: object) =>
+      request(app.getHttpServer()).post(url).auth(token, { type: "bearer" }).send(body),
+    patch: (url: string, body: object) =>
+      request(app.getHttpServer()).patch(url).auth(token, { type: "bearer" }).send(body),
+    delete: (url: string) =>
+      request(app.getHttpServer()).delete(url).auth(token, { type: "bearer" }),
+  });
+  const dataOf = <T>(res: request.Response) => (res.body as ApiSuccessResponse<T>).data;
+  const metaOf = (res: request.Response) =>
+    (res.body as ApiSuccessResponse<unknown, PageMeta>).meta;
+  const errorOf = (res: request.Response) => (res.body as ApiErrorResponse).error;
+
+  async function vehicle(token: string, odometerKm = 8000) {
+    const plate = `KA${Math.floor(10 + Math.random() * 89)}TR${Math.floor(1000 + Math.random() * 9000)}`;
+    const res = await as(token)
+      .post("/api/v1/vehicles", {
+        make: "Maruti Suzuki",
+        model: "Victoris",
+        manufacturingYear: 2025,
+        category: "SUV",
+        registrationNumber: plate,
+        fuelType: "PETROL",
+        transmission: "MANUAL",
+        ownershipType: "OWNED",
+        odometerKm,
+      })
+      .expect(201);
+    return dataOf<Vehicle>(res);
+  }
+  const odometerKmOf = async (token: string, id: string) =>
+    dataOf<Vehicle>(await as(token).get(`/api/v1/vehicles/${id}`).expect(200)).odometerKm;
+  const trip = (vehicleId: string, overrides: object = {}) => ({
+    vehicleId,
+    method: "ODOMETER",
+    categoryId: typeId("ROAD_TRIP"),
+    date: addDays(today, -5),
+    startKm: 8100,
+    endKm: 8368,
+    origin: "Gurugram",
+    destination: "Jaipur",
+    ...overrides,
+  });
+
+  it("logs odometer and entered-distance trips, raising the odometer once per client id", async () => {
+    const car = await vehicle(arjun, 8000);
+    const id = randomUUID();
+    const created = dataOf<Trip>(
+      await as(arjun)
+        .post("/api/v1/trips", trip(car.id, { id, startTime: "06:10", endTime: "10:22" }))
+        .expect(201),
+    );
+    expect(created).toMatchObject({
+      id,
+      method: "ODOMETER",
+      distanceKm: "268.0",
+      durationMinutes: 252,
+      category: { key: "ROAD_TRIP", name: "Road trip" },
+    });
+    expect(await odometerKmOf(arjun, car.id)).toBe(8368);
+    // A retried save returns the same trip.
+    await as(arjun).post("/api/v1/trips", trip(car.id, { id })).expect(201);
+    expect(metaOf(await as(arjun).get(`/api/v1/trips?vehicleId=${car.id}`))?.total).toBe(1);
+
+    // A quick log: the distance as entered, no readings, the odometer untouched.
+    const quick = dataOf<Trip>(
+      await as(arjun)
+        .post("/api/v1/trips", {
+          vehicleId: car.id,
+          method: "DISTANCE",
+          categoryId: typeId("ERRANDS"),
+          date: today,
+          distanceKm: "12.5",
+          startKm: 1,
+          endKm: 2,
+        })
+        .expect(201),
+    );
+    expect(quick).toMatchObject({ distanceKm: "12.5", startKm: null, endKm: null });
+    expect(await odometerKmOf(arjun, car.id)).toBe(8368);
+
+    // Overnight: the duration runs across midnight.
+    expect(
+      dataOf<Trip>(
+        await as(arjun)
+          .post("/api/v1/trips", {
+            vehicleId: car.id,
+            method: "DISTANCE",
+            categoryId: typeId("PERSONAL"),
+            date: addDays(today, -2),
+            endDate: addDays(today, -1),
+            startTime: "22:30",
+            endTime: "01:00",
+            distanceKm: "180",
+          })
+          .expect(201),
+      ).durationMinutes,
+    ).toBe(150);
+
+    const bad = (body: object) => as(arjun).post("/api/v1/trips", body).expect(400);
+    await bad(trip(car.id, { endKm: 8100 }));
+    await bad({ ...trip(car.id), method: "DISTANCE", distanceKm: null });
+    await bad(trip(car.id, { date: addDays(today, 3) }));
+    await bad(trip(car.id, { endDate: addDays(today, -6) }));
+    await bad(trip(car.id, { startTime: "10:00", endTime: "09:00" }));
+  });
+
+  it("checks readings against the one odometer history and refuses overlapping trips", async () => {
+    const car = await vehicle(arjun, 8000);
+    // An expense reading 10 days ago at 8,500 km and a service 2 days ago at 9,000 km.
+    const misc = await prisma.expenseCategory.findFirstOrThrow({ where: { key: "OTHER" } });
+    await as(arjun)
+      .post("/api/v1/expenses", {
+        allocation: { mode: "single", vehicleId: car.id },
+        categoryId: misc.id,
+        title: "Car wash",
+        amount: "300",
+        date: addDays(today, -10),
+        odometerKm: 8500,
+      })
+      .expect(201);
+    await as(arjun)
+      .post(`/api/v1/vehicles/${car.id}/service-records`, {
+        type: "ROUTINE_SERVICE",
+        title: "Service",
+        categoryKey: "GENERAL.PERIODIC_SERVICE",
+        serviceDate: addDays(today, -2),
+        odometerKm: 9000,
+      })
+      .expect(201);
+
+    const conflict = async (body: object, field: string) => {
+      const res = await as(arjun).post("/api/v1/trips", body).expect(409);
+      expect(errorOf(res).details).toMatchObject([{ field }]);
+    };
+    await conflict(trip(car.id, { startKm: 8400, endKm: 8600 }), "startKm");
+    await conflict(trip(car.id, { startKm: 8600, endKm: 9100 }), "endKm");
+    // In between: a historical trip is fine, whatever the vehicle shows now.
+    const between = dataOf<Trip>(
+      await as(arjun)
+        .post("/api/v1/trips", trip(car.id, { startKm: 8600, endKm: 8800 }))
+        .expect(201),
+    );
+    await conflict(
+      trip(car.id, { date: addDays(today, -4), startKm: 8700, endKm: 8900 }),
+      "startKm",
+    );
+    // Maintenance sees trips too: a service below a trip's end from an earlier day is refused.
+    await as(arjun)
+      .post(`/api/v1/vehicles/${car.id}/service-records`, {
+        type: "ROUTINE_SERVICE",
+        title: "Wash",
+        categoryKey: "GENERAL.PERIODIC_SERVICE",
+        serviceDate: addDays(today, -4),
+        odometerKm: 8700,
+      })
+      .expect(409);
+    await as(arjun).delete(`/api/v1/trips/${between.id}`).expect(204);
+  });
+
+  it("corrects the odometer down when a trip's reading is lowered or the trip is deleted", async () => {
+    const car = await vehicle(arjun, 8000);
+    const logged = dataOf<Trip>(
+      await as(arjun)
+        .post("/api/v1/trips", trip(car.id, { date: today, startKm: 8000, endKm: 84120 }))
+        .expect(201),
+    );
+    expect(await odometerKmOf(arjun, car.id)).toBe(84120);
+    const fixed = dataOf<Trip>(
+      await as(arjun).patch(`/api/v1/trips/${logged.id}`, { endKm: 8412 }).expect(200),
+    );
+    expect(fixed).toMatchObject({ distanceKm: "412.0", origin: "Gurugram" });
+    expect(await odometerKmOf(arjun, car.id)).toBe(8412);
+    await as(arjun).patch(`/api/v1/trips/${logged.id}`, { endKm: 7999 }).expect(400);
+    await as(arjun).delete(`/api/v1/trips/${logged.id}`).expect(204);
+    await as(arjun).get(`/api/v1/trips/${logged.id}`).expect(404);
+  });
+
+  it("aggregates the overview for a vehicle or all vehicles", async () => {
+    const [car, scooter] = [await vehicle(priya, 1000), await vehicle(priya, 500)];
+    const post = (body: object) => as(priya).post("/api/v1/trips", body).expect(201);
+    await post(
+      trip(car.id, {
+        date: today,
+        startKm: 1000,
+        endKm: 1040,
+        categoryId: typeId("COMMUTE"),
+        startTime: "09:00",
+        endTime: "09:40",
+      }),
+    );
+    await post(
+      trip(car.id, { date: today, startKm: 1040, endKm: 1300, categoryId: typeId("ROAD_TRIP") }),
+    );
+    await post({
+      vehicleId: scooter.id,
+      method: "DISTANCE",
+      categoryId: typeId("COMMUTE"),
+      date: today,
+      distanceKm: "20",
+    });
+
+    const one = dataOf<TripOverview>(
+      await as(priya)
+        .get(`/api/v1/trips/overview?vehicleId=${car.id}&period=this_week`)
+        .expect(200),
+    );
+    expect(one).toMatchObject({
+      vehicleId: car.id,
+      trips: 2,
+      distanceKm: "300.0",
+      averageKm: "150.0",
+      longest: { distanceKm: "260.0", label: "Gurugram → Jaipur" },
+      drivingMinutes: 40,
+      timedTrips: 1,
+      series: { granularity: "day" },
+    });
+    expect(one.byCategory.map((row) => [row.key, row.distanceKm])).toEqual([
+      ["ROAD_TRIP", "260.0"],
+      ["COMMUTE", "40.0"],
+    ]);
+    expect(one.series.points.at(-1)).toEqual({ start: today, distanceKm: "300.0", trips: 2 });
+    expect(one.recent).toHaveLength(2);
+
+    const all = dataOf<TripOverview>(
+      await as(priya).get("/api/v1/trips/overview?period=all_time").expect(200),
+    );
+    expect(all).toMatchObject({ vehicleId: null, trips: 3, distanceKm: "320.0" });
+    expect(all.series.points).toHaveLength(1);
+
+    const empty = dataOf<TripOverview>(
+      await as(priya).get("/api/v1/trips/overview?period=last_month").expect(200),
+    );
+    expect(empty).toMatchObject({
+      trips: 0,
+      distanceKm: "0.0",
+      averageKm: null,
+      longest: null,
+      drivingMinutes: null,
+    });
+  });
+
+  it("feeds the dashboard's Driving card and activity, apart from odometer distance", async () => {
+    const car = await vehicle(arjun, 5000);
+    const overview = async () =>
+      dataOf<DashboardOverview>(
+        await as(arjun)
+          .get(`/api/v1/dashboard/overview?vehicleId=${car.id}&period=this_month`)
+          .expect(200),
+      ).driving;
+    expect(await overview()).toEqual({ state: "empty" });
+    await as(arjun)
+      .post("/api/v1/trips", trip(car.id, { date: today, startKm: 5000, endKm: 5120 }))
+      .expect(201);
+    expect(await overview()).toMatchObject({
+      state: "ok",
+      data: {
+        distanceKm: null,
+        trips: { count: 1, distanceKm: "120.0", longestKm: "120.0" },
+      },
+    });
+    const activity = dataOf<{ kind: string; title: string; href: string }[]>(
+      await as(arjun).get(`/api/v1/dashboard/activity?vehicleId=${car.id}`).expect(200),
+    );
+    expect(activity[0]).toMatchObject({ kind: "trip", title: "Gurugram → Jaipur" });
+  });
+
+  it("keeps the system trip types and the user's own, unique by name", async () => {
+    expect(types.filter((type) => type.key).map((type) => type.name)).toEqual([
+      "Personal",
+      "Commute",
+      "Business",
+      "Road trip",
+      "Errands",
+      "Airport / railway",
+      "Other",
+    ]);
+    const mine = dataOf<TripCategory>(
+      await as(arjun).post("/api/v1/trip-categories", { name: "Temple visits" }).expect(201),
+    );
+    expect(mine).toMatchObject({ key: null, name: "Temple visits", archivedAt: null });
+    await as(arjun).post("/api/v1/trip-categories", { name: "temple VISITS" }).expect(409);
+    await as(arjun).post("/api/v1/trip-categories", { name: "commute" }).expect(409);
+    // Another user can use the same name; nobody else sees it.
+    await as(priya).post("/api/v1/trip-categories", { name: "Temple visits" }).expect(201);
+    await as(priya).patch(`/api/v1/trip-categories/${mine.id}`, { name: "X" }).expect(404);
+    await as(arjun)
+      .patch(`/api/v1/trip-categories/${typeId("COMMUTE")}`, { name: "X" })
+      .expect(404);
+    expect(
+      dataOf<TripCategory>(
+        await as(arjun)
+          .patch(`/api/v1/trip-categories/${mine.id}`, { name: "Pilgrimage" })
+          .expect(200),
+      ).name,
+    ).toBe("Pilgrimage");
+
+    const car = await vehicle(arjun);
+    await as(arjun).post(`/api/v1/trip-categories/${mine.id}/archive`).expect(200);
+    await as(arjun)
+      .post("/api/v1/trips", trip(car.id, { categoryId: mine.id }))
+      .expect(400);
+    await as(arjun).post(`/api/v1/trip-categories/${mine.id}/restore`).expect(200);
+    await as(arjun)
+      .post("/api/v1/trips", trip(car.id, { categoryId: mine.id }))
+      .expect(201);
+  });
+
+  it("keeps each user's trips private and archived vehicles read-only", async () => {
+    const car = await vehicle(arjun);
+    const mine = dataOf<Trip>(await as(arjun).post("/api/v1/trips", trip(car.id)).expect(201));
+    await as(priya).get(`/api/v1/trips/${mine.id}`).expect(404);
+    await as(priya).patch(`/api/v1/trips/${mine.id}`, { notes: "x" }).expect(404);
+    await as(priya).delete(`/api/v1/trips/${mine.id}`).expect(404);
+    await as(priya).get(`/api/v1/trips?vehicleId=${car.id}`).expect(404);
+    await as(priya).get(`/api/v1/trips/overview?vehicleId=${car.id}`).expect(404);
+    await as(priya).post("/api/v1/trips", trip(car.id)).expect(404);
+    expect(
+      dataOf<Trip[]>(await as(priya).get("/api/v1/trips").expect(200)).map((row) => row.id),
+    ).not.toContain(mine.id);
+
+    await as(arjun).post(`/api/v1/vehicles/${car.id}/archive`).expect(200);
+    await as(arjun).patch(`/api/v1/trips/${mine.id}`, { notes: "x" }).expect(409);
+    await as(arjun).get(`/api/v1/trips/${mine.id}`).expect(200);
+  });
+});

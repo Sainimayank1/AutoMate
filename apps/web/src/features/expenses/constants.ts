@@ -3,6 +3,11 @@ import {
   type ExpenseCategoryRef,
   type ExpenseIcon,
   ExpenseSource,
+  LoanMethod,
+  PaymentState,
+  RECURRENCE_PRESETS,
+  RecurrenceUnit,
+  RecurringStatus,
   RefundReason,
   SpendGroup,
   spendGroupOf,
@@ -10,11 +15,17 @@ import {
 import {
   Armchair,
   BadgeIndianRupee,
+  Ban,
   Battery,
+  CalendarClock,
   Camera,
   Car,
   CarFront,
+  CircleAlert,
+  CircleCheck,
   CircleDot,
+  CirclePause,
+  Clock,
   CreditCard,
   Droplets,
   FileText,
@@ -31,9 +42,12 @@ import {
   Receipt,
   Route,
   ShieldCheck,
+  SkipForward,
   Sparkles,
   Wrench,
 } from "lucide-react";
+
+import type { StatusTone } from "@/components/common/status-badge";
 
 /** EXPENSE_ICONS (shared) → components. */
 export const EXPENSE_ICON_COMPONENTS: Record<ExpenseIcon, LucideIcon> = {
@@ -113,4 +127,49 @@ export const REFUND_REASON_LABELS: Record<RefundReason, string> = {
   [RefundReason.REFUND]: "Refund",
   [RefundReason.REIMBURSEMENT]: "Reimbursement",
   [RefundReason.ADJUSTMENT]: "Adjustment",
+};
+
+// ---- recurring payments and loans (phase 4)
+
+/** How a due date stands, as a badge (colour plus words, never colour alone). */
+export const PAYMENT_STATE: Record<
+  PaymentState,
+  { label: string; tone: StatusTone; icon: LucideIcon }
+> = {
+  [PaymentState.OVERDUE]: { label: "Overdue", tone: "destructive", icon: CircleAlert },
+  [PaymentState.DUE]: { label: "Due", tone: "warning", icon: Clock },
+  [PaymentState.SCHEDULED]: { label: "Scheduled", tone: "neutral", icon: CalendarClock },
+  [PaymentState.PAID]: { label: "Paid", tone: "success", icon: CircleCheck },
+  [PaymentState.SKIPPED]: { label: "Skipped", tone: "neutral", icon: SkipForward },
+};
+
+export const RECURRING_STATUS: Record<
+  RecurringStatus,
+  { label: string; tone: StatusTone; icon: LucideIcon }
+> = {
+  [RecurringStatus.ACTIVE]: { label: "Active", tone: "success", icon: CircleCheck },
+  [RecurringStatus.PAUSED]: { label: "Paused", tone: "warning", icon: CirclePause },
+  [RecurringStatus.CANCELLED]: { label: "Cancelled", tone: "neutral", icon: Ban },
+};
+
+const UNIT_NAMES: Record<RecurrenceUnit, [string, string]> = {
+  [RecurrenceUnit.DAY]: ["day", "days"],
+  [RecurrenceUnit.WEEK]: ["week", "weeks"],
+  [RecurrenceUnit.MONTH]: ["month", "months"],
+  [RecurrenceUnit.YEAR]: ["year", "years"],
+};
+
+/** "Monthly", "Quarterly"… or "Every 2 weeks". */
+export function frequencyLabel(every: number, unit: RecurrenceUnit): string {
+  const preset = Object.values(RECURRENCE_PRESETS).find(
+    (item) => item.every === every && item.unit === unit,
+  );
+  if (preset) return preset.label;
+  const [one, many] = UNIT_NAMES[unit];
+  return every === 1 ? `Every ${one}` : `Every ${every} ${many}`;
+}
+
+export const LOAN_METHOD_LABELS: Record<LoanMethod, string> = {
+  [LoanMethod.REDUCING]: "Reducing balance",
+  [LoanMethod.FLAT]: "Flat rate",
 };

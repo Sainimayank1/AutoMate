@@ -1,7 +1,13 @@
-import { customWindow, type DateWindow, ReportingPeriod } from "@automate/shared";
+import {
+  customWindow,
+  DASHBOARD_PERIODS,
+  type DashboardPeriod,
+  type DateWindow,
+  ReportingPeriod,
+} from "@automate/shared";
 import { useSearchParams } from "react-router";
 
-const PERIODS = Object.values(ReportingPeriod) as string[];
+const PERIODS: readonly string[] = DASHBOARD_PERIODS;
 
 /**
  * The dashboard period, kept in the URL (`?period=last_month`, custom adds `from` and `to`), so a
@@ -12,7 +18,7 @@ const PERIODS = Object.values(ReportingPeriod) as string[];
 export function useDashboardPeriod() {
   const [params, setParams] = useSearchParams();
   const raw = params.get("period") ?? "";
-  const period = (PERIODS.includes(raw) ? raw : ReportingPeriod.THIS_MONTH) as ReportingPeriod;
+  const period = (PERIODS.includes(raw) ? raw : ReportingPeriod.THIS_MONTH) as DashboardPeriod;
   const custom =
     period === ReportingPeriod.CUSTOM
       ? customWindow(params.get("from") ?? undefined, params.get("to") ?? undefined, new Date())
@@ -33,7 +39,7 @@ export function useDashboardPeriod() {
     from: custom?.from,
     to: custom?.to,
     /** A new custom range starts from the window on screen (or this month). */
-    setPeriod: (next: ReportingPeriod, current?: DateWindow) => {
+    setPeriod: (next: DashboardPeriod, current?: DateWindow) => {
       if (next === ReportingPeriod.THIS_MONTH) return write({});
       if (next !== ReportingPeriod.CUSTOM) return write({ period: next });
       const start = customWindow(current?.from, current?.to, new Date());

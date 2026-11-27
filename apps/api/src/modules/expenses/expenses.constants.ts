@@ -2,7 +2,11 @@ import {
   CostClass,
   ExpenseKind,
   ExpenseSource,
+  LoanMethod,
   PaymentMethod,
+  PaymentState,
+  RecurrenceUnit,
+  RecurringStatus,
   RefundReason,
 } from "@automate/shared";
 import type { ApiResponseSchemaHost } from "@nestjs/swagger";
@@ -74,6 +78,7 @@ export const EXPENSE_SCHEMA: Schema = {
         charges: money("0.00", true),
         loanReference: text("HDFC-AL-0042"),
         loanOutstanding: money("713295.00", true),
+        loanId: { type: "string", format: "uuid", nullable: true },
       },
     },
     details: {
@@ -184,5 +189,134 @@ export const EXPENSE_SUMMARY_SCHEMA: Schema = {
         },
       },
     },
+  },
+};
+
+/** OpenAPI shape of `RecurringPayment` (@automate/shared). */
+export const RECURRING_PAYMENT_SCHEMA: Schema = {
+  type: "object",
+  properties: {
+    recurringId: { type: "string", format: "uuid" },
+    vehicleId: { type: "string", format: "uuid" },
+    title: { type: "string", example: "HDFC Bank EMI" },
+    category: CATEGORY_REF,
+    dueDate: date("2026-12-05"),
+    date: date("2026-12-05"),
+    amount: money("16607.00"),
+    state: { type: "string", enum: Object.values(PaymentState) },
+    postponed: { type: "boolean" },
+    expenseId: { type: "string", format: "uuid", nullable: true },
+    loan: {
+      type: "object",
+      nullable: true,
+      properties: {
+        loanId: { type: "string", format: "uuid" },
+        number: { type: "integer", example: 20 },
+        of: { type: "integer", example: 60 },
+        principal: money("12129.00"),
+        interest: money("4478.00"),
+      },
+    },
+  },
+};
+
+/** OpenAPI shape of `RecurringExpense` (@automate/shared). */
+export const RECURRING_EXPENSE_SCHEMA: Schema = {
+  type: "object",
+  properties: {
+    id: { type: "string", format: "uuid" },
+    vehicleId: { type: "string", format: "uuid" },
+    title: { type: "string", example: "Society parking pass" },
+    amount: money("1500.00"),
+    category: CATEGORY_REF,
+    subcategory: { ...CATEGORY_REF, nullable: true },
+    paymentMethod: { type: "string", nullable: true, enum: Object.values(PaymentMethod) },
+    vendor: text("Prestige Towers RWA"),
+    notes: text(),
+    every: { type: "integer", example: 1 },
+    unit: { type: "string", enum: Object.values(RecurrenceUnit) },
+    startDate: date("2026-01-05"),
+    endDate: { ...date(), nullable: true },
+    reminderDays: { type: "integer", example: 3 },
+    status: { type: "string", enum: Object.values(RecurringStatus) },
+    loanId: { type: "string", format: "uuid", nullable: true },
+    next: { ...RECURRING_PAYMENT_SCHEMA, nullable: true },
+    overdue: { type: "integer", example: 0 },
+    createdAt: { type: "string", format: "date-time" },
+    updatedAt: { type: "string", format: "date-time" },
+  },
+};
+
+/** OpenAPI shape of `VehicleLoan` (@automate/shared). */
+export const VEHICLE_LOAN_SCHEMA: Schema = {
+  type: "object",
+  properties: {
+    id: { type: "string", format: "uuid" },
+    vehicleId: { type: "string", format: "uuid" },
+    lender: { type: "string", example: "HDFC Bank" },
+    accountNumber: text("AL-0042"),
+    principal: money("800000.00"),
+    annualRate: money("9.00"),
+    tenureMonths: { type: "integer", example: 60 },
+    firstEmiDate: date("2025-05-05"),
+    method: { type: "string", enum: Object.values(LoanMethod) },
+    processingFee: money("5000.00", true),
+    emi: money("16607.00"),
+    outstanding: money("563204.00"),
+    paid: {
+      type: "object",
+      properties: {
+        principal: money("236796.00"),
+        interest: money("95345.00"),
+        charges: money("0.00"),
+        emis: { type: "integer", example: 19 },
+      },
+    },
+    emisTotal: { type: "integer", example: 60 },
+    endDate: date("2030-04-05"),
+    totalInterest: money("196412.00"),
+    next: {
+      type: "object",
+      nullable: true,
+      properties: {
+        date: date("2026-12-05"),
+        amount: money("16607.00"),
+        principal: money("12383.00"),
+        interest: money("4224.00"),
+      },
+    },
+    recurringId: { type: "string", format: "uuid", nullable: true },
+    rateChanges: {
+      type: "array",
+      items: {
+        type: "object",
+        properties: {
+          id: { type: "string", format: "uuid" },
+          effectiveFrom: date("2026-01-01"),
+          annualRate: money("9.50"),
+          keepEmi: { type: "boolean" },
+        },
+      },
+    },
+    createdAt: { type: "string", format: "date-time" },
+    updatedAt: { type: "string", format: "date-time" },
+  },
+};
+
+/** OpenAPI shape of `LoanScheduleRow` (@automate/shared). */
+export const LOAN_SCHEDULE_ROW_SCHEMA: Schema = {
+  type: "object",
+  properties: {
+    number: { type: "integer", example: 1 },
+    date: date("2025-05-05"),
+    annualRate: money("9.00"),
+    openingBalance: money("800000.00"),
+    emi: money("16607.00"),
+    interest: money("6000.00"),
+    principal: money("10607.00"),
+    prepayment: money("0.00"),
+    closingBalance: money("789393.00"),
+    state: { type: "string", enum: Object.values(PaymentState) },
+    expenseId: { type: "string", format: "uuid", nullable: true },
   },
 };

@@ -123,6 +123,8 @@ export const expenseFieldsSchema = z.object({
   chargesAmount: optionalAmount("Enter the charges, e.g. 0"),
   loanReference: optionalText(60),
   loanOutstanding: optionalAmount("Enter the outstanding balance"),
+  /** A loan tracked in AutoMate this payment belongs to (EMIs and prepayments). */
+  loanId: z.preprocess(blankToNull, z.uuid("Choose a loan").nullable()).optional(),
   // Category details (maintenance, repairs, insurance); shown only where they apply.
   serviceType: optionalText(80),
   partsReplaced: optionalText(300),
@@ -362,6 +364,7 @@ export interface Expense {
     charges: string | null;
     loanReference: string | null;
     loanOutstanding: string | null;
+    loanId: string | null;
   } | null;
   details: {
     serviceType: string | null;

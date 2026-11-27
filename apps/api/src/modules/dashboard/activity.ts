@@ -3,6 +3,7 @@ import {
   ExpenseKind,
   ExpenseSource,
   type ServiceRecord,
+  type Trip,
 } from "@automate/shared";
 
 import type { ExpenseWithCategories } from "@/modules/expenses/expenses.mapper";
@@ -65,18 +66,45 @@ export function serviceActivity(record: ServiceRecord): Dated {
   };
 }
 
+/** A trip as activity: its route or title, type and distance. */
+export function tripActivity(trip: Trip): Dated {
+  return {
+    id: `trip:${trip.id}`,
+    kind: "trip",
+    date: trip.date,
+    title:
+      trip.title ??
+      (trip.origin && trip.destination
+        ? `${trip.origin} → ${trip.destination}`
+        : (trip.destination ?? trip.origin ?? `${trip.category.name} trip`)),
+    detail: `${trip.category.name} · ${Number(trip.distanceKm).toLocaleString("en-IN")} km`,
+    amount: null,
+    odometerKm: trip.endKm,
+    href: `/trips/${trip.id}`,
+    createdAt: trip.createdAt,
+  };
+}
+
 /**
- * Two feeds, each newest first in its source's own order, merged newest first: by day, then by
- * when it was recorded. A merge, not a sort: each source keeps its order, so the first N items
- * depend only on the first N of each source and pages never repeat or skip one.
+ * Feeds, each newest first in its source's own order, merged newest first: by day, then by when
+ * it was recorded. A merge, not a sort: each source keeps its order, so the first N items depend
+ * only on the first N of each source and pages never repeat or skip one.
  */
-export function mergeNewest(a: Dated[], b: Dated[]): ActivityItem[] {
+export function mergeNewest(...feeds: Dated[][]): ActivityItem[] {
   const merged: Dated[] = [];
-  let [i, j] = [0, 0];
-  while (i < a.length || j < b.length) {
-    const [x, y] = [a[i], b[j]];
-    const first = !y || (!!x && (x.date !== y.date ? x.date > y.date : x.createdAt >= y.createdAt));
-    merged.push(first ? a[i++]! : b[j++]!);
+  const at = feeds.map(() => 0);
+  for (;;) {
+    let pick = -1;
+    feeds.forEach((feed, index) => {
+      const x = feed[at[index]!];
+      const y = pick >= 0 ? feeds[pick]![at[pick]!] : undefined;
+      // Ties go to the earlier feed, as with two.
+      if (x && (!y || (x.date !== y.date ? x.date > y.date : x.createdAt > y.createdAt))) {
+        pick = index;
+      }
+    });
+    if (pick < 0) break;
+    merged.push(feeds[pick]![at[pick]!++]!);
   }
   return merged.map(({ createdAt: _, ...item }) => item);
 }

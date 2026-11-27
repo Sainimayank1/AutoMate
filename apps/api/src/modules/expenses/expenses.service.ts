@@ -34,6 +34,7 @@ import { ZodValidationException } from "nestjs-zod";
 import { pageArgs, Paginated } from "@/common/pagination/paginated";
 import { PrismaService } from "@/database/prisma.service";
 import { type Expense as ExpenseRow, Prisma } from "@/generated/prisma/client";
+import { OdometerHistoryService } from "@/modules/vehicles/odometer-history.service";
 import { VehiclesService } from "@/modules/vehicles/vehicles.service";
 
 import { ExpenseCategoriesService } from "./expense-categories.service";
@@ -76,6 +77,7 @@ export class ExpensesService {
     private readonly vehicles: VehiclesService,
     private readonly categories: ExpenseCategoriesService,
     private readonly figures: ExpenseFiguresService,
+    private readonly odometer: OdometerHistoryService,
   ) {}
 
   async list(userId: string, query: ExpenseListQuery): Promise<Paginated<Expense>> {
@@ -242,6 +244,24 @@ export class ExpensesService {
     return this.get(userId, id);
   }
 
+  /**
+   * The expense for a recurring payment, inside the caller's transaction (it holds the due date):
+   * checked like any other, and keyed (RECURRING, occurrence id) so a due date is paid once.
+   */
+  async createRecorded(
+    tx: Prisma.TransactionClient,
+    userId: string,
+    values: CreateExpenseValues,
+    occurrenceId: string,
+  ): Promise<string> {
+    const id = await this.write(tx, userId, values, [], {
+      categoryChanged: true,
+      origin: { source: ExpenseSource.RECURRING, sourceId: occurrenceId },
+    });
+    this.logger.log(`Expense ${id} recorded for recurring payment ${occurrenceId}`);
+    return id;
+  }
+
   /** The edit is merged onto the stored record (and its shared group) and re-checked whole. */
   async update(userId: string, id: string, input: UpdateExpenseValues): Promise<ExpenseDetail> {
     const resultId = await this.prisma.$transaction(async (tx) => {
@@ -405,7 +425,14 @@ export class ExpensesService {
       newId,
       keepId,
       categoryChanged,
-    }: { newId?: string; keepId?: string; categoryChanged: boolean },
+      origin,
+    }: {
+      newId?: string;
+      keepId?: string;
+      categoryChanged: boolean;
+      /** Where a new expense comes from (a recurring payment); manual otherwise. */
+      origin?: { source: ExpenseSource; sourceId: string };
+    },
   ): Promise<string> {
     const { costClass } = await this.categories.resolve(
       userId,
@@ -425,13 +452,25 @@ export class ExpensesService {
       tx,
     );
     const ownIds = existing.map((row) => row.id);
+    if (values.loanId && costClass === CostClass.FINANCING) {
+      // A loan payment belongs to that loan's vehicle (and the user's own loan).
+      const loan = await tx.vehicleLoan.findFirst({
+        where: { id: values.loanId, userId },
+        select: { vehicleId: true },
+      });
+      if (!loan || loan.vehicleId !== shares[0]!.vehicleId) {
+        throw new BadRequestException(fieldError("loanId", "Choose a loan of this vehicle"));
+      }
+    }
     if (!shared && values.odometerKm != null) {
+      // A single-vehicle expense: at most one existing row has a reading (shared ones can't).
       await assertOdometerInOrder(
+        this.odometer,
         tx,
         shares[0]!.vehicleId,
         toDbDate(values.date),
         values.odometerKm,
-        ownIds,
+        ownIds[0],
       );
     }
 
@@ -494,7 +533,7 @@ export class ExpensesService {
         ids.push(row.id);
       } else {
         const created = await tx.expense.create({
-          data: { ...fields, id: ids.length === 0 ? newId : undefined, userId },
+          data: { ...fields, ...origin, id: ids.length === 0 ? newId : undefined, userId },
         });
         ids.push(created.id);
       }
@@ -665,29 +704,29 @@ const day = new Intl.DateTimeFormat("en-IN", { dateStyle: "medium", timeZone: "U
  * One odometer history per vehicle (fill-ups included, through their expenses): a reading can't be
  * below one from an earlier day or above one from a later day. Same-day readings aren't ordered.
  */
+/**
+ * A reading must fit the vehicle's one odometer history (expenses with fill-ups, service records
+ * and trips): not below one from an earlier day, not above one from a later day.
+ */
 async function assertOdometerInOrder(
+  history: OdometerHistoryService,
   tx: Prisma.TransactionClient,
   vehicleId: string,
   date: Date,
   odometerKm: number,
-  exceptIds: string[],
+  exceptId: string | undefined,
 ) {
-  const others = { vehicleId, odometerKm: { not: null }, id: { notIn: exceptIds } };
-  const [before, after] = await Promise.all([
-    tx.expense.findFirst({
-      where: { ...others, date: { lt: date } },
-      orderBy: [{ odometerKm: "desc" }],
-    }),
-    tx.expense.findFirst({
-      where: { ...others, date: { gt: date } },
-      orderBy: [{ odometerKm: "asc" }],
-    }),
-  ]);
+  const { before, after } = await history.around(
+    tx,
+    vehicleId,
+    { from: date, to: date },
+    exceptId ? { expenseId: exceptId } : null,
+  );
   const clash =
-    before && odometerKm < before.odometerKm!
-      ? `Lower than ${km.format(before.odometerKm!)} km, recorded on ${day.format(before.date)}. Check the reading or the date.`
-      : after && odometerKm > after.odometerKm!
-        ? `Higher than ${km.format(after.odometerKm!)} km, recorded later on ${day.format(after.date)}. Check the reading or the date.`
+    before && odometerKm < before.km
+      ? `Lower than ${km.format(before.km)} km, recorded on ${day.format(before.date)}. Check the reading or the date.`
+      : after && odometerKm > after.km
+        ? `Higher than ${km.format(after.km)} km, recorded later on ${day.format(after.date)}. Check the reading or the date.`
         : null;
   if (clash) {
     throw new ConflictException({
@@ -772,6 +811,7 @@ function rowData(values: CreateExpenseValues, costClass: CostClass, shared: bool
     chargesAmount: finance ? (values.chargesAmount ?? null) : null,
     loanReference: finance ? (values.loanReference ?? null) : null,
     loanOutstanding: finance ? (values.loanOutstanding ?? null) : null,
+    loanId: finance ? (values.loanId ?? null) : null,
     serviceType: values.serviceType ?? null,
     partsReplaced: values.partsReplaced ?? null,
     partsAmount: values.partsAmount ?? null,

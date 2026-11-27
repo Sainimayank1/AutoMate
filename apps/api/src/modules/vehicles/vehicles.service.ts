@@ -11,6 +11,7 @@ import { pageArgs, Paginated } from "@/common/pagination/paginated";
 import { PrismaService } from "@/database/prisma.service";
 import type { Prisma, Vehicle as VehicleRow } from "@/generated/prisma/client";
 
+import { OdometerHistoryService } from "./odometer-history.service";
 import { toVehicle, toVehicleData } from "./vehicles.mapper";
 
 const NOT_FOUND = "Vehicle not found";
@@ -18,7 +19,10 @@ const NOT_FOUND = "Vehicle not found";
 /** Owns the `vehicles` table. Every query is scoped by `userId`; other users' vehicles are 404. */
 @Injectable()
 export class VehiclesService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly history: OdometerHistoryService,
+  ) {}
 
   /** Vehicles in use (default) or archived ones, oldest first so pages stay stable. */
   async list(userId: string, { archived, ...page }: VehicleListQuery): Promise<Paginated<Vehicle>> {
@@ -98,10 +102,11 @@ export class VehiclesService {
   }
 
   /**
-   * A reading another module raised the odometer to was corrected down: follow it to `toKm` (the
-   * highest reading still recorded), but only if the vehicle still shows the old reading.
+   * A reading another module raised the odometer to was corrected down: follow it to the highest
+   * reading still recorded anywhere (`toKm` or higher: the one odometer history), but only if the
+   * vehicle still shows the old reading.
    * shortcut: can land below a reading typed in Garage when a back-logged record is corrected;
-   * keep per-source readings once Maintenance and Trips record odometers too.
+   * Garage keeps no reading history of its own.
    */
   async correctOdometer(
     id: string,
@@ -109,8 +114,12 @@ export class VehiclesService {
     toKm: number,
     tx: Prisma.TransactionClient,
   ): Promise<void> {
-    if (toKm >= fromKm) return;
-    await tx.vehicle.updateMany({ where: { id, odometerKm: fromKm }, data: { odometerKm: toKm } });
+    const highest = Math.max(toKm, (await this.history.highest(tx, id)) ?? 0);
+    if (highest >= fromKm) return;
+    await tx.vehicle.updateMany({
+      where: { id, odometerKm: fromKm },
+      data: { odometerKm: highest },
+    });
   }
 
   /** A newer reading from another module (fuel, service, trips): raise, never lower. */

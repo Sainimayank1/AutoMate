@@ -26,7 +26,8 @@ import { ZodValidationException } from "nestjs-zod";
 import { pageArgs, Paginated } from "@/common/pagination/paginated";
 import { PrismaService } from "@/database/prisma.service";
 import { Prisma, type Vehicle } from "@/generated/prisma/client";
-import { LinkedExpensesService, type Reading } from "@/modules/expenses/linked-expenses.service";
+import { LinkedExpensesService } from "@/modules/expenses/linked-expenses.service";
+import { OdometerHistoryService } from "@/modules/vehicles/odometer-history.service";
 import { VehiclesService } from "@/modules/vehicles/vehicles.service";
 
 import { toDbDate } from "./maintenance.mapper";
@@ -116,6 +117,7 @@ export class ServiceRecordsService {
     private readonly prisma: PrismaService,
     private readonly vehicles: VehiclesService,
     private readonly linked: LinkedExpensesService,
+    private readonly odometer: OdometerHistoryService,
   ) {}
 
   async list(
@@ -352,15 +354,8 @@ export class ServiceRecordsService {
     const was = current?.odometerKm;
     if (was != null && (values.odometerKm ?? 0) < was) {
       // A corrected typo (84120 → 8412) mustn't leave the vehicle at the wrong reading.
-      const [records, expenses] = await Promise.all([
-        tx.serviceRecord.aggregate({
-          where: { vehicleId: vehicle.id },
-          _max: { odometerKm: true },
-        }),
-        this.linked.highestOdometer(tx, vehicle.id),
-      ]);
-      const highest = Math.max(records._max.odometerKm ?? 0, expenses ?? 0);
-      await this.vehicles.correctOdometer(vehicle.id, was, highest, tx);
+      // correctOdometer follows the highest reading left in the one history.
+      await this.vehicles.correctOdometer(vehicle.id, was, 0, tx);
     }
   }
 
@@ -439,9 +434,8 @@ export class ServiceRecordsService {
   }
 
   /**
-   * One odometer history per vehicle: Expenses' readings (fill-ups included) and service records
-   * (₹0 ones have no expense). A reading can't be below one from an earlier day or above one from
-   * a later day; same-day readings aren't ordered.
+   * The vehicle's one odometer history (OdometerHistoryService). A reading can't be below one
+   * from an earlier day or above one from a later day; same-day readings aren't ordered.
    */
   private async assertOdometerInOrder(
     tx: Prisma.TransactionClient,
@@ -451,32 +445,12 @@ export class ServiceRecordsService {
     recordId: string,
   ) {
     const date = toDbDate(serviceDate)!;
-    const others = { vehicleId, odometerKm: { not: null }, id: { not: recordId } };
-    const select = { odometerKm: true, serviceDate: true } as const;
-    const [expenses, recordBefore, recordAfter] = await Promise.all([
-      this.linked.odometerAround(tx, vehicleId, date, {
-        source: "MAINTENANCE",
-        sourceId: recordId,
-      }),
-      tx.serviceRecord.findFirst({
-        where: { ...others, serviceDate: { lt: date } },
-        orderBy: { odometerKm: "desc" },
-        select,
-      }),
-      tx.serviceRecord.findFirst({
-        where: { ...others, serviceDate: { gt: date } },
-        orderBy: { odometerKm: "asc" },
-        select,
-      }),
-    ]);
-    const reading = (row: typeof recordBefore): Reading | null =>
-      row && { km: row.odometerKm!, date: row.serviceDate };
-    const before = [expenses.before, reading(recordBefore)]
-      .filter((item): item is Reading => !!item)
-      .sort((a, b) => b.km - a.km)[0];
-    const after = [expenses.after, reading(recordAfter)]
-      .filter((item): item is Reading => !!item)
-      .sort((a, b) => a.km - b.km)[0];
+    const { before, after } = await this.odometer.around(
+      tx,
+      vehicleId,
+      { from: date, to: date },
+      { serviceRecordId: recordId },
+    );
     const clash =
       before && odometerKm < before.km
         ? `Lower than ${km.format(before.km)} km, recorded on ${day.format(before.date)}. Check the reading or the date.`

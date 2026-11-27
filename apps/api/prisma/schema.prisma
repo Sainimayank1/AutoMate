@@ -33,6 +33,10 @@ model User {
   components           VehicleComponent[]
   inspections          Inspection[]
   preference           UserPreference?
+  recurringExpenses    RecurringExpense[]
+  vehicleLoans         VehicleLoan[]
+  trips                Trip[]
+  tripCategories       TripCategory[]
 
   @@map("users")
 }
@@ -141,10 +145,13 @@ model Vehicle {
   user                 User                  @relation(fields: [userId], references: [id], onDelete: Cascade)
   fuelEntries          FuelEntry[]
   expenses             Expense[]
+  recurringExpenses    RecurringExpense[]
+  vehicleLoans         VehicleLoan[]
   maintenanceSchedules MaintenanceSchedule[]
   serviceRecords       ServiceRecord[]
   components           VehicleComponent[]
   inspections          Inspection[]
+  trips                Trip[]
 
   @@unique([userId, registrationNumber])
   @@index([userId, archivedAt])
@@ -245,11 +252,13 @@ model ExpenseCategory {
   createdAt DateTime   @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt DateTime   @updatedAt @map("updated_at") @db.Timestamptz(3)
 
-  user          User?             @relation(fields: [userId], references: [id], onDelete: Cascade)
-  parent        ExpenseCategory?  @relation("ExpenseSubcategories", fields: [parentId], references: [id], onDelete: Cascade)
-  subcategories ExpenseCategory[] @relation("ExpenseSubcategories")
-  expenses      Expense[]         @relation("ExpenseCategory")
-  subExpenses   Expense[]         @relation("ExpenseSubcategory")
+  user          User?              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  parent        ExpenseCategory?   @relation("ExpenseSubcategories", fields: [parentId], references: [id], onDelete: Cascade)
+  subcategories ExpenseCategory[]  @relation("ExpenseSubcategories")
+  expenses      Expense[]          @relation("ExpenseCategory")
+  subExpenses   Expense[]          @relation("ExpenseSubcategory")
+  recurring     RecurringExpense[] @relation("RecurringCategory")
+  subRecurring  RecurringExpense[] @relation("RecurringSubcategory")
 
   @@index([userId])
   @@index([parentId])
@@ -287,6 +296,8 @@ model Expense {
   chargesAmount   Decimal?       @map("charges_amount") @db.Decimal(12, 2)
   loanReference   String?        @map("loan_reference")
   loanOutstanding Decimal?       @map("loan_outstanding") @db.Decimal(12, 2)
+  /// Finance: the loan this payment (EMI or prepayment) belongs to, when it's tracked here.
+  loanId          String?        @map("loan_id") @db.Uuid
   serviceType     String?        @map("service_type")
   partsReplaced   String?        @map("parts_replaced")
   partsAmount     Decimal?       @map("parts_amount") @db.Decimal(12, 2)
@@ -299,12 +310,14 @@ model Expense {
   createdAt       DateTime       @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt       DateTime       @updatedAt @map("updated_at") @db.Timestamptz(3)
 
-  user        User             @relation(fields: [userId], references: [id], onDelete: Cascade)
-  vehicle     Vehicle          @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
-  category    ExpenseCategory  @relation("ExpenseCategory", fields: [categoryId], references: [id], onDelete: Restrict)
-  subcategory ExpenseCategory? @relation("ExpenseSubcategory", fields: [subcategoryId], references: [id], onDelete: Restrict)
-  refundOf    Expense?         @relation("ExpenseRefunds", fields: [refundOfId], references: [id], onDelete: Cascade)
-  refunds     Expense[]        @relation("ExpenseRefunds")
+  user        User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
+  vehicle     Vehicle              @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
+  category    ExpenseCategory      @relation("ExpenseCategory", fields: [categoryId], references: [id], onDelete: Restrict)
+  subcategory ExpenseCategory?     @relation("ExpenseSubcategory", fields: [subcategoryId], references: [id], onDelete: Restrict)
+  refundOf    Expense?             @relation("ExpenseRefunds", fields: [refundOfId], references: [id], onDelete: Cascade)
+  refunds     Expense[]            @relation("ExpenseRefunds")
+  loan        VehicleLoan?         @relation(fields: [loanId], references: [id], onDelete: SetNull)
+  occurrence  RecurringOccurrence?
 
   /// One expense per linked record: a fill-up can never be counted twice.
   @@unique([source, sourceId])
@@ -312,7 +325,133 @@ model Expense {
   @@index([vehicleId, date])
   @@index([sharedGroupId])
   @@index([refundOfId])
+  @@index([loanId])
   @@map("expenses")
+}
+
+enum RecurrenceUnit {
+  DAY
+  WEEK
+  MONTH
+  YEAR
+}
+
+enum RecurringStatus {
+  ACTIVE
+  PAUSED
+  CANCELLED
+}
+
+/// A payment that repeats (an EMI, a premium, a parking pass). A schedule is never a payment: a due
+/// date becomes an expense only when it's marked paid (docs/architecture/expenses.md §6).
+model RecurringExpense {
+  id            String          @id @default(uuid(7)) @db.Uuid
+  userId        String          @map("user_id") @db.Uuid
+  vehicleId     String          @map("vehicle_id") @db.Uuid
+  title         String
+  amount        Decimal         @db.Decimal(12, 2)
+  categoryId    String          @map("category_id") @db.Uuid
+  subcategoryId String?         @map("subcategory_id") @db.Uuid
+  paymentMethod PaymentMethod?  @map("payment_method")
+  vendor        String?
+  notes         String?
+  /// Every `every` units from `startDate` (the first due date), up to `endDate` when set.
+  every         Int             @default(1)
+  unit          RecurrenceUnit
+  startDate     DateTime        @map("start_date") @db.Date
+  endDate       DateTime?       @map("end_date") @db.Date
+  /// A due date is "due" this many days ahead of it.
+  reminderDays  Int             @default(3) @map("reminder_days")
+  status        RecurringStatus @default(ACTIVE)
+  /// Unpaid dates before this aren't owed: resuming a paused schedule starts it again from there.
+  activeFrom    DateTime        @map("active_from") @db.Date
+  /// The EMI schedule of a loan (its amount and dates follow the loan).
+  loanId        String?         @unique @map("loan_id") @db.Uuid
+  createdAt     DateTime        @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt     DateTime        @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  user        User                  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  vehicle     Vehicle               @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
+  category    ExpenseCategory       @relation("RecurringCategory", fields: [categoryId], references: [id], onDelete: Restrict)
+  subcategory ExpenseCategory?      @relation("RecurringSubcategory", fields: [subcategoryId], references: [id], onDelete: Restrict)
+  loan        VehicleLoan?          @relation(fields: [loanId], references: [id], onDelete: Cascade)
+  occurrences RecurringOccurrence[]
+
+  @@index([userId, vehicleId])
+  @@map("recurring_expenses")
+}
+
+/// A due date someone acted on: paid (its expense), skipped or postponed. Untouched due dates
+/// aren't stored; they're worked out from the schedule.
+model RecurringOccurrence {
+  id          String    @id @default(uuid(7)) @db.Uuid
+  recurringId String    @map("recurring_id") @db.Uuid
+  /// The scheduled date: the occurrence's identity, even when postponed.
+  dueDate     DateTime  @map("due_date") @db.Date
+  postponedTo DateTime? @map("postponed_to") @db.Date
+  skipped     Boolean   @default(false)
+  /// The payment (source RECURRING, sourceId = this id). Deleting it makes the date unpaid again.
+  expenseId   String?   @unique @map("expense_id") @db.Uuid
+  createdAt   DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt   DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  recurring RecurringExpense @relation(fields: [recurringId], references: [id], onDelete: Cascade)
+  expense   Expense?         @relation(fields: [expenseId], references: [id], onDelete: SetNull)
+
+  @@unique([recurringId, dueDate])
+  @@map("recurring_occurrences")
+}
+
+enum LoanMethod {
+  /// Interest on the outstanding balance (Indian bank car loans).
+  REDUCING
+  /// Interest on the original principal for the whole tenure.
+  FLAT
+}
+
+/// A vehicle loan: its terms, from which the amortisation schedule is worked out. EMIs and
+/// prepayments are expenses tagged with the loan; its EMI schedule is a RecurringExpense.
+model VehicleLoan {
+  id            String     @id @default(uuid(7)) @db.Uuid
+  userId        String     @map("user_id") @db.Uuid
+  vehicleId     String     @map("vehicle_id") @db.Uuid
+  lender        String
+  accountNumber String?    @map("account_number")
+  principal     Decimal    @db.Decimal(12, 2)
+  /// % a year.
+  annualRate    Decimal    @map("annual_rate") @db.Decimal(5, 2)
+  tenureMonths  Int        @map("tenure_months")
+  firstEmiDate  DateTime   @map("first_emi_date") @db.Date
+  method        LoanMethod @default(REDUCING)
+  processingFee Decimal?   @map("processing_fee") @db.Decimal(12, 2)
+  createdAt     DateTime   @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt     DateTime   @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  user        User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  vehicle     Vehicle           @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
+  rateChanges LoanRateChange[]
+  payments    Expense[]
+  recurring   RecurringExpense?
+
+  @@index([userId, vehicleId])
+  @@map("vehicle_loans")
+}
+
+/// A floating-rate change from a date: the EMI stays and the tenure moves, or the reverse.
+model LoanRateChange {
+  id            String   @id @default(uuid(7)) @db.Uuid
+  loanId        String   @map("loan_id") @db.Uuid
+  effectiveFrom DateTime @map("effective_from") @db.Date
+  annualRate    Decimal  @map("annual_rate") @db.Decimal(5, 2)
+  /// true: keep the EMI and change the tenure (the usual bank default); false: keep the tenure.
+  keepEmi       Boolean  @default(true) @map("keep_emi")
+  createdAt     DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt     DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  loan VehicleLoan @relation(fields: [loanId], references: [id], onDelete: Cascade)
+
+  @@unique([loanId, effectiveFrom])
+  @@map("loan_rate_changes")
 }
 
 enum MaintenancePriority {
@@ -647,4 +786,62 @@ model InspectionItem {
   @@index([componentId])
   @@index([followUpScheduleId])
   @@map("inspection_items")
+}
+
+enum TripMethod {
+  ODOMETER
+  DISTANCE
+}
+
+/// Trip types (MODULES.md M7): the system defaults (no user, a key) and each user's own. Names
+/// are unique per user, case-insensitively (index in the migration SQL). Archived, never deleted.
+model TripCategory {
+  id         String    @id @default(uuid(7)) @db.Uuid
+  userId     String?   @map("user_id") @db.Uuid
+  key        String?   @unique
+  name       String
+  archivedAt DateTime? @map("archived_at") @db.Timestamptz(3)
+  createdAt  DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt  DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  user  User?  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  trips Trip[]
+
+  @@index([userId])
+  @@map("trip_categories")
+}
+
+/// A journey (MODULES.md M7): distance from two odometer readings or entered by the user. Its
+/// readings join the vehicle's one odometer history (docs/architecture/trips.md).
+model Trip {
+  id          String     @id @default(uuid(7)) @db.Uuid
+  userId      String     @map("user_id") @db.Uuid
+  vehicleId   String     @map("vehicle_id") @db.Uuid
+  categoryId  String     @map("category_id") @db.Uuid
+  method      TripMethod
+  title       String?
+  date        DateTime   @db.Date
+  /// Overnight and multi-day trips; null when it ends the day it starts.
+  endDate     DateTime?  @map("end_date") @db.Date
+  /// "HH:MM", India time.
+  startTime   String?    @map("start_time")
+  endTime     String?    @map("end_time")
+  startKm     Int?       @map("start_km")
+  endKm       Int?       @map("end_km")
+  /// From the readings (method ODOMETER) or as entered.
+  distanceKm  Decimal    @map("distance_km") @db.Decimal(6, 1)
+  origin      String?
+  destination String?
+  notes       String?
+  createdAt   DateTime   @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt   DateTime   @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  user     User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  vehicle  Vehicle      @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
+  category TripCategory @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+
+  @@index([vehicleId, date])
+  @@index([userId, date])
+  @@index([categoryId])
+  @@map("trips")
 }

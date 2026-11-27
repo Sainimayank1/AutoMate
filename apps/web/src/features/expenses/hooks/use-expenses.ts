@@ -69,7 +69,7 @@ export function useExpenseCategories() {
  * After any expense write: every list, detail and category count may change, and an odometer
  * reading may have raised a vehicle's.
  */
-function useSyncExpenses() {
+export function useSyncExpenses() {
   const queryClient = useQueryClient();
   return (deletedId?: string) =>
     Promise.all([

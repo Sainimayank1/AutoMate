@@ -1,5 +1,5 @@
 import type { Vehicle } from "@automate/shared";
-import { Fuel, Gauge, ReceiptIndianRupee, Wrench } from "lucide-react";
+import { Fuel, Gauge, ReceiptIndianRupee, Route, Wrench } from "lucide-react";
 import { Link } from "react-router";
 
 import { PlateBadge } from "@/components/common/plate-badge";
@@ -86,6 +86,12 @@ export function VehicleHero({ vehicle }: { vehicle: Vehicle }) {
               <Link to="/maintenance/records/new">
                 <Wrench data-icon="inline-start" />
                 Add service record
+              </Link>
+            </Button>
+            <Button asChild size="sm" variant="outline" className={action}>
+              <Link to={`/trips/new?vehicle=${vehicle.id}`}>
+                <Route data-icon="inline-start" />
+                Log trip
               </Link>
             </Button>
             <Button asChild size="sm" variant="outline" className={action}>

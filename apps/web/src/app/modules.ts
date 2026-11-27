@@ -121,9 +121,32 @@ export const appModules = [
         lazy: () => import("@/features/expenses/categories-route"),
         handle: { title: "Categories" },
       },
+      {
+        path: "recurring",
+        lazy: () => import("@/features/expenses/recurring-route"),
+        handle: { title: "Recurring" },
+      },
+      {
+        path: "loans/:loanId",
+        lazy: () => import("@/features/expenses/loan-details-route"),
+        handle: { title: "Loan" },
+      },
     ],
     taskRoutes: [
       { path: "/expenses/new", lazy: () => import("@/features/expenses/new-expense-route") },
+      {
+        path: "/expenses/recurring/new",
+        lazy: () => import("@/features/expenses/recurring-form-route"),
+      },
+      {
+        path: "/expenses/recurring/:recurringId/edit",
+        lazy: () => import("@/features/expenses/recurring-form-route"),
+      },
+      { path: "/expenses/loans/new", lazy: () => import("@/features/expenses/loan-form-route") },
+      {
+        path: "/expenses/loans/:loanId/edit",
+        lazy: () => import("@/features/expenses/loan-form-route"),
+      },
       {
         path: "/expenses/:expenseId/edit",
         lazy: () => import("@/features/expenses/edit-expense-route"),
@@ -247,7 +270,18 @@ export const appModules = [
     path: "/trips",
     icon: Map,
     navGroup: "management",
-    lazy: () => import("@/features/trips/route"),
+    lazy: () => import("@/features/trips/trips-route"),
+    children: [
+      {
+        path: ":tripId",
+        lazy: () => import("@/features/trips/trip-details-route"),
+        handle: { title: "Trip" },
+      },
+    ],
+    taskRoutes: [
+      { path: "/trips/new", lazy: () => import("@/features/trips/new-trip-route") },
+      { path: "/trips/:tripId/edit", lazy: () => import("@/features/trips/edit-trip-route") },
+    ],
   },
   {
     id: "analytics",

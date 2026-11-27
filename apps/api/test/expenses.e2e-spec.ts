@@ -206,6 +206,7 @@ describe("Expenses (e2e)", () => {
       charges: null,
       loanReference: null,
       loanOutstanding: "713295.00",
+      loanId: null,
     });
     // Only loan payments have a split.
     await as(arjun)

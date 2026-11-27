@@ -21,12 +21,14 @@ import { Injectable, Logger } from "@nestjs/common";
 
 import { Paginated } from "@/common/pagination/paginated";
 import { ExpenseFiguresService } from "@/modules/expenses/expense-figures.service";
+import { RecurringExpensesService } from "@/modules/expenses/recurring-expenses.service";
 import { FuelService } from "@/modules/fuel/fuel.service";
 import { MaintenanceService } from "@/modules/maintenance/maintenance.service";
 import { ServiceRecordsService } from "@/modules/maintenance/service-records.service";
+import { TripsService } from "@/modules/trips/trips.service";
 import { VehiclesService } from "@/modules/vehicles/vehicles.service";
 
-import { expenseActivity, mergeNewest, serviceActivity } from "./activity";
+import { expenseActivity, mergeNewest, serviceActivity, tripActivity } from "./activity";
 import { buildInsights, type InsightInputs } from "./insights";
 import { buildMetrics, type WindowFigures } from "./metrics";
 import { drivingOverview, fuelOverview, spendingOverview, trendMonths } from "./spending";
@@ -59,6 +61,8 @@ export class DashboardService {
     private readonly fuel: FuelService,
     private readonly maintenance: MaintenanceService,
     private readonly records: ServiceRecordsService,
+    private readonly recurring: RecurringExpensesService,
+    private readonly trips: TripsService,
   ) {}
 
   async overview(
@@ -80,7 +84,7 @@ export class DashboardService {
     const spent = this.spendingRows(userId, vehicle, window, since);
     const [status, metrics, spending, fuel, maintenance, expiries, driving, insights] =
       await Promise.all([
-        this.section("status", () => this.status(vehicle, insurance, upkeep, today)),
+        this.section("status", () => this.status(userId, vehicle, insurance, upkeep, today)),
         this.section("metrics", async () => {
           const both = await figures;
           // Compared only once records cover the whole earlier window (dashboard.md §1).
@@ -121,7 +125,7 @@ export class DashboardService {
 
   /**
    * What happened to the vehicle, newest first, a page at a time: fill-ups and expenses from
-   * Expenses, service records from Maintenance. The feed goes back ACTIVITY_DEPTH events; older
+   * Expenses, service records from Maintenance, trips from Trips. The feed goes back ACTIVITY_DEPTH events; older
    * ones are in each module.
    */
   async activity(
@@ -132,15 +136,17 @@ export class DashboardService {
     // shortcut: merges the newest page×size of each source in memory; fine within ACTIVITY_DEPTH,
     // use a UNION query if the feed ever needs to go deeper.
     const take = Math.min(page * pageSize, ACTIVITY_DEPTH);
-    const [events, records] = await Promise.all([
+    const [events, records, trips] = await Promise.all([
       this.figures.events(userId, vehicleId, take),
       this.records.recent(userId, vehicleId, take),
+      this.trips.recent(userId, vehicleId, take),
     ]);
     const merged = mergeNewest(
       events.rows.map(expenseActivity),
       records.recent.map(serviceActivity),
+      trips.recent.map(tripActivity),
     );
-    const total = Math.min(events.count + records.count, ACTIVITY_DEPTH);
+    const total = Math.min(events.count + records.count + trips.count, ACTIVITY_DEPTH);
     const start = (page - 1) * pageSize;
     return new Paginated(
       start < total ? merged.slice(start, Math.min(start + pageSize, total)) : [],
@@ -166,13 +172,30 @@ export class DashboardService {
   }
 
   private async status(
+    userId: string,
     vehicle: Vehicle,
     insurance: Promise<InsuranceOnRecord | null>,
     upkeep: Promise<Snapshot>,
     today: string,
   ): Promise<VehicleStatus> {
-    const [policy, maintenance] = await Promise.all([insurance, upkeep]);
-    return vehicleStatus({ vehicle, insurance: policy, maintenance: maintenance.status, today });
+    const [policy, maintenance, payments] = await Promise.all([
+      insurance,
+      upkeep,
+      // Overdue come first; the first page holds everything due soon for one vehicle.
+      this.recurring.payments(userId, {
+        vehicleId: vehicle.id,
+        view: "upcoming",
+        page: 1,
+        pageSize: 100,
+      }),
+    ]);
+    return vehicleStatus({
+      vehicle,
+      insurance: policy,
+      maintenance: maintenance.status,
+      payments: payments.items,
+      today,
+    });
   }
 
   /** From the Maintenance module; empty until the vehicle has a schedule or a service record. */
@@ -191,7 +214,10 @@ export class DashboardService {
     };
   }
 
-  /** From odometer readings (fill-ups and expenses); empty until the vehicle has one. */
+  /**
+   * From odometer readings (fill-ups and expenses) and, kept apart, trips; empty until the
+   * vehicle has a reading or a trip.
+   */
   private async driving(
     userId: string,
     vehicle: Vehicle,
@@ -199,11 +225,14 @@ export class DashboardService {
     today: string,
     figures: Promise<InsightInputs["figures"]>,
   ): Promise<DrivingOverview | null> {
-    const [both, lastReading] = await Promise.all([
+    const [both, lastReading, trips] = await Promise.all([
       figures,
       this.figures.lastReading(userId, vehicle.id, window.to),
+      this.trips.dashboardTrips(userId, vehicle.id, window),
     ]);
-    return both && drivingOverview(both.now.usage, lastReading, window, today);
+    const odometer = both && drivingOverview(both.now.usage, lastReading, window, today);
+    if (!odometer && !trips) return null;
+    return { ...(odometer ?? { distanceKm: null, readings: 0, perDay: null, lastReading }), trips };
   }
 
   /**

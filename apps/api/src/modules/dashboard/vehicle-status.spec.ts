@@ -1,4 +1,4 @@
-import type { Vehicle } from "@automate/shared";
+import type { RecurringPayment, Vehicle } from "@automate/shared";
 import { describe, expect, it } from "vitest";
 
 import { expiryDates, vehicleStatus } from "./vehicle-status";
@@ -219,6 +219,66 @@ describe("the action centre", () => {
       state: "overdue",
       action: { label: "Log service", href: "/maintenance/records/new?schedule=brakes" },
       href: "/maintenance/schedules/brakes",
+    });
+  });
+});
+
+describe("payments in the action centre", () => {
+  const payment = (overrides: Partial<RecurringPayment>): RecurringPayment => ({
+    recurringId: "r1",
+    vehicleId: "v1",
+    title: "HDFC Bank EMI",
+    category: {
+      id: "c",
+      key: "FINANCE",
+      name: "Finance",
+      icon: "landmark",
+      costClass: "FINANCING",
+    },
+    dueDate: "2026-11-30",
+    date: "2026-11-30",
+    amount: "16607.00",
+    state: "DUE",
+    postponed: false,
+    expenseId: null,
+    loan: { loanId: "l1", number: 20, of: 60, principal: "12129.00", interest: "4478.00" },
+    ...overrides,
+  });
+
+  it("lists due and overdue payments with the action to record them, not later ones", () => {
+    const status = vehicleStatus({
+      vehicle: vehicle(),
+      insurance: null,
+      maintenance: NONE,
+      payments: [
+        payment({}),
+        payment({
+          recurringId: "r2",
+          title: "Society parking pass",
+          dueDate: "2026-11-05",
+          date: "2026-11-05",
+          amount: "1500.00",
+          state: "OVERDUE",
+          loan: null,
+        }),
+        payment({
+          recurringId: "r3",
+          dueDate: "2026-12-30",
+          date: "2026-12-30",
+          state: "SCHEDULED",
+        }),
+      ],
+      today: TODAY,
+    });
+    expect(status.level).toBe("attention");
+    expect(status.items.map((item) => [item.title, item.state, item.detail])).toEqual([
+      ["Society parking pass is overdue", "overdue", "₹1,500.00 · was due 5 Nov 2026"],
+      ["HDFC Bank EMI is due in 3 days", "due_soon", "₹16,607.00 · EMI 20 of 60"],
+    ]);
+    expect(status.items[1]).toMatchObject({
+      source: "payment",
+      href: "/expenses/recurring",
+      action: { label: "Record payment", href: "/expenses/recurring?pay=r1&due=2026-11-30" },
     });
   });
 });

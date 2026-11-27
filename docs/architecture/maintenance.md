@@ -65,7 +65,7 @@ Nested under the vehicle (api-conventions.md §1). Every list is paginated.
 
 ## 3a. Service and repair records
 
-- **Any date:** historical records are welcome (never a future date). A record's reading joins the vehicle's **one odometer history**: Expenses' readings (fill-ups included) and service records (₹0 ones have no expense). A reading below one from an earlier day, or above one from a later day, is refused (409, on `odometerKm`). A new reading raises the vehicle's odometer; correcting one down follows the vehicle back to the highest remaining reading; deleting keeps it (as Fuel).
+- **Any date:** historical records are welcome (never a future date). A record's reading joins the vehicle's **one odometer history** (`OdometerHistoryService`): Expenses' readings (fill-ups included), service records (₹0 ones have no expense) and trips. A reading below one from an earlier day, or above one from a later day, is refused (409, on `odometerKm`). A new reading raises the vehicle's odometer; correcting one down follows the vehicle back to the highest remaining reading; deleting keeps it (as Fuel).
 - **Completing schedules:** an item with a `scheduleId` completes that schedule (this vehicle's only, once per record). A schedule due by distance needs the reading (400). The same schedule can't be completed twice on one day (409). Editing or deleting the record recalculates the schedule (nothing is stored).
 - **Money:** total = labour + parts + other + tax − discount (`serviceRecordTotal`, exact paise), or the total entered when there's no breakdown; a total that contradicts the breakdown is refused. A record with a cost has **one linked expense** (`source MAINTENANCE`, read-only in Expenses, "Edit in Maintenance"), written in the same transaction; a ₹0 record has none; deleting the record deletes its expense and that expense's refunds (the confirmation says so). Category (`maintenance-expense.ts`): repair types and repair work → Repairs; upgrades → Accessories · Modifications; cleaning → Daily usage · Washing & detailing; the rest → Maintenance & servicing by what was done. Parts and labour go to the expense only when they fit in what was paid (discounts).
 - **Workshops:** typed by name; a new name becomes one of the user's workshops (unique per user, ignoring case). Profiles, preferred and spending: §3d.
@@ -93,7 +93,7 @@ Nested under the vehicle (api-conventions.md §1). Every list is paginated.
 - **Archive, don't delete:** a workshop with history can only be archived (hidden from suggestions, its visits kept); typing an archived name in a form links that workshop again. One nothing mentions can be deleted.
 - Renaming changes the name shown on its records; their expenses keep the vendor they were saved with.
 
-- **Shortcut:** Expenses checks a manual expense's reading against expenses only, so it can't see a ₹0 service record's reading. Fix by moving the odometer history into one shared service when Trips adds readings too.
+- **One odometer history:** service records are checked against `OdometerHistoryService` (vehicles module: expenses with fill-ups, service records and trips), the same history Expenses and Trips use ([trips.md](trips.md) §1).
 
 ## 4. Phases
 

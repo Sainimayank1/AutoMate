@@ -39,6 +39,32 @@ describe("resolvePeriod (shared, IST)", () => {
     ).toMatchObject({ previous: { from: "2026-09-21", to: "2026-09-30" }, endsToday: false });
   });
 
+  it("resolves this week (from Monday), the last 6 months and all time", () => {
+    // Friday 27 Nov 2026: Monday 23rd → today, vs Monday 16th → Friday 20th.
+    expect(resolvePeriod(ReportingPeriod.THIS_WEEK, NOW)).toMatchObject({
+      from: "2026-11-23",
+      to: "2026-11-27",
+      previous: { from: "2026-11-16", to: "2026-11-20" },
+    });
+    // On a Monday the week is just that day.
+    expect(resolvePeriod(ReportingPeriod.THIS_WEEK, at("2026-11-23T06:00:00.000Z"))).toMatchObject({
+      from: "2026-11-23",
+      to: "2026-11-23",
+    });
+    expect(resolvePeriod(ReportingPeriod.LAST_6_MONTHS, NOW)).toMatchObject({
+      from: "2026-05-28",
+      to: "2026-11-27",
+      previous: { from: "2025-11-25", to: "2026-05-27" }, // the same 184 days just before
+    });
+    // All time compares with nothing: its previous window is empty (ends before it starts).
+    expect(resolvePeriod(ReportingPeriod.ALL_TIME, NOW)).toMatchObject({
+      from: "2000-01-01",
+      to: "2026-11-27",
+      previous: { from: "2000-01-01", to: "1999-12-31" },
+      endsToday: true,
+    });
+  });
+
   it("clamps to shorter months and leap years", () => {
     // 31 Mar 2028 (a leap year): the same days of February end on the 29th.
     expect(resolvePeriod(ReportingPeriod.THIS_MONTH, at("2028-03-31T06:00:00.000Z"))).toMatchObject(

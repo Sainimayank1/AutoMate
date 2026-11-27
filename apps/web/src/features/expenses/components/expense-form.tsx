@@ -41,6 +41,7 @@ import {
 import { Spinner } from "@/components/ui/spinner";
 import { Textarea } from "@/components/ui/textarea";
 import { useExpenseCategories, useExpenses } from "@/features/expenses/hooks/use-expenses";
+import { useVehicleLoans } from "@/features/expenses/hooks/use-recurring";
 import { PAYMENT_METHOD_LABELS } from "@/features/fuel/constants";
 import { vehicleName } from "@/features/garage/constants";
 import { normalizeApiError } from "@/lib/api-error";
@@ -394,6 +395,50 @@ function CategorySection() {
 
 // ---------------------------------------------------------------- 3 · Details
 
+/**
+ * The vehicle's loan this payment belongs to (a prepayment shortens its schedule). Offered only
+ * for one vehicle with loans tracked in the Recurring tab.
+ */
+function LoanSelect() {
+  const { control } = useFields();
+  const allocation = useWatch({ control, name: "allocation" });
+  const vehicleId = allocation.mode === "single" ? allocation.vehicleId : undefined;
+  const loans = useVehicleLoans(vehicleId).data ?? [];
+  if (!loans.length) return null;
+  return (
+    <div className="sm:col-span-3">
+      <FormField
+        control={control}
+        name="loanId"
+        label="Loan"
+        optional
+        description="A part-prepayment here shortens the loan's schedule."
+        render={(field) => (
+          <Select
+            value={field.value || NO_LOAN}
+            onValueChange={(value) => field.onChange(value === NO_LOAN ? "" : value)}
+          >
+            <SelectTrigger id={field.id} ref={field.ref} className="h-10 w-full sm:w-80">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value={NO_LOAN}>Not one tracked here</SelectItem>
+              {loans.map((loan) => (
+                <SelectItem key={loan.id} value={loan.id}>
+                  {loan.lender}
+                  {loan.accountNumber ? ` · ${loan.accountNumber}` : ""}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        )}
+      />
+    </div>
+  );
+}
+
+const NO_LOAN = "none";
+
 function DateInput({
   name,
   label,
@@ -626,6 +671,7 @@ function AdditionalSection() {
             )}
           </>
         )}
+        <LoanSelect />
         <TextInput name="loanReference" label="Loan reference" placeholder="HDFC-AL-0042" />
         <MoneyInput name="loanOutstanding" label="Outstanding balance" optional />
       </div>

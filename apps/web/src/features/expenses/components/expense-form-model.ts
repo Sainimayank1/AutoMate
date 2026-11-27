@@ -41,6 +41,8 @@ export type ExpenseFormValues = {
   chargesAmount: string;
   loanReference: string;
   loanOutstanding: string;
+  /** A loan tracked in AutoMate (Recurring tab); "" when not. */
+  loanId: string;
   serviceType: string;
   partsReplaced: string;
   partsAmount: string;
@@ -88,6 +90,7 @@ export const CATEGORY_FIELDS = [
   "chargesAmount",
   "loanReference",
   "loanOutstanding",
+  "loanId",
   "serviceType",
   "partsReplaced",
   "partsAmount",
@@ -205,6 +208,7 @@ export function toExpenseForm(
     chargesAmount: hasPresetSplit(expense) ? "" : trim(expense.finance?.charges),
     loanReference: text(expense.finance?.loanReference),
     loanOutstanding: trim(expense.finance?.loanOutstanding),
+    loanId: text(expense.finance?.loanId),
     serviceType: text(expense.details.serviceType),
     partsReplaced: text(expense.details.partsReplaced),
     partsAmount: trim(expense.details.partsAmount),

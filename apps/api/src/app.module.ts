@@ -19,6 +19,7 @@ import { ExpensesModule } from "./modules/expenses/expenses.module";
 import { FuelModule } from "./modules/fuel/fuel.module";
 import { GeocodingModule } from "./modules/geocoding/geocoding.module";
 import { MaintenanceModule } from "./modules/maintenance/maintenance.module";
+import { TripsModule } from "./modules/trips/trips.module";
 import { UsersModule } from "./modules/users/users.module";
 import { VehiclesModule } from "./modules/vehicles/vehicles.module";
 
@@ -42,6 +43,7 @@ import { VehiclesModule } from "./modules/vehicles/vehicles.module";
     FuelModule,
     ExpensesModule,
     MaintenanceModule,
+    TripsModule,
     DashboardModule,
     GeocodingModule,
     HealthModule,

@@ -1,4 +1,6 @@
 import {
+  DASHBOARD_PERIODS,
+  type DashboardPeriod,
   type DateWindow,
   EARLIEST_PERIOD_DATE,
   ReportingPeriod,
@@ -106,7 +108,7 @@ export function DashboardControls({
       </Select>
       <Select
         value={period.period}
-        onValueChange={(next) => period.setPeriod(next as ReportingPeriod, shown)}
+        onValueChange={(next) => period.setPeriod(next as DashboardPeriod, shown)}
       >
         <SelectTrigger
           aria-label="Period"
@@ -115,7 +117,7 @@ export function DashboardControls({
           <SelectValue />
         </SelectTrigger>
         <SelectContent>
-          {Object.values(ReportingPeriod).map((value) => (
+          {DASHBOARD_PERIODS.map((value) => (
             <SelectItem key={value} value={value}>
               {PERIOD_LABELS[value]}
             </SelectItem>

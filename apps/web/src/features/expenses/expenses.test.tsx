@@ -139,6 +139,7 @@ const emiRow = expense({
     charges: null,
     loanReference: null,
     loanOutstanding: "713295.00",
+    loanId: null,
   },
 });
 
@@ -489,6 +490,7 @@ describe("add expense", () => {
         charges: null,
         loanReference: null,
         loanOutstanding: null,
+        loanId: null,
       },
     });
     const calls = api({

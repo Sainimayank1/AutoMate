@@ -160,6 +160,7 @@ const driving: DrivingOverview = {
   readings: 4,
   perDay: "40.4",
   lastReading: { km: 8412, date: "2026-11-24" },
+  trips: null,
 };
 
 const insights: DashboardInsights = {
@@ -483,7 +484,11 @@ describe("dashboard", () => {
 
     expect(screen.getByText("~40.4 km")).toBeInTheDocument();
     expect(screen.getByText(/^8,412 km on 24 Nov/)).toBeInTheDocument();
-    expect(screen.getByText("Trips aren't tracked yet.")).toBeInTheDocument();
+    expect(screen.getByText("No trips logged yet")).toBeInTheDocument();
+    expect(screen.getAllByRole("link", { name: "Log trip" })[0]).toHaveAttribute(
+      "href",
+      `/trips/new?vehicle=${victoris.id}`,
+    );
   });
 
   it("invites a first maintenance schedule", async () => {

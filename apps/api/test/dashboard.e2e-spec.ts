@@ -7,6 +7,7 @@ import { randomUUID } from "node:crypto";
 import {
   type ActivityItem,
   addDays,
+  addMonths,
   type ApiErrorResponse,
   type ApiSuccessResponse,
   type DashboardLayout,
@@ -381,6 +382,40 @@ describe("Dashboard (e2e)", () => {
       { kind: "fuel", detail: "30 L at ₹100/L", odometerKm: 8100, amount: "3000.00" },
     ]);
     await get(priya, `/api/v1/dashboard/activity?vehicleId=${car.id}`).expect(404);
+  });
+
+  it("puts overdue recurring payments in the action centre, with the action to record them", async () => {
+    const car = await vehicle(arjun);
+    const due = addMonths(istToday(new Date()), -1);
+    const schedule = await post(arjun, "/api/v1/recurring-expenses", {
+      vehicleId: car.id,
+      title: "Society parking pass",
+      amount: "1500",
+      categoryId: keyed.get("DAILY_USAGE"),
+      subcategoryId: keyed.get("DAILY_USAGE.PARKING"),
+      every: 1,
+      unit: "YEAR",
+      startDate: due,
+    }).expect(201);
+    const overview = dataOf<DashboardOverview>(
+      await get(arjun, `${OVERVIEW}?vehicleId=${car.id}`).expect(200),
+    );
+    const id = dataOf<{ id: string }>(schedule).id;
+    expect(overview.status).toMatchObject({
+      state: "ok",
+      data: {
+        level: "attention",
+        items: [
+          {
+            id: `payment:${id}:${due}`,
+            source: "payment",
+            state: "overdue",
+            title: "Society parking pass is overdue",
+            action: { label: "Record payment", href: `/expenses/recurring?pay=${id}&due=${due}` },
+          },
+        ],
+      },
+    });
   });
 
   it("has no figures for a vehicle with nothing recorded, but still a status", async () => {

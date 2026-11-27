@@ -14,12 +14,16 @@ export interface DateWindow {
 }
 
 export const ReportingPeriod = {
+  THIS_WEEK: "this_week",
   THIS_MONTH: "this_month",
   LAST_MONTH: "last_month",
   LAST_3_MONTHS: "last_3_months",
+  LAST_6_MONTHS: "last_6_months",
   THIS_YEAR: "this_year",
   LAST_12_MONTHS: "last_12_months",
   CUSTOM: "custom",
+  /** Every record (from 2000); its "previous" window holds nothing. */
+  ALL_TIME: "all_time",
 } as const;
 export type ReportingPeriod = (typeof ReportingPeriod)[keyof typeof ReportingPeriod];
 
@@ -77,6 +81,13 @@ export function resolvePeriod(
   let window: DateWindow;
   let previous: DateWindow;
   switch (period) {
+    case ReportingPeriod.THIS_WEEK: {
+      // Weeks start on Monday; compared with the same days of last week.
+      const monday = addDays(today, -((new Date(Date.parse(today)).getUTCDay() + 6) % 7));
+      window = { from: monday, to: today };
+      previous = { from: addDays(monday, -7), to: addDays(today, -7) };
+      break;
+    }
     case ReportingPeriod.THIS_MONTH:
       window = { from: monthStart, to: today };
       previous = { from: addMonths(monthStart, -1), to: addMonths(today, -1) };
@@ -88,8 +99,9 @@ export function resolvePeriod(
       break;
     }
     case ReportingPeriod.LAST_3_MONTHS:
+    case ReportingPeriod.LAST_6_MONTHS:
     case ReportingPeriod.LAST_12_MONTHS: {
-      const months = period === ReportingPeriod.LAST_3_MONTHS ? 3 : 12;
+      const months = { last_3_months: 3, last_6_months: 6, last_12_months: 12 }[period];
       window = { from: addDays(addMonths(today, -months), 1), to: today };
       previous = before(window);
       break;
@@ -97,6 +109,10 @@ export function resolvePeriod(
     case ReportingPeriod.THIS_YEAR:
       window = { from: day(year, 1, 1), to: today };
       previous = { from: day(year - 1, 1, 1), to: addMonths(today, -12) };
+      break;
+    case ReportingPeriod.ALL_TIME:
+      window = { from: EARLIEST_PERIOD_DATE, to: today };
+      previous = { from: EARLIEST_PERIOD_DATE, to: addDays(EARLIEST_PERIOD_DATE, -1) };
       break;
     case ReportingPeriod.CUSTOM: {
       if (!custom) throw new Error("A custom period needs its dates");

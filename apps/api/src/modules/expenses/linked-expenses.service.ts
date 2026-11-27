@@ -35,9 +35,6 @@ export type LinkedExpense = {
   };
 };
 
-/** An odometer reading and the day it was recorded. */
-export type Reading = { km: number; date: Date };
-
 const rupees = new Intl.NumberFormat("en-IN", { style: "currency", currency: "INR" });
 
 /**
@@ -147,48 +144,6 @@ export class LinkedExpensesService {
         row.refunds.reduce((net, refund) => net.minus(refund.amount), row.amount),
       ]),
     );
-  }
-
-  /**
-   * The vehicle's odometer history held in Expenses (manual readings and fill-ups through their
-   * expenses), around a date: the highest reading before it and the lowest after it. Another
-   * module's record is checked against these, its own expense excluded.
-   */
-  async odometerAround(
-    tx: Prisma.TransactionClient,
-    vehicleId: string,
-    date: Date,
-    except: { source: LinkedExpense["source"]; sourceId: string } | null,
-  ): Promise<{ before: Reading | null; after: Reading | null }> {
-    const others = {
-      vehicleId,
-      odometerKm: { not: null },
-      ...(except && { NOT: { source: except.source, sourceId: except.sourceId } }),
-    };
-    const select = { odometerKm: true, date: true } as const;
-    const [before, after] = await Promise.all([
-      tx.expense.findFirst({
-        where: { ...others, date: { lt: date } },
-        orderBy: { odometerKm: "desc" },
-        select,
-      }),
-      tx.expense.findFirst({
-        where: { ...others, date: { gt: date } },
-        orderBy: { odometerKm: "asc" },
-        select,
-      }),
-    ]);
-    const reading = (row: typeof before) => row && { km: row.odometerKm!, date: row.date };
-    return { before: reading(before), after: reading(after) };
-  }
-
-  /** The highest reading Expenses holds for the vehicle (null when none). */
-  async highestOdometer(tx: Prisma.TransactionClient, vehicleId: string): Promise<number | null> {
-    const { _max } = await tx.expense.aggregate({
-      where: { vehicleId },
-      _max: { odometerKm: true },
-    });
-    return _max.odometerKm;
   }
 
   /** Removes the record's expense (and its refunds). Nothing to remove is fine. */

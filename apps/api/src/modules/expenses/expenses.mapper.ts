@@ -24,7 +24,7 @@ const day = (value: Date | null) => value?.toISOString().slice(0, 10) ?? null;
 /** YYYY-MM-DD → the UTC-midnight Date a `@db.Date` column stores. */
 export const toDbDate = (value: string) => new Date(`${value}T00:00:00.000Z`);
 
-const toRef = (row: CategoryRow, costClass: CostClass): ExpenseCategoryRef => ({
+export const toRef = (row: CategoryRow, costClass: CostClass): ExpenseCategoryRef => ({
   id: row.id,
   key: row.key,
   name: row.name,
@@ -76,6 +76,7 @@ export function toExpense(
           charges: money(row.chargesAmount),
           loanReference: row.loanReference,
           loanOutstanding: money(row.loanOutstanding),
+          loanId: row.loanId,
         }
       : null,
     details: {
@@ -130,6 +131,7 @@ export function toExpenseInput(
     chargesAmount: money(row.chargesAmount),
     loanReference: row.loanReference,
     loanOutstanding: money(row.loanOutstanding),
+    loanId: row.loanId,
     serviceType: row.serviceType,
     partsReplaced: row.partsReplaced,
     partsAmount: money(row.partsAmount),

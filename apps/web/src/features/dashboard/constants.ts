@@ -7,6 +7,9 @@ export const PERIOD_LABELS: Record<ReportingPeriod, string> = {
   [ReportingPeriod.THIS_YEAR]: "This year",
   [ReportingPeriod.LAST_12_MONTHS]: "Last 12 months",
   [ReportingPeriod.CUSTOM]: "Custom range",
+  [ReportingPeriod.THIS_WEEK]: "This week",
+  [ReportingPeriod.LAST_6_MONTHS]: "Last 6 months",
+  [ReportingPeriod.ALL_TIME]: "All time",
 };
 
 /** "Good morning" until noon, "Good afternoon" until 5 pm, then "Good evening" (the device's clock). */

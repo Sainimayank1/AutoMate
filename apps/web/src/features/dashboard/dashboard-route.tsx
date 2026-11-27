@@ -188,7 +188,7 @@ function Sections({
     ),
     driving: (
       <SectionState section={overview.driving} onRetry={onRetry}>
-        {(driving) => <DrivingCard driving={driving} range={range} />}
+        {(driving) => <DrivingCard driving={driving} range={range} vehicleId={vehicleId} />}
       </SectionState>
     ),
     activity: <RecentActivity key={vehicleId} vehicleId={vehicleId} />,

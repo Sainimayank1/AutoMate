@@ -7,6 +7,7 @@ import {
   type DateWindow,
   type PeriodWindow,
   periodQueryFields,
+  ReportingPeriod,
 } from "../common/periods.js";
 import type { SpendGroup } from "../expenses/expense-categories.js";
 import type { ExpenseCategoryRef } from "../expenses/expense.schema.js";
@@ -16,11 +17,30 @@ import type {
   MaintenanceState,
   ServiceRecord,
 } from "../maintenance/maintenance.schema.js";
+import type { SystemTripCategoryKey } from "../trips/trip.schema.js";
 import type { FuelType, Vehicle } from "../vehicles/vehicle.schema.js";
+
+/**
+ * The periods the dashboard offers: each has a like-for-like comparison window. Others in
+ * `ReportingPeriod` (e.g. all time) belong to other modules.
+ */
+export const DASHBOARD_PERIODS = [
+  ReportingPeriod.THIS_MONTH,
+  ReportingPeriod.LAST_MONTH,
+  ReportingPeriod.LAST_3_MONTHS,
+  ReportingPeriod.THIS_YEAR,
+  ReportingPeriod.LAST_12_MONTHS,
+  ReportingPeriod.CUSTOM,
+] as const;
+export type DashboardPeriod = (typeof DASHBOARD_PERIODS)[number];
 
 /** `GET /dashboard/overview`: one vehicle and a period (custom needs both dates). */
 export const dashboardOverviewQuerySchema = z
-  .object({ vehicleId: z.uuid("Choose a vehicle"), ...periodQueryFields })
+  .object({
+    vehicleId: z.uuid("Choose a vehicle"),
+    ...periodQueryFields,
+    period: z.enum(DASHBOARD_PERIODS).default(ReportingPeriod.THIS_MONTH),
+  })
   .superRefine(checkPeriodQuery);
 export type DashboardOverviewQuery = z.output<typeof dashboardOverviewQuerySchema>;
 
@@ -47,7 +67,8 @@ export interface StatusItem {
 }
 
 /** Where an action-centre item comes from (Documents, EMI and reminders join later). */
-export type ItemSource = "maintenance" | "insurance" | "warranty";
+/** `payment`: a recurring payment or loan EMI due or overdue (Expenses). */
+export type ItemSource = "maintenance" | "insurance" | "warranty" | "payment";
 
 /** How soon: overdue (or expired), due today, due soon, or just worth knowing. */
 export type DueState = "overdue" | "due_today" | "due_soon" | "info";
@@ -164,6 +185,18 @@ export interface DrivingOverview {
   perDay: string | null;
   /** The latest reading on record by the period's end. */
   lastReading: { km: number; date: string } | null;
+  /** Trips in the period (Trips); their distance is kept apart from the odometer's. */
+  trips: DrivingTrips | null;
+}
+
+/** Null until the vehicle has a trip; a period without any shows `count: 0`. */
+export interface DrivingTrips {
+  count: number;
+  distanceKm: string;
+  averageKm: string | null;
+  longestKm: string | null;
+  /** Most distance first. */
+  byCategory: { key: SystemTripCategoryKey | null; name: string; distanceKm: string }[];
 }
 
 /**
@@ -232,12 +265,12 @@ export const ACTIVITY_DEPTH = 96;
 
 /**
  * Something that happened to the vehicle, from the module that owns it: fill-ups and expenses
- * (Expenses) and service records (Maintenance). A service's own expense isn't listed twice.
+ * (Expenses), service records (Maintenance) and trips. A service's own expense isn't listed twice.
  */
 export interface ActivityItem {
-  /** "expense:<id>" or "service:<id>" */
+  /** "expense:<id>", "service:<id>" or "trip:<id>" */
   id: string;
-  kind: "fuel" | "expense" | "refund" | "service";
+  kind: "fuel" | "expense" | "refund" | "service" | "trip";
   /** YYYY-MM-DD */
   date: string;
   title: string;
