@@ -2,6 +2,7 @@ import { type ExpenseCategory, FUEL_CATEGORY_KEY } from "@automate/shared";
 import { cn } from "cn";
 import { Pencil, Plus, Trash2 } from "lucide-react";
 import { useState } from "react";
+import { toast } from "sonner";
 
 import { ConfirmDialog } from "@/components/common/confirm-dialog";
 import { SectionHeader } from "@/components/common/section-header";
@@ -20,6 +21,7 @@ import {
   useExpenseCategories,
   useUpdateExpenseCategory,
 } from "@/features/expenses/hooks/use-expenses";
+import { normalizeApiError } from "@/lib/api-error";
 import { formatNumber } from "@/utils/format";
 
 const uses = (count: number) => `${formatNumber(count)} ${count === 1 ? "expense" : "expenses"}`;
@@ -39,8 +41,8 @@ export function Component() {
   const system = all.filter((category) => !category.custom);
   const mine = all.filter((category) => category.custom);
   const parents = all.filter((category) => category.active && category.key !== FUEL_CATEGORY_KEY);
-  // A system category can hold your own subcategories: list them under "Your categories" too.
-  const mineUnderSystem = system.flatMap((category) =>
+  // Your subcategories (under built-in or your own categories) get their own cards to manage.
+  const mineUnderSystem = all.flatMap((category) =>
     category.subcategories
       .filter((item) => item.custom)
       .map((item) => ({ ...item, parentName: category.name })),
@@ -51,7 +53,12 @@ export function Component() {
       <Switch
         aria-label={`${category.active ? "Disable" : "Enable"} ${category.name}`}
         checked={category.active}
-        onCheckedChange={(active) => update.mutate({ id: category.id, values: { active } })}
+        onCheckedChange={(active) =>
+          update.mutate(
+            { id: category.id, values: { active } },
+            { onError: (error) => toast.error(normalizeApiError(error).message) },
+          )
+        }
       />
       <Button
         variant="ghost"
@@ -95,7 +102,7 @@ export function Component() {
         </Button>
       }
     >
-      {categories.isError ? (
+      {categories.isError && !categories.data ? (
         <ErrorState
           title="Couldn't load categories"
           error={categories.error}

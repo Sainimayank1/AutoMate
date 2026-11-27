@@ -17,6 +17,7 @@ export const expenseKeys = {
   all: ["expenses"] as const,
   lists: () => ["expenses", "list"] as const,
   list: (params: ExpenseListParams) => ["expenses", "list", params] as const,
+  summary: (vehicleId: string | undefined) => ["expenses", "summary", vehicleId ?? "all"] as const,
   detail: (id: string) => ["expenses", "detail", id] as const,
   categories: ["expense-categories"] as const,
 };
@@ -34,6 +35,15 @@ export function useExpenses(params: ExpenseListParams, { enabled = true } = {}) 
 /** Every page for the current filters, for the CSV export. */
 export function useExportExpenses() {
   return useMutation({ mutationFn: (params: ExpenseListParams) => expenseService.listAll(params) });
+}
+
+/** The Overview figures; under `expenseKeys.all`, so every expense or fuel write refreshes them. */
+export function useExpenseSummary(vehicleId: string | undefined, { enabled = true } = {}) {
+  return useQuery({
+    queryKey: expenseKeys.summary(vehicleId),
+    queryFn: () => expenseService.summary({ vehicleId }),
+    enabled,
+  });
 }
 
 export function useExpense(id: string | undefined) {
@@ -59,9 +69,13 @@ export function useExpenseCategories() {
  */
 function useSyncExpenses() {
   const queryClient = useQueryClient();
-  return () =>
+  return (deletedId?: string) =>
     Promise.all([
-      queryClient.invalidateQueries({ queryKey: expenseKeys.all }),
+      queryClient.invalidateQueries({
+        queryKey: expenseKeys.all,
+        // A deleted expense's open details would refetch into a 404.
+        predicate: (query) => !(query.queryKey[1] === "detail" && query.queryKey[2] === deletedId),
+      }),
       queryClient.invalidateQueries({ queryKey: expenseKeys.categories }),
       queryClient.invalidateQueries({ queryKey: vehicleKeys.all }),
     ]);
@@ -98,8 +112,8 @@ export function useDeleteExpense() {
   const sync = useSyncExpenses();
   return useMutation({
     mutationFn: expenseService.remove,
-    onSuccess: async () => {
-      await sync();
+    onSuccess: async (_, id) => {
+      await sync(id);
       toast.success("Expense deleted.");
     },
   });
@@ -117,9 +131,9 @@ export function useRefundExpense(id: string) {
   });
 }
 
-const bulkMessage = (done: number, skipped: number, verb: string) =>
+const bulkMessage = (done: number, skipped: number, verb: string, why: string) =>
   `${done} ${done === 1 ? "expense" : "expenses"} ${verb}.` +
-  (skipped ? ` ${skipped} skipped (from other modules or archived vehicles).` : "");
+  (skipped ? ` ${skipped} skipped (${why}).` : "");
 
 export function useBulkDeleteExpenses() {
   const sync = useSyncExpenses();
@@ -127,7 +141,9 @@ export function useBulkDeleteExpenses() {
     mutationFn: expenseService.bulkDelete,
     onSuccess: async ({ affected, skipped }) => {
       await sync();
-      toast.success(bulkMessage(affected, skipped, "deleted"));
+      toast.success(
+        bulkMessage(affected, skipped, "deleted", "from other modules or archived vehicles"),
+      );
     },
   });
 }
@@ -138,7 +154,14 @@ export function useBulkRecategoriseExpenses() {
     mutationFn: expenseService.bulkRecategorise,
     onSuccess: async ({ affected, skipped }) => {
       await sync();
-      toast.success(bulkMessage(affected, skipped, "moved"));
+      toast.success(
+        bulkMessage(
+          affected,
+          skipped,
+          "moved",
+          "loan payments, refunds, or from other modules or archived vehicles",
+        ),
+      );
     },
   });
 }
@@ -161,7 +184,8 @@ export function useCreateExpenseCategory() {
 }
 
 export function useUpdateExpenseCategory() {
-  const sync = useSyncCategories();
+  // Expenses carry their category's name and icon: refresh them too.
+  const sync = useSyncExpenses();
   return useMutation({
     mutationFn: ({ id, values }: { id: string; values: UpdateExpenseCategoryValues }) =>
       expenseService.updateCategory(id, values),

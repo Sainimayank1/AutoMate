@@ -168,6 +168,12 @@ export function checkExpense(values: ExpenseRuleInput, ctx: z.RefinementCtx) {
           path: ["allocation", "vehicles"],
           message: "Enter every vehicle's share",
         });
+      } else if (shares.some((share) => paise(share) === 0)) {
+        ctx.addIssue({
+          code: "custom",
+          path: ["allocation", "vehicles"],
+          message: "Every share must be more than ₹0; leave out a vehicle that pays nothing",
+        });
       } else if (shares.reduce((sum, share) => sum + paise(share), 0) !== toPaise(total)) {
         ctx.addIssue({
           code: "custom",
@@ -383,4 +389,41 @@ export interface BulkResult {
   affected: number;
   /** Linked or otherwise locked rows left as they were. */
   skipped: number;
+}
+
+// ---- overview
+
+/** `GET /expenses/summary`: one vehicle, or every vehicle when omitted. */
+export const expenseSummaryQuerySchema = z.object({ vehicleId: z.uuid().optional() });
+export type ExpenseSummaryQuery = z.output<typeof expenseSummaryQuerySchema>;
+
+/**
+ * The Overview tab's figures (Stitch "Expenses"), computed by the API for the current IST month
+ * and year. Definitions: docs/architecture/expenses.md §1. Refunds are subtracted throughout.
+ */
+export interface ExpenseSummary {
+  /** The month the figures are for, "2026-11" (IST). */
+  month: string;
+  operating: {
+    thisMonth: string;
+    lastMonth: string;
+    /** Change vs last month, whole percent; null when last month had no operating cost. */
+    changePercent: number | null;
+    /** 1 January to today. */
+    thisYear: string;
+    /** Months this year from the first one with an operating cost, up to this one. */
+    monthsCovered: number;
+    /** thisYear ÷ monthsCovered; null before the first operating cost this year. */
+    monthlyAverage: string | null;
+  };
+  /** Operating cost ÷ km driven this year, over vehicles with enough odometer readings. */
+  costPerKm: string | null;
+  /** Km driven this year behind `costPerKm`; null with too few readings. */
+  distanceKm: number | null;
+  /** Loan payments this month, whole EMIs (principal too): cash out, not running cost. */
+  loanOutflowThisMonth: string;
+  /** Everything paid this month, every kind of cost. */
+  cashOutflowThisMonth: string;
+  /** This month's operating cost by category, largest first. */
+  categories: { category: ExpenseCategoryRef; amount: string; percent: number }[];
 }

@@ -1,3 +1,4 @@
+import { ExpenseKind } from "@automate/shared";
 import { ReceiptIndianRupee } from "lucide-react";
 import { Link, useParams } from "react-router";
 
@@ -47,6 +48,21 @@ export function Component() {
         error={error}
         onRetry={() =>
           void Promise.all([expense.refetch(), vehicles.refetch(), categories.refetch()])
+        }
+      />
+    );
+  }
+  if (expense.data.kind === ExpenseKind.REFUND) {
+    return (
+      <EmptyState
+        className="min-h-svh"
+        icon={ReceiptIndianRupee}
+        title="Refunds can't be edited"
+        description="Delete the refund and record it again on its expense."
+        action={
+          <Button asChild>
+            <Link to={`/expenses/transactions/${expense.data.refundOfId}`}>Open its expense</Link>
+          </Button>
         }
       />
     );

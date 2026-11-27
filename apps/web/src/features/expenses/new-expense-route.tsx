@@ -1,4 +1,5 @@
 import { Car } from "lucide-react";
+import { useState } from "react";
 import { Link, useSearchParams } from "react-router";
 
 import { EmptyState } from "@/components/feedback/empty-state";
@@ -25,6 +26,8 @@ export function Component() {
   const from = useExpense(fromId);
   const categories = useExpenseCategories();
   const create = useCreateExpense();
+  // One id per form, kept across retries: a save that timed out but went through isn't repeated.
+  const [clientId] = useState(() => crypto.randomUUID());
 
   if (isPending || categories.isPending || (fromId && from.isPending)) {
     return <LoadingState fullScreen label="Loading…" />;
@@ -63,8 +66,7 @@ export function Component() {
           ? toExpenseForm(from.data, { duplicate: true })
           : emptyExpenseForm(activeVehicle.id)
       }
-      // A client-generated id: a retried save can't create a second expense.
-      onSave={(values) => create.mutateAsync({ ...values, id: crypto.randomUUID() })}
+      onSave={(values) => create.mutateAsync({ ...values, id: clientId })}
     />
   );
 }

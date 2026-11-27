@@ -38,4 +38,19 @@ describe("expensesToCsv", () => {
     );
     expect(second).toContain(",-200.00,UPI,,Fuel entry,");
   });
+
+  it("keeps spreadsheet formulas from running, but numbers stay numbers", () => {
+    const csv = expensesToCsv(
+      [
+        expense({ title: '=HYPERLINK("http://x")', vendor: "+91 98100", notes: "@sum" }),
+        expense({ kind: "REFUND", amount: "200.00" }),
+      ],
+      () => "Car",
+    );
+    const [, first, second] = csv.split("\r\n");
+    expect(first).toContain(`"'=HYPERLINK(""http://x"")"`);
+    expect(first).toContain("'+91 98100");
+    expect(first).toContain("'@sum");
+    expect(second).toContain(",-200.00,");
+  });
 });

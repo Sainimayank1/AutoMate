@@ -1,5 +1,6 @@
 import { CostClass, type Expense, type Vehicle } from "@automate/shared";
 import type { ColumnDef } from "@tanstack/react-table";
+import { cn } from "cn";
 import { format } from "date-fns";
 import { Download, ReceiptIndianRupee, Tags, Trash2 } from "lucide-react";
 import { useEffect, useState } from "react";
@@ -75,8 +76,14 @@ export function Component() {
     return vehicle ? vehicleName(vehicle) : "Vehicle";
   };
 
-  // Search once typing pauses.
+  // Search once typing pauses; "Clear filters" (q removed) empties the box too.
   const [search, setSearch] = useState(filters.get("q") ?? "");
+  const q = filters.get("q");
+  const [lastQ, setLastQ] = useState(q);
+  if (q !== lastQ) {
+    setLastQ(q);
+    if (q === undefined) setSearch("");
+  }
   useEffect(() => {
     const timer = setTimeout(() => {
       if (search.trim() !== (filters.get("q") ?? "")) filters.set("q", search.trim() || undefined);
@@ -88,7 +95,6 @@ export function Component() {
   const queryKey = JSON.stringify(filters.query);
   const [selection, setSelection] = useState({ key: queryKey, ids: new Set<string>() });
   if (selection.key !== queryKey) setSelection({ key: queryKey, ids: new Set() });
-  const selected = selection.ids;
   const toggle = (id: string, on: boolean) => {
     const ids = new Set(selected);
     if (on) ids.add(id);
@@ -105,7 +111,15 @@ export function Component() {
 
   const page = list.data;
   const rows = page?.items ?? [];
-  const selectedRows = rows.filter((row) => selected.has(row.id));
+  // Only rows still on the page count (one deleted on its own drops out).
+  const selectedRows = rows.filter((row) => selection.ids.has(row.id));
+  const selected = new Set(selectedRows.map((row) => row.id));
+
+  // Deleting the last rows of the last page: go back to the new last page.
+  const lastPage = Math.max(page?.meta.totalPages ?? 1, 1);
+  useEffect(() => {
+    if (page && filters.page > lastPage) filters.setPage(lastPage);
+  }, [page, lastPage]); // eslint-disable-line react-hooks/exhaustive-deps -- filters is new each render
   const exportCsv = async (expenses: Expense[]) =>
     downloadCsv(
       `automate-expenses-${format(new Date(), "yyyy-MM-dd")}.csv`,
@@ -219,7 +233,14 @@ export function Component() {
           }
         />
       ) : (
-        <section className="flex flex-col gap-4 rounded-xl border bg-card p-4 sm:p-5">
+        <section
+          aria-busy={list.isPlaceholderData}
+          className={cn(
+            "flex flex-col gap-4 rounded-xl border bg-card p-4 transition-opacity sm:p-5",
+            // Another vehicle's or page's rows stay visible until the new ones arrive: dim them.
+            list.isPlaceholderData && "opacity-60",
+          )}
+        >
           <div className="flex flex-wrap items-center justify-between gap-3">
             {selected.size > 0 ? (
               <div
@@ -324,7 +345,7 @@ export function Component() {
       <ConfirmDialog
         open={deleting !== null}
         onOpenChange={(open) => !open && setDeleting(null)}
-        title="Delete this expense?"
+        title={deleting?.kind === "REFUND" ? "Delete this refund?" : "Delete this expense?"}
         description={deleting ? deleteText(deleting) : undefined}
         confirmLabel="Delete"
         destructive

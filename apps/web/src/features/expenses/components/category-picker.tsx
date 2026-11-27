@@ -12,6 +12,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 
 import { CategoryIcon } from "./category-icon";
 
@@ -83,51 +84,49 @@ export function CategoryPicker({
           ))}
         </div>
       )}
-      <div
-        role="radiogroup"
+      <ToggleGroup
+        type="single"
         aria-label="Category"
         aria-invalid={invalid}
-        className="grid grid-cols-2 gap-2 sm:grid-cols-3"
+        value={value.categoryId}
+        onValueChange={(categoryId) => categoryId && onChange({ categoryId, subcategoryId: "" })}
+        className="grid w-full grid-cols-2 gap-2 sm:grid-cols-3"
       >
-        {shown.map((category) => {
-          const isFuel = category.key === FUEL_CATEGORY_KEY;
-          const checked = category.id === value.categoryId;
-          return isFuel ? (
-            <Link
+        {shown
+          .filter((category) => category.key !== FUEL_CATEGORY_KEY)
+          .map((category) => (
+            <ToggleGroupItem
               key={category.id}
-              to="/fuel/new"
-              className="flex items-center gap-2 rounded-lg border border-dashed p-3 text-sm text-muted-foreground transition-colors hover:bg-muted"
-            >
-              <CategoryIcon category={category} size="sm" />
-              <span className="min-w-0">
-                <span className="block truncate">{category.name}</span>
-                <span className="text-xs text-primary">Log in Fuel</span>
-              </span>
-            </Link>
-          ) : (
-            <button
-              key={category.id}
-              type="button"
-              role="radio"
-              aria-checked={checked}
-              onClick={() => onChange({ categoryId: category.id, subcategoryId: "" })}
+              value={category.id}
+              variant="outline"
               className={cn(
-                "flex items-center gap-2 rounded-lg border bg-card p-3 text-left text-sm transition-colors outline-none hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring",
-                checked && "border-primary bg-secondary ring-1 ring-primary",
+                "h-auto justify-start gap-2 bg-card p-3 text-left font-normal whitespace-normal data-[state=on]:border-primary data-[state=on]:bg-secondary data-[state=on]:ring-1 data-[state=on]:ring-primary",
                 invalid && !value.categoryId && "border-destructive",
               )}
             >
               <CategoryIcon category={category} size="sm" />
               <span className="min-w-0 leading-tight">{category.name}</span>
-            </button>
-          );
-        })}
-        {shown.length === 0 && (
-          <p className="col-span-full text-sm text-muted-foreground">
-            No category matches “{query}”.
-          </p>
-        )}
-      </div>
+            </ToggleGroupItem>
+          ))}
+      </ToggleGroup>
+      {shown
+        .filter((category) => category.key === FUEL_CATEGORY_KEY)
+        .map((category) => (
+          // Fuel isn't a choice here: fuel expenses come from fill-ups.
+          <Link
+            key={category.id}
+            to="/fuel/new"
+            className="flex items-center gap-2 rounded-lg border border-dashed p-3 text-sm text-muted-foreground transition-colors hover:bg-muted"
+          >
+            <CategoryIcon category={category} size="sm" />
+            <span className="min-w-0">
+              {category.name} <span className="text-xs text-primary">· Log in Fuel</span>
+            </span>
+          </Link>
+        ))}
+      {shown.length === 0 && (
+        <p className="text-sm text-muted-foreground">No category matches “{query}”.</p>
+      )}
       {selected && subcategories.length > 0 && (
         <div className="flex flex-col gap-1.5">
           <label htmlFor="expense-subcategory" className="text-sm font-medium">

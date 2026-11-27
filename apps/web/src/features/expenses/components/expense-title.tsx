@@ -30,8 +30,16 @@ export function ExpenseTitle({ expense, meta }: { expense: Expense; meta?: strin
         </p>
         {expense.finance && (
           <p className="truncate text-xs text-muted-foreground tabular-nums">
-            Principal {formatCurrency(expense.finance.principal ?? "0")} · Interest{" "}
-            {formatCurrency(expense.finance.interest ?? "0")}
+            {(
+              [
+                ["Principal", expense.finance.principal],
+                ["Interest", expense.finance.interest],
+                ["Charges", expense.finance.charges],
+              ] as const
+            )
+              .filter(([, value]) => value && Number(value) > 0)
+              .map(([label, value]) => `${label} ${formatCurrency(value)}`)
+              .join(" · ")}
           </p>
         )}
       </div>

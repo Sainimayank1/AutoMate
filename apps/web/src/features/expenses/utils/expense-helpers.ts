@@ -25,6 +25,7 @@ export function deleteText(expense: Expense): string {
   const shared = expense.shared
     ? `, with its shares on all ${expense.shared.vehicleCount} vehicles`
     : "";
+  if (expense.kind === ExpenseKind.REFUND) return `${what} will be removed. This can't be undone.`;
   return `${what} will be removed with its refunds${shared}. This can't be undone.`;
 }
 
@@ -46,6 +47,8 @@ export function sourceHref(expense: Expense): string | null {
   return null;
 }
 
-/** Money can come back for an expense, but not for a loan payment or a refund. */
+/** Money can come back for an expense (not a loan payment or a refund) until it's all back. */
 export const canRefund = (expense: Expense) =>
-  expense.kind === ExpenseKind.EXPENSE && expense.category.costClass !== CostClass.FINANCING;
+  expense.kind === ExpenseKind.EXPENSE &&
+  expense.category.costClass !== CostClass.FINANCING &&
+  toPaise(expense.refundedAmount) < toPaise(expense.amount);

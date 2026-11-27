@@ -32,6 +32,7 @@ This document contains the 12 product modules and their functional requirements,
 The dashboard provides a quick overview of the selected vehicle, its usage, expenses, and upcoming tasks.
 
 ### Features
+
 - Vehicle summary card
 - Vehicle switcher for multiple vehicles
 - Vehicle image and basic details
@@ -49,6 +50,7 @@ The dashboard provides a quick overview of the selected vehicle, its usage, expe
 - Quick action shortcuts
 
 ### Quick actions
+
 - Add fuel
 - Add expense
 - Record service
@@ -57,6 +59,7 @@ The dashboard provides a quick overview of the selected vehicle, its usage, expe
 - Add reminder
 
 ### Dashboard behaviour
+
 - All data should be based on the currently selected vehicle.
 - Date range should be configurable where applicable.
 - Dashboard cards should navigate to their relevant module.
@@ -70,6 +73,7 @@ The dashboard provides a quick overview of the selected vehicle, its usage, expe
 The Garage manages all vehicles owned or tracked by the user.
 
 ### Vehicle profile
+
 - Manufacturer
 - Model
 - Variant
@@ -90,6 +94,7 @@ The Garage manages all vehicles owned or tracked by the user.
 - Engine number (optional)
 
 ### Vehicle configuration
+
 - Fuel tank capacity
 - Fuel specification
 - Tyre size
@@ -101,6 +106,7 @@ The Garage manages all vehicles owned or tracked by the user.
 - Vehicle-specific reminders
 
 ### Features
+
 - Add vehicle
 - Edit vehicle
 - Delete vehicle
@@ -112,6 +118,7 @@ The Garage manages all vehicles owned or tracked by the user.
 - Vehicle profile completion indicator
 
 ### Ownership types
+
 - Owned
 - Financed
 - Leased (future)
@@ -124,6 +131,7 @@ The Garage manages all vehicles owned or tracked by the user.
 Manage fuel refills, consumption, mileage, and fuel-related analytics.
 
 ### Fuel record
+
 - Vehicle
 - Date and time
 - Odometer reading
@@ -139,6 +147,7 @@ Manage fuel refills, consumption, mileage, and fuel-related analytics.
 - Notes
 
 ### Features
+
 - Add fuel entry
 - Edit fuel entry
 - Delete fuel entry
@@ -151,6 +160,7 @@ Manage fuel refills, consumption, mileage, and fuel-related analytics.
 - Fuel receipt management
 
 ### Calculations
+
 - Mileage (km/L)
 - Distance between fill-ups
 - Average fuel price
@@ -162,6 +172,7 @@ Manage fuel refills, consumption, mileage, and fuel-related analytics.
 - Best and worst recorded mileage
 
 ### Analytics
+
 - Mileage graph
 - Fuel expenditure graph
 - Monthly consumption
@@ -170,6 +181,7 @@ Manage fuel refills, consumption, mileage, and fuel-related analytics.
 - City vs highway fuel efficiency (when manually categorized)
 
 ### Validation
+
 - Odometer cannot be lower than a previous valid reading without correction handling.
 - Mileage calculations must account for partial fill-ups.
 - Mileage should only be calculated from reliable fill-up sequences.
@@ -182,6 +194,7 @@ Manage fuel refills, consumption, mileage, and fuel-related analytics.
 Track all financial expenses related to vehicle ownership.
 
 ### Expense categories
+
 - Fuel
 - Maintenance
 - Repairs
@@ -198,6 +211,7 @@ Track all financial expenses related to vehicle ownership.
 - Other
 
 ### Expense record
+
 - Vehicle
 - Category
 - Subcategory
@@ -211,6 +225,7 @@ Track all financial expenses related to vehicle ownership.
 - Recurring expense flag
 
 ### Features
+
 - Add expense
 - Edit expense
 - Delete expense
@@ -225,6 +240,7 @@ Track all financial expenses related to vehicle ownership.
 - Payment method breakdown
 
 ### Integrations with other modules
+
 - Fuel entries automatically create fuel expenses.
 - Service records can create maintenance expenses.
 - Trip expenses can be linked to a trip.
@@ -232,6 +248,7 @@ Track all financial expenses related to vehicle ownership.
 - EMI records can be associated with vehicle loans.
 
 ### Analytics
+
 - Total expenses
 - Monthly expenses
 - Annual expenses
@@ -242,6 +259,7 @@ Track all financial expenses related to vehicle ownership.
 - Cost per kilometre
 
 ### Financial accuracy
+
 - Avoid duplicate expenses when records originate from other modules.
 - Support expense origin and linked record references.
 - Allow principal and interest to be distinguished in loan payments.
@@ -254,7 +272,9 @@ Track all financial expenses related to vehicle ownership.
 Manage scheduled maintenance, component life, service history, and repair records.
 
 ### A. Maintenance schedule
+
 Each maintenance task should support:
+
 - Task/component name
 - Description
 - Maintenance category
@@ -270,7 +290,9 @@ Each maintenance task should support:
 - Notes
 
 ### B. Vehicle components
+
 Track components including:
+
 - Engine oil
 - Oil filter
 - Air filter
@@ -286,6 +308,7 @@ Track components including:
 - Other components
 
 ### C. Maintenance statuses
+
 - Good
 - Upcoming
 - Due
@@ -295,6 +318,7 @@ Track components including:
 - Monitoring
 
 ### D. Service records
+
 - Service title
 - Service date
 - Odometer
@@ -310,6 +334,7 @@ Track components including:
 - Notes
 
 ### E. Features
+
 - Create maintenance schedules
 - Edit schedules
 - Complete maintenance task
@@ -325,6 +350,7 @@ Track components including:
 - Overdue maintenance list
 
 ### F. Maintenance rules
+
 - Maintenance can be based on time, distance, or both.
 - If both are configured, whichever occurs first should trigger the due status.
 - Schedule intervals must be configurable per vehicle.
@@ -339,6 +365,7 @@ Track components including:
 Manage vehicle documents, their details, digital copies, and expiration reminders.
 
 ### Document types
+
 - Registration Certificate (RC)
 - Insurance
 - Pollution Under Control (PUC)
@@ -351,6 +378,7 @@ Manage vehicle documents, their details, digital copies, and expiration reminder
 - Other documents
 
 ### Document fields
+
 - Document name
 - Document type
 - Vehicle
@@ -362,6 +390,7 @@ Manage vehicle documents, their details, digital copies, and expiration reminder
 - Notes
 
 ### Features
+
 - Upload PDF
 - Upload images
 - Scan documents using camera
@@ -374,6 +403,7 @@ Manage vehicle documents, their details, digital copies, and expiration reminder
 - Secure file storage
 
 ### Reminders
+
 - Expiry reminders
 - Custom reminder intervals
 - 30-day reminder
@@ -382,6 +412,7 @@ Manage vehicle documents, their details, digital copies, and expiration reminder
 - User-defined reminder dates
 
 ### Document intelligence (future AI)
+
 - Extract document information from PDFs and images.
 - Identify document type.
 - Extract expiry date.
@@ -397,6 +428,7 @@ Manage vehicle documents, their details, digital copies, and expiration reminder
 Record trips, journeys, travel costs, and driving history.
 
 ### Trip record
+
 - Trip name
 - Vehicle
 - Starting location
@@ -416,6 +448,7 @@ Record trips, journeys, travel costs, and driving history.
 - Photos
 
 ### Trip categories
+
 - Daily commute
 - Personal
 - Road trip
@@ -423,6 +456,7 @@ Record trips, journeys, travel costs, and driving history.
 - Other
 
 ### Features
+
 - Create trip
 - Edit trip
 - Complete trip
@@ -435,6 +469,7 @@ Record trips, journeys, travel costs, and driving history.
 - Trip notes
 
 ### Analytics
+
 - Total trips
 - Total distance
 - Average distance per trip
@@ -445,6 +480,7 @@ Record trips, journeys, travel costs, and driving history.
 - Trip cost per kilometre
 
 ### Future enhancements
+
 - GPS trip tracking
 - Automatic trip detection
 - Route history
@@ -458,6 +494,7 @@ Record trips, journeys, travel costs, and driving history.
 Provide a complete understanding of the cost, usage, and ownership economics of the vehicle.
 
 ### A. Fuel analytics
+
 - Average mileage
 - Mileage trends
 - Fuel consumption
@@ -467,6 +504,7 @@ Provide a complete understanding of the cost, usage, and ownership economics of 
 - City/highway comparison
 
 ### B. Expense analytics
+
 - Monthly expense totals
 - Yearly expense totals
 - Category breakdown
@@ -477,6 +515,7 @@ Provide a complete understanding of the cost, usage, and ownership economics of 
 - Expense comparisons
 
 ### C. Vehicle usage analytics
+
 - Total kilometres driven
 - Monthly distance
 - Yearly distance
@@ -485,6 +524,7 @@ Provide a complete understanding of the cost, usage, and ownership economics of 
 - Driving frequency
 
 ### D. Cost of ownership
+
 - Purchase price
 - Down payment
 - Loan amount
@@ -502,6 +542,7 @@ Provide a complete understanding of the cost, usage, and ownership economics of 
 - Estimated resale value
 
 ### E. Calculations
+
 - Total ownership cash outflow
 - Operating cost
 - Running cost/km
@@ -513,6 +554,7 @@ Provide a complete understanding of the cost, usage, and ownership economics of 
 - Projected yearly cost
 
 ### F. Reporting
+
 - Monthly report
 - Annual report
 - Vehicle ownership report
@@ -529,6 +571,7 @@ Provide a complete understanding of the cost, usage, and ownership economics of 
 An AI assistant that understands the user's vehicle, actual records, driving history, expenses, and maintenance schedules.
 
 ### A. General car assistance
+
 - Explain vehicle features.
 - Explain dashboard warning lights.
 - Explain automotive terminology.
@@ -537,6 +580,7 @@ An AI assistant that understands the user's vehicle, actual records, driving his
 - Help prepare checklists.
 
 ### B. Personal vehicle intelligence
+
 - Analyze fuel history.
 - Analyze mileage trends.
 - Summarize maintenance records.
@@ -546,6 +590,7 @@ An AI assistant that understands the user's vehicle, actual records, driving his
 - Identify unusual changes in recorded data.
 
 ### C. Planning
+
 - Road-trip preparation.
 - Upcoming maintenance planning.
 - Vehicle maintenance budget.
@@ -554,7 +599,9 @@ An AI assistant that understands the user's vehicle, actual records, driving his
 - Seasonal vehicle preparation.
 
 ### D. AI tools
+
 The assistant may have controlled access to backend tools such as:
+
 - Get vehicle profile
 - Get fuel history
 - Calculate mileage
@@ -567,6 +614,7 @@ The assistant may have controlled access to backend tools such as:
 - Get ownership analytics
 
 ### E. AI behaviour
+
 - Use actual records for personal-data answers.
 - Never invent user records.
 - Perform calculations through backend functions.
@@ -585,6 +633,7 @@ The assistant may have controlled access to backend tools such as:
 Centralized notifications for all AutoMate modules.
 
 ### Notification types
+
 - Maintenance upcoming
 - Maintenance overdue
 - Document expiring
@@ -597,6 +646,7 @@ Centralized notifications for all AutoMate modules.
 - AI-generated insights (future)
 
 ### Features
+
 - Notification inbox
 - Read/unread
 - Priority levels
@@ -611,6 +661,7 @@ Centralized notifications for all AutoMate modules.
 - Notification preferences
 
 ### Channels
+
 - In-app notifications
 - Push notifications
 - Local notifications
@@ -622,12 +673,14 @@ Centralized notifications for all AutoMate modules.
 Manage user preferences, application configuration, and security.
 
 ### User profile
+
 - Name
 - Email
 - Profile photo
 - Account details
 
 ### Preferences
+
 - Currency
 - Distance units
 - Fuel units
@@ -639,6 +692,7 @@ Manage user preferences, application configuration, and security.
 - Dashboard preferences
 
 ### Notification settings
+
 - Enable/disable notifications
 - Maintenance reminders
 - Document reminders
@@ -647,6 +701,7 @@ Manage user preferences, application configuration, and security.
 - Notification timing
 
 ### Security
+
 - Password management
 - Sessions
 - Biometric app lock
@@ -662,6 +717,7 @@ Manage user preferences, application configuration, and security.
 Data portability and backup management.
 
 ### Export capabilities
+
 - Fuel history CSV
 - Expense CSV
 - Service history CSV
@@ -671,6 +727,7 @@ Data portability and backup management.
 - Complete vehicle archive
 
 ### Backup
+
 - Backup vehicle records
 - Backup expenses
 - Backup maintenance history
@@ -679,6 +736,7 @@ Data portability and backup management.
 - Backup documents and attachments
 
 ### Restore
+
 - Restore backup
 - Validate imported data
 - Detect duplicates
@@ -686,6 +744,7 @@ Data portability and backup management.
 - Confirm restore
 
 ### Data management
+
 - Archive vehicle
 - Delete vehicle
 - Transfer ownership
@@ -717,17 +776,17 @@ These requirements apply to the entire application rather than a single module.
 
 Do not implement all modules at once. Follow this priority.
 
-| Priority | Modules | Purpose |
-|---|---|---|
-| P0 | Garage | Establish vehicle data |
-| P0 | Fuel | Track real mileage |
-| P0 | Expenses | Track ownership costs |
-| P0 | Dashboard | Present core information |
-| P1 | Maintenance | Prevent missed servicing |
-| P1 | Documents | Keep vehicle documents organized |
-| P1 | Notifications | Timely reminders |
-| P2 | Analytics | Deeper ownership insights |
-| P2 | Trips | Journey tracking |
-| P3 | AI assistant | Personalized vehicle intelligence |
-| P3 | Settings | Advanced personalization |
-| P3 | Backup & Export | Portability and ownership reports |
+| Priority | Modules         | Purpose                           |
+| -------- | --------------- | --------------------------------- |
+| P0       | Garage          | Establish vehicle data            |
+| P0       | Fuel            | Track real mileage                |
+| P0       | Expenses        | Track ownership costs             |
+| P0       | Dashboard       | Present core information          |
+| P1       | Maintenance     | Prevent missed servicing          |
+| P1       | Documents       | Keep vehicle documents organized  |
+| P1       | Notifications   | Timely reminders                  |
+| P2       | Analytics       | Deeper ownership insights         |
+| P2       | Trips           | Journey tracking                  |
+| P3       | AI assistant    | Personalized vehicle intelligence |
+| P3       | Settings        | Advanced personalization          |
+| P3       | Backup & Export | Portability and ownership reports |

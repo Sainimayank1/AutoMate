@@ -28,6 +28,8 @@ import { useRefundExpense } from "@/features/expenses/hooks/use-expenses";
 import { applyServerErrors } from "@/lib/forms";
 import { formatCurrency } from "@/utils/format";
 
+import { Segmented } from "./segmented";
+
 type RefundForm = { amount: string; date: string; reason: RefundReason; notes: string };
 
 /** Stitch "Add Refund Dialog": money back against an expense; the original is kept. */
@@ -110,26 +112,16 @@ export function RefundDialog({
             name="reason"
             label="Reason"
             render={(field) => (
-              <div
-                role="radiogroup"
+              <Segmented
                 aria-labelledby={`${field.id}-label`}
-                className="grid grid-cols-3 gap-1 rounded-lg border bg-muted p-1"
-              >
-                {Object.values(RefundReason).map((reason) => (
-                  <Button
-                    key={reason}
-                    type="button"
-                    role="radio"
-                    aria-checked={field.value === reason}
-                    variant={field.value === reason ? "secondary" : "ghost"}
-                    size="sm"
-                    className={field.value === reason ? "text-primary" : undefined}
-                    onClick={() => field.onChange(reason)}
-                  >
-                    {REFUND_REASON_LABELS[reason]}
-                  </Button>
-                ))}
-              </div>
+                className="grid w-full grid-cols-3"
+                value={field.value}
+                onChange={field.onChange}
+                options={Object.values(RefundReason).map((reason) => ({
+                  value: reason,
+                  label: REFUND_REASON_LABELS[reason],
+                }))}
+              />
             )}
           />
           <FormField

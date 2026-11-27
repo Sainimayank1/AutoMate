@@ -6,7 +6,6 @@ import {
   type ExpenseIcon,
 } from "@automate/shared";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { cn } from "cn";
 import { useState } from "react";
 import { type Control, type Resolver, useForm, useWatch } from "react-hook-form";
 import { z } from "zod";
@@ -31,12 +30,15 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Spinner } from "@/components/ui/spinner";
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { COST_CLASS_TEXT, EXPENSE_ICON_COMPONENTS } from "@/features/expenses/constants";
 import {
   useCreateExpenseCategory,
   useUpdateExpenseCategory,
 } from "@/features/expenses/hooks/use-expenses";
 import { applyServerErrors } from "@/lib/forms";
+
+import { Segmented } from "./segmented";
 
 type CategoryForm = {
   name: string;
@@ -146,25 +148,17 @@ export function CategoryDialog({
               name="level"
               label="Type"
               render={(field) => (
-                <div
-                  role="radiogroup"
-                  aria-labelledby={`${field.id}-label`}
-                  className="inline-grid w-fit grid-flow-col gap-1 rounded-lg border bg-muted p-1"
-                >
-                  {(["main", "sub"] as const).map((value) => (
-                    <Button
-                      key={value}
-                      type="button"
-                      role="radio"
-                      aria-checked={field.value === value}
-                      variant={field.value === value ? "secondary" : "ghost"}
-                      size="sm"
-                      className={field.value === value ? "text-primary" : undefined}
-                      onClick={() => field.onChange(value)}
-                    >
-                      {value === "main" ? "Main category" : "Subcategory of…"}
-                    </Button>
-                  ))}
+                // A wrapper: the field stretches its direct children (`*:w-full`).
+                <div>
+                  <Segmented
+                    aria-labelledby={`${field.id}-label`}
+                    value={field.value}
+                    onChange={field.onChange}
+                    options={[
+                      { value: "main", label: "Main category" },
+                      { value: "sub", label: "Subcategory of…" },
+                    ]}
+                  />
                 </div>
               )}
             />
@@ -227,32 +221,29 @@ export function CategoryDialog({
             name="icon"
             label="Icon"
             render={(field) => (
-              <div
-                role="radiogroup"
+              <ToggleGroup
+                type="single"
                 aria-labelledby={`${field.id}-label`}
-                className="grid grid-cols-8 gap-2"
+                value={field.value}
+                onValueChange={(icon) => icon && field.onChange(icon)}
+                // Six across on phones keeps every tile at least 40 px.
+                className="grid w-full grid-cols-6 gap-2 sm:grid-cols-8"
               >
                 {EXPENSE_ICONS.map((icon) => {
                   const Icon = EXPENSE_ICON_COMPONENTS[icon];
                   return (
-                    <button
+                    <ToggleGroupItem
                       key={icon}
-                      type="button"
-                      role="radio"
-                      aria-checked={field.value === icon}
+                      value={icon}
+                      variant="outline"
                       aria-label={icon.replace(/-/g, " ")}
-                      onClick={() => field.onChange(icon)}
-                      className={cn(
-                        "flex aspect-square items-center justify-center rounded-lg border text-muted-foreground transition-colors outline-none hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring",
-                        field.value === icon &&
-                          "border-primary bg-secondary text-primary ring-1 ring-primary",
-                      )}
+                      className="aspect-square h-auto min-h-10 w-full text-muted-foreground data-[state=on]:border-primary data-[state=on]:bg-secondary data-[state=on]:text-primary data-[state=on]:ring-1 data-[state=on]:ring-primary"
                     >
                       <Icon className="size-4" aria-hidden />
-                    </button>
+                    </ToggleGroupItem>
                   );
                 })}
-              </div>
+              </ToggleGroup>
             )}
           />
         </form>

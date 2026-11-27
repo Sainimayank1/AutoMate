@@ -4,38 +4,39 @@ AutoMate is **mobile-first**: most fill-ups are logged on a phone at the pump. D
 
 ## Target widths
 
-| Device | Widths to verify | Tailwind range |
-| --- | --- | --- |
-| Small phone | 360 px | base |
-| Phone | 390 px | base |
-| Tablet | 768 px | `md` |
-| Laptop | 1280 px | `xl` |
-| Desktop | 1440 px | `xl` (content capped by `max-w-7xl`) |
+| Device      | Widths to verify | Tailwind range                       |
+| ----------- | ---------------- | ------------------------------------ |
+| Small phone | 360 px           | base                                 |
+| Phone       | 390 px           | base                                 |
+| Tablet      | 768 px           | `md`                                 |
+| Laptop      | 1280 px          | `xl`                                 |
+| Desktop     | 1440 px          | `xl` (content capped by `max-w-7xl`) |
 
 Breakpoints are Tailwind defaults: `sm` 640, `md` 768, `lg` 1024, `xl` 1280.
+
 - `md` is the shell switch: drawer and bottom nav below it, docked sidebar at and above it. `useIsMobile()` uses the same breakpoint.
 - Use `useIsMobile()` only when the component tree itself must differ (Dialog vs Drawer). Prefer CSS breakpoints for everything else.
 
 ## Pattern transforms
 
-| Desktop | Mobile (< md) |
-| --- | --- |
-| Docked collapsible sidebar | Off-canvas drawer (via "More") + bottom nav |
-| Breadcrumbs | Back button + page title in the header |
-| Header search field (⌘K) | Search icon → full-screen command palette |
-| PageHeader actions (primary + secondary) | Primary moves to the bottom nav "Add" or a sticky bottom bar; secondary goes into the header overflow `Ellipsis` |
-| `DataTable` | List rows (title + meta left, value right); tap → detail. Wide tables never scroll the page; if a table must stay tabular, it scrolls inside its own `overflow-x-auto` container |
-| Multi-column forms | Single column; sticky bottom action bar |
-| `Dialog` forms and details | Bottom `Drawer` (`ResponsiveDialog`), max 90 dvh, with a drag handle |
-| Right `Sheet` detail panel | Full-screen route or bottom Drawer |
-| Filter row | Search + "Filters (n)" button → filter Drawer |
-| Tabs (many) | Horizontally scrollable `TabsList`, active tab scrolled into view; for 6+ sections in Settings, a list of sections that push to sub-pages |
-| Main + aside grid | Stacked: main first, aside after, unless the aside is urgent (Dashboard Attention moves directly under the hero) |
-| KPI row of 4 | 2×2 grid with compact values (`text-xl`) |
-| Charts | Full width, `h-56`, fewer x-ticks (`interval="preserveStartEnd"`), legend moved below, tooltips on tap |
-| Calendar month grid | Agenda list grouped by week |
-| Hover actions on rows | Visible overflow button, or swipe actions (Notifications) |
-| Two-pane (AI history + chat) | Chat full screen; history in a Sheet |
+| Desktop                                  | Mobile (< md)                                                                                                                                                                    |
+| ---------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Docked collapsible sidebar               | Off-canvas drawer (via "More") + bottom nav                                                                                                                                      |
+| Breadcrumbs                              | Back button + page title in the header                                                                                                                                           |
+| Header search field (⌘K)                 | Search icon → full-screen command palette                                                                                                                                        |
+| PageHeader actions (primary + secondary) | Primary moves to the bottom nav "Add" or a sticky bottom bar; secondary goes into the header overflow `Ellipsis`                                                                 |
+| `DataTable`                              | List rows (title + meta left, value right); tap → detail. Wide tables never scroll the page; if a table must stay tabular, it scrolls inside its own `overflow-x-auto` container |
+| Multi-column forms                       | Single column; sticky bottom action bar                                                                                                                                          |
+| `Dialog` forms and details               | Bottom `Drawer` (`ResponsiveDialog`), max 90 dvh, with a drag handle                                                                                                             |
+| Right `Sheet` detail panel               | Full-screen route or bottom Drawer                                                                                                                                               |
+| Filter row                               | Search + "Filters (n)" button → filter Drawer                                                                                                                                    |
+| Tabs (many)                              | Horizontally scrollable `TabsList`, active tab scrolled into view; for 6+ sections in Settings, a list of sections that push to sub-pages                                        |
+| Main + aside grid                        | Stacked: main first, aside after, unless the aside is urgent (Dashboard Attention moves directly under the hero)                                                                 |
+| KPI row of 4                             | 2×2 grid with compact values (`text-xl`)                                                                                                                                         |
+| Charts                                   | Full width, `h-56`, fewer x-ticks (`interval="preserveStartEnd"`), legend moved below, tooltips on tap                                                                           |
+| Calendar month grid                      | Agenda list grouped by week                                                                                                                                                      |
+| Hover actions on rows                    | Visible overflow button, or swipe actions (Notifications)                                                                                                                        |
+| Two-pane (AI history + chat)             | Chat full screen; history in a Sheet                                                                                                                                             |
 
 ## Mobile ergonomics
 

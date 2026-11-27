@@ -2,3 +2,9 @@ pnpm-lock.yaml
 dist
 coverage
 apps/api/src/generated
+
+# Written by tools, which would undo any reformatting on their next run
+pnpm-workspace.yaml
+apps/api/.agents
+.claude/skills/graphify
+.claude/CLAUDE.md
