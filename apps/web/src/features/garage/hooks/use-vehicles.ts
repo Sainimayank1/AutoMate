@@ -2,8 +2,10 @@ import type { UpdateVehicleValues, Vehicle } from "@automate/shared";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 
+import { dashboardKeys } from "@/features/dashboard/hooks/use-dashboard";
 import { vehicleName } from "@/features/garage/constants";
 import { vehicleService } from "@/features/garage/services/vehicle-service";
+import { maintenanceKeys } from "@/features/maintenance/hooks/maintenance-keys";
 import { useActiveVehicleStore } from "@/stores/vehicle-store";
 
 export const vehicleKeys = {
@@ -40,6 +42,9 @@ function useSyncVehicle() {
   const queryClient = useQueryClient();
   return (vehicle: Vehicle) => {
     queryClient.setQueryData(vehicleKeys.detail(vehicle.id), vehicle);
+    void queryClient.invalidateQueries({ queryKey: dashboardKeys.all });
+    // The odometer sets maintenance due by distance.
+    void queryClient.invalidateQueries({ queryKey: maintenanceKeys.all });
     return queryClient.invalidateQueries({ queryKey: ["vehicles", "list"] });
   };
 }
@@ -101,6 +106,8 @@ export function useDeleteVehicle() {
     mutationFn: (vehicle: Vehicle) => vehicleService.remove(vehicle.id),
     onSuccess: async (_, vehicle) => {
       queryClient.removeQueries({ queryKey: vehicleKeys.detail(vehicle.id) });
+      queryClient.removeQueries({ queryKey: dashboardKeys.all });
+      queryClient.removeQueries({ queryKey: maintenanceKeys.vehicle(vehicle.id) });
       await queryClient.invalidateQueries({ queryKey: ["vehicles", "list"] });
       toast.success(`${vehicleName(vehicle)} deleted.`);
     },

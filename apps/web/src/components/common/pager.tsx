@@ -30,6 +30,7 @@ export function Pager({ page, pageCount, onPageChange, className }: PagerProps) 
         <Button
           variant="outline"
           size="icon"
+          className="max-md:size-10"
           aria-label="Previous page"
           onClick={() => onPageChange(page - 1)}
           disabled={page <= 1}
@@ -39,6 +40,7 @@ export function Pager({ page, pageCount, onPageChange, className }: PagerProps) 
         <Button
           variant="outline"
           size="icon"
+          className="max-md:size-10"
           aria-label="Next page"
           onClick={() => onPageChange(page + 1)}
           disabled={page >= pageCount}

@@ -23,7 +23,20 @@ export type LinkedExpense = {
   odometerKm: number | null;
   description: string | null;
   notes: string | null;
+  /** Service details (Maintenance); left empty by other sources. */
+  service?: {
+    serviceType: string;
+    partsReplaced: string | null;
+    /** Only when they fit in the amount (the database checks parts + labour ≤ amount). */
+    partsAmount: string | null;
+    labourAmount: string | null;
+    warrantyUntil: string | null;
+    provider: string | null;
+  };
 };
+
+/** An odometer reading and the day it was recorded. */
+export type Reading = { km: number; date: Date };
 
 const rupees = new Intl.NumberFormat("en-IN", { style: "currency", currency: "INR" });
 
@@ -61,6 +74,14 @@ export class LinkedExpensesService {
       odometerKm: linked.odometerKm,
       description: linked.description,
       notes: linked.notes,
+      serviceType: linked.service?.serviceType ?? null,
+      partsReplaced: linked.service?.partsReplaced?.slice(0, 300) ?? null,
+      partsAmount: linked.service?.partsAmount ?? null,
+      labourAmount: linked.service?.labourAmount ?? null,
+      warrantyUntil: linked.service?.warrantyUntil
+        ? new Date(`${linked.service.warrantyUntil}T00:00:00.000Z`)
+        : null,
+      provider: linked.service?.provider?.slice(0, 80) ?? null,
     };
     const where = { source_sourceId: { source: linked.source, sourceId: linked.sourceId } };
     const existing = await tx.expense.findUnique({ where, select: { id: true } });
@@ -94,6 +115,80 @@ export class LinkedExpensesService {
       data: { vehicleId: data.vehicleId, categoryId, subcategoryId: data.subcategoryId },
     });
     this.logger.log(`Expense ${existing.id} updated from ${linked.source} ${linked.sourceId}`);
+  }
+
+  /** The expense of each record that has one, by record id (for links back from the record). */
+  async expenseIdsFor(
+    db: Prisma.TransactionClient,
+    source: LinkedExpense["source"],
+    sourceIds: string[],
+  ): Promise<Map<string, string>> {
+    const rows = await db.expense.findMany({
+      where: { source, sourceId: { in: sourceIds } },
+      select: { id: true, sourceId: true },
+    });
+    return new Map(rows.map((row) => [row.sourceId!, row.id]));
+  }
+
+  /** What was paid for each record that has an expense, its refunds subtracted, by record id. */
+  async netBySource(
+    db: Prisma.TransactionClient,
+    source: LinkedExpense["source"],
+    sourceIds: string[],
+  ): Promise<Map<string, Prisma.Decimal>> {
+    if (!sourceIds.length) return new Map();
+    const rows = await db.expense.findMany({
+      where: { source, sourceId: { in: sourceIds }, kind: ExpenseKind.EXPENSE },
+      select: { sourceId: true, amount: true, refunds: { select: { amount: true } } },
+    });
+    return new Map(
+      rows.map((row) => [
+        row.sourceId!,
+        row.refunds.reduce((net, refund) => net.minus(refund.amount), row.amount),
+      ]),
+    );
+  }
+
+  /**
+   * The vehicle's odometer history held in Expenses (manual readings and fill-ups through their
+   * expenses), around a date: the highest reading before it and the lowest after it. Another
+   * module's record is checked against these, its own expense excluded.
+   */
+  async odometerAround(
+    tx: Prisma.TransactionClient,
+    vehicleId: string,
+    date: Date,
+    except: { source: LinkedExpense["source"]; sourceId: string } | null,
+  ): Promise<{ before: Reading | null; after: Reading | null }> {
+    const others = {
+      vehicleId,
+      odometerKm: { not: null },
+      ...(except && { NOT: { source: except.source, sourceId: except.sourceId } }),
+    };
+    const select = { odometerKm: true, date: true } as const;
+    const [before, after] = await Promise.all([
+      tx.expense.findFirst({
+        where: { ...others, date: { lt: date } },
+        orderBy: { odometerKm: "desc" },
+        select,
+      }),
+      tx.expense.findFirst({
+        where: { ...others, date: { gt: date } },
+        orderBy: { odometerKm: "asc" },
+        select,
+      }),
+    ]);
+    const reading = (row: typeof before) => row && { km: row.odometerKm!, date: row.date };
+    return { before: reading(before), after: reading(after) };
+  }
+
+  /** The highest reading Expenses holds for the vehicle (null when none). */
+  async highestOdometer(tx: Prisma.TransactionClient, vehicleId: string): Promise<number | null> {
+    const { _max } = await tx.expense.aggregate({
+      where: { vehicleId },
+      _max: { odometerKm: true },
+    });
+    return _max.odometerKm;
   }
 
   /** Removes the record's expense (and its refunds). Nothing to remove is fine. */

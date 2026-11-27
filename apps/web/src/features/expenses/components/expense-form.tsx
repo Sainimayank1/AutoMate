@@ -24,6 +24,7 @@ import { DatePicker } from "@/components/common/date-picker";
 import { FormError } from "@/components/common/form-error";
 import { FormField } from "@/components/common/form-field";
 import { NumberInput } from "@/components/common/number-input";
+import { Segmented } from "@/components/common/segmented";
 import { UnsavedChangesGuard } from "@/components/common/unsaved-changes-guard";
 import { TaskPage } from "@/components/layout/task-page";
 import { Button } from "@/components/ui/button";
@@ -56,7 +57,6 @@ import {
   financePreset,
   toExpensePayload,
 } from "./expense-form-model";
-import { Segmented } from "./segmented";
 
 type ExpenseFormProps = {
   mode: "create" | "edit";

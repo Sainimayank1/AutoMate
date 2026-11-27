@@ -52,7 +52,9 @@ describe("app shell", () => {
   it("redirects / to the dashboard and shows a not-found page for unknown paths", async () => {
     signIn();
     const router = renderApp("/");
-    expect(await screen.findByRole("heading", { level: 1, name: "Dashboard" })).toBeInTheDocument();
+    expect(
+      await screen.findByRole("heading", { level: 1, name: /^Good (morning|afternoon|evening)/ }),
+    ).toBeInTheDocument();
     expect(router.state.location.pathname).toBe("/dashboard");
 
     await router.navigate("/nope");
@@ -63,7 +65,9 @@ describe("app shell", () => {
   it("keeps signed-in users away from the sign-in page", async () => {
     signIn();
     const router = renderApp("/login");
-    expect(await screen.findByRole("heading", { level: 1, name: "Dashboard" })).toBeInTheDocument();
+    expect(
+      await screen.findByRole("heading", { level: 1, name: /^Good (morning|afternoon|evening)/ }),
+    ).toBeInTheDocument();
     expect(router.state.location.pathname).toBe("/dashboard");
   });
 });

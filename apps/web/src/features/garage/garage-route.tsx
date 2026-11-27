@@ -47,7 +47,7 @@ const addVehicle = (
 );
 
 export function Component() {
-  const { vehicles, activeVehicle, setActiveVehicleId, isPending, isError, error, refetch } =
+  const { vehicles, activeVehicle, setActiveVehicleId, isPending, isError, data, error, refetch } =
     useActiveVehicle();
   const archived = useVehicles({ archived: true });
   const restore = useRestoreVehicle();
@@ -74,7 +74,7 @@ export function Component() {
     <PageContainer>
       <PageHeader title="Your garage" description={description} actions={addVehicle} />
 
-      {isError ? (
+      {isError && !data ? (
         <ErrorState
           title="Couldn't load your garage"
           error={error}

@@ -7,11 +7,13 @@ import type {
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 
+import { dashboardKeys } from "@/features/dashboard/hooks/use-dashboard";
 import {
   type ExpenseListParams,
   expenseService,
 } from "@/features/expenses/services/expense-service";
 import { vehicleKeys } from "@/features/garage/hooks/use-vehicles";
+import { maintenanceKeys } from "@/features/maintenance/hooks/maintenance-keys";
 
 export const expenseKeys = {
   all: ["expenses"] as const,
@@ -78,6 +80,9 @@ function useSyncExpenses() {
       }),
       queryClient.invalidateQueries({ queryKey: expenseKeys.categories }),
       queryClient.invalidateQueries({ queryKey: vehicleKeys.all }),
+      queryClient.invalidateQueries({ queryKey: dashboardKeys.all }),
+      // Maintenance spending comes from expenses; readings move due by distance.
+      queryClient.invalidateQueries({ queryKey: maintenanceKeys.all }),
     ]);
 }
 

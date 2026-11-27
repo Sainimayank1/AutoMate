@@ -121,7 +121,8 @@ export function computeMileage(fills: FuelFill[]): {
 
 // shortcut: "this month" follows IST for every user; use the user's timezone once Settings (M11) stores one.
 const IST_OFFSET_MS = 330 * 60 * 1000;
-const istMonth = (date: Date) => new Date(date.getTime() + IST_OFFSET_MS).toISOString().slice(0, 7);
+const istDay = (date: Date) => new Date(date.getTime() + IST_OFFSET_MS).toISOString().slice(0, 10);
+const istMonth = (date: Date) => istDay(date).slice(0, 7);
 
 const TREND_POINTS = 12;
 
@@ -175,5 +176,61 @@ export function summarize(
       ).toFixed(3),
     },
     trend: sequences.slice(-TREND_POINTS).map((sequence) => point(sequence)!),
+  };
+}
+
+/** Fuel over an IST window, in the vehicle's primary fuel (its unit). */
+export type FuelInWindow = {
+  fuelType: FuelType;
+  /** km per unit over full-tank sequences that closed in the window; null with none. */
+  mileage: Decimal | null;
+  /** How many full-tank sequences the mileage rests on. */
+  cycles: number;
+  /** Quantity of the primary fuel bought in the window, and what it cost (fill-up totals). */
+  quantity: Decimal;
+  spend: Decimal;
+  /** Over those cycles: fuel cost ÷ km. */
+  costPerKm: Decimal | null;
+  /** The latest cycle closed by the window's end, and up to 12 of them (oldest first). */
+  latest: MileagePoint | null;
+  trend: MileagePoint[];
+};
+
+/**
+ * The window's share of the full-tank engine: sequences are worked out over the whole history (a
+ * cycle can start before the window) and counted in the window they close in.
+ */
+export function fuelInWindow(
+  fills: FuelFill[],
+  vehicleFuelType: FuelType,
+  window: { from: string; to: string },
+): FuelInWindow {
+  const fuelType = FUELS_FOR_VEHICLE[vehicleFuelType][0];
+  const inWindow = (instant: Date) => {
+    const day = istDay(instant);
+    return day >= window.from && day <= window.to;
+  };
+  const primary = computeMileage(fills).sequences.filter(
+    (sequence) => sequence.closedBy.fuelType === fuelType,
+  );
+  const sequences = primary.filter((sequence) => inWindow(sequence.closedBy.filledAt));
+  const upToEnd = primary.filter((sequence) => istDay(sequence.closedBy.filledAt) <= window.to);
+  const distanceKm = sequences.reduce((total, sequence) => total + sequence.distanceKm, 0);
+  const bought = fills.filter((fill) => fill.fuelType === fuelType && inWindow(fill.filledAt));
+  const point = (sequence: Sequence): MileagePoint => ({
+    date: sequence.closedBy.filledAt.toISOString(),
+    mileage: sequence.mileage.toFixed(2),
+  });
+  return {
+    fuelType,
+    mileage: sequences.length
+      ? new Decimal(distanceKm).div(sum(sequences.map((sequence) => sequence.quantity)))
+      : null,
+    cycles: sequences.length,
+    quantity: sum(bought.map((fill) => fill.quantity)),
+    spend: sum(bought.map((fill) => fill.totalAmount)),
+    costPerKm: distanceKm ? sum(sequences.map((sequence) => sequence.cost)).div(distanceKm) : null,
+    latest: upToEnd.length ? point(upToEnd.at(-1)!) : null,
+    trend: upToEnd.slice(-12).map(point),
   };
 }

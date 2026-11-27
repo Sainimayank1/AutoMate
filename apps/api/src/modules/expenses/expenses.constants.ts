@@ -156,6 +156,13 @@ export const EXPENSE_SUMMARY_SCHEMA: Schema = {
       properties: {
         thisMonth: money("11840.00"),
         lastMonth: money("12590.00"),
+        lastMonthWindow: {
+          type: "object",
+          properties: {
+            from: { type: "string", format: "date", example: "2026-10-01" },
+            to: { type: "string", format: "date", example: "2026-10-27" },
+          },
+        },
         changePercent: { type: "integer", nullable: true, example: -6 },
         thisYear: money("87710.00"),
         monthsCovered: { type: "integer", example: 9 },

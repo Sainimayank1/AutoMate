@@ -49,7 +49,7 @@ export function Component() {
     <PageHeader title="Fuel & mileage" description={description} actions={vehicle && addFuel} />
   );
 
-  if (garage.isError) {
+  if (garage.isError && !garage.data) {
     return (
       <PageContainer>
         {header(null)}
@@ -84,7 +84,7 @@ export function Component() {
     <PageContainer>
       {header(vehicle ? `Full-tank mileage tracking · ${vehicleName(vehicle)}` : "Loading…")}
 
-      {summary.isError ? (
+      {summary.isError && !summary.data ? (
         <ErrorState
           title="Couldn't load fuel records"
           error={summary.error}

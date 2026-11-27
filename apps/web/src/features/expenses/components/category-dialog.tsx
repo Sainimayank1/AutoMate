@@ -12,6 +12,7 @@ import { z } from "zod";
 
 import { FormError } from "@/components/common/form-error";
 import { FormField } from "@/components/common/form-field";
+import { Segmented } from "@/components/common/segmented";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -37,8 +38,6 @@ import {
   useUpdateExpenseCategory,
 } from "@/features/expenses/hooks/use-expenses";
 import { applyServerErrors } from "@/lib/forms";
-
-import { Segmented } from "./segmented";
 
 type CategoryForm = {
   name: string;

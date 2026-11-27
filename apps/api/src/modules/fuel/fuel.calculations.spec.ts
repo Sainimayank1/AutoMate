@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 
 import { Prisma } from "@/generated/prisma/client";
 
-import { computeMileage, type FuelFill, summarize } from "./fuel.calculations";
+import { computeMileage, type FuelFill, fuelInWindow, summarize } from "./fuel.calculations";
 
 let sequence = 0;
 /** A fill-up; `quantity` in litres, `price` per litre, at the given day of 2026 (UTC noon). */
@@ -224,5 +224,39 @@ describe("fuel amount (shared)", () => {
     expect(isFuelTotalPlausible("2000", "19.17", "104.32")).toBe(true); // filled "₹2,000 worth"
     expect(isFuelTotalPlausible("3480", "32.4", "104.32")).toBe(false);
     expect(isFuelTotalPlausible("338", "32.4", "104.32")).toBe(false);
+  });
+});
+
+describe("fuelInWindow", () => {
+  it("counts a full-tank cycle in the window it closes in, across the boundary", () => {
+    const fills = [
+      fill("2026-10-28", 7000, "30"), // opens the first cycle (October)
+      fill("2026-11-05", 7400, "25"), // closes 7000 → 7400: 400 km on 25 L, in November
+      fill("2026-11-20", 7900, "20", { isFullTank: false }), // partial: rolls into the next
+      fill("2026-12-02", 8200, "30"), // closes 7400 → 8200 in December, outside the window
+    ];
+    const november = fuelInWindow(fills, FuelType.PETROL, { from: "2026-11-01", to: "2026-11-30" });
+    expect(november.mileage?.toFixed(2)).toBe("16.00");
+    expect(november.cycles).toBe(1);
+    expect(november.quantity.toFixed(2)).toBe("45.00"); // bought in November: 25 + 20 L
+    expect(november.spend.toFixed(2)).toBe("4500.00");
+    expect(november.costPerKm?.toFixed(2)).toBe("6.25"); // 2,500 ÷ 400 km
+    // The latest cycle by the end of November, and the trend up to then (not December's).
+    expect(november.latest?.mileage).toBe("16.00");
+    expect(november.trend.map((point) => point.mileage)).toEqual(["16.00"]);
+    const october = fuelInWindow(fills, FuelType.PETROL, { from: "2026-10-01", to: "2026-10-31" });
+    expect(october).toMatchObject({ mileage: null, cycles: 0 });
+  });
+
+  it("uses the IST day: a fill-up at 00:30 IST on 1 Nov belongs to November", () => {
+    const late = {
+      ...fill("2026-10-31", 7400, "25"),
+      filledAt: new Date("2026-10-31T19:00:00.000Z"),
+    };
+    const window = fuelInWindow([fill("2026-10-20", 7000, "30"), late], FuelType.PETROL, {
+      from: "2026-11-01",
+      to: "2026-11-30",
+    });
+    expect(window.cycles).toBe(1);
   });
 });

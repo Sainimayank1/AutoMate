@@ -4,6 +4,8 @@ import {
   type ExpenseIcon,
   ExpenseSource,
   RefundReason,
+  SpendGroup,
+  spendGroupOf,
 } from "@automate/shared";
 import {
   Armchair,
@@ -62,21 +64,21 @@ export const EXPENSE_ICON_COMPONENTS: Record<ExpenseIcon, LucideIcon> = {
 };
 
 /**
- * One colour per category everywhere (design skill: color-system.md "Fixed category mapping").
- * Five chart colours: the four biggest groups get their own, everything else shares grey.
+ * One colour per category everywhere (design skill: color-system.md "Fixed category mapping"):
+ * five chart colours, one per shared `SpendGroup`; everything else shares grey. The dashboard's
+ * spending chart uses the same groups and colours.
  */
-const CHART_TOKEN_BY_GROUP: Record<string, string> = {
-  FUEL: "text-chart-1",
-  MAINTENANCE: "text-chart-2",
-  REPAIRS: "text-chart-2",
-  INSURANCE_LEGAL: "text-chart-3",
-  FINANCE: "text-chart-4",
+export const SPEND_GROUP_TONE: Record<SpendGroup, string> = {
+  [SpendGroup.FUEL]: "text-chart-1",
+  [SpendGroup.MAINTENANCE]: "text-chart-2",
+  [SpendGroup.INSURANCE]: "text-chart-3",
+  [SpendGroup.LOAN]: "text-chart-4",
+  [SpendGroup.OTHER]: "text-chart-5",
 };
 
 /** The colour class for a category (by its top-level key; subcategory keys share their group's). */
 export function categoryTone(category: Pick<ExpenseCategoryRef, "key">): string {
-  const group = category.key?.split(".")[0];
-  return (group && CHART_TOKEN_BY_GROUP[group]) ?? "text-chart-5";
+  return SPEND_GROUP_TONE[spendGroupOf(category.key)];
 }
 
 export const COST_CLASS_TEXT: Record<CostClass, { label: string; hint: string }> = {

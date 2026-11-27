@@ -1,7 +1,7 @@
 import { type Expense, type ExpenseSummary } from "@automate/shared";
 import type { ColumnDef } from "@tanstack/react-table";
 import { cn } from "cn";
-import { format, parseISO, subMonths } from "date-fns";
+import { format, parseISO } from "date-fns";
 import { ReceiptIndianRupee } from "lucide-react";
 import { useState } from "react";
 import { Link, useLocation } from "react-router";
@@ -33,14 +33,19 @@ import {
 import { PAYMENT_METHOD_LABELS } from "@/features/fuel/constants";
 import { vehicleName } from "@/features/garage/constants";
 import { useVehicles } from "@/features/garage/hooks/use-vehicles";
-import { formatCurrency, formatDate, formatDistance, formatNumber } from "@/utils/format";
+import {
+  formatCurrency,
+  formatDate,
+  formatDateRange,
+  formatDistance,
+  formatNumber,
+} from "@/utils/format";
 
 const RECENT_ROWS = 5;
 /** Category chips above the ledger: the most used ones. */
 const CHIPS = 4;
 
-const monthName = (month: string, back = 0) =>
-  format(subMonths(parseISO(`${month}-01`), back), back ? "MMMM" : "MMMM yyyy");
+const monthName = (month: string) => format(parseISO(`${month}-01`), "MMMM yyyy");
 const plural = (count: number, word: string) =>
   `${formatNumber(count)} ${word}${count === 1 ? "" : "s"}`;
 
@@ -339,7 +344,7 @@ function Kpis({ summary }: { summary: ExpenseSummary | undefined }) {
         hint={
           summary &&
           (change === null ? (
-            `Nothing in ${monthName(summary.month, 1)}`
+            `Nothing in ${formatDateRange(summary.operating.lastMonthWindow)}`
           ) : (
             <span
               className={cn(
@@ -349,7 +354,7 @@ function Kpis({ summary }: { summary: ExpenseSummary | undefined }) {
               )}
             >
               {change > 0 ? "+" : ""}
-              {formatNumber(change)}% vs {monthName(summary.month, 1)}
+              {formatNumber(change)}% vs {formatDateRange(summary.operating.lastMonthWindow)}
             </span>
           ))
         }

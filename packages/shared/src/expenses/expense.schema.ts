@@ -11,6 +11,7 @@ import {
   positiveDecimal,
 } from "../common/fields.js";
 import { PaymentMethod } from "../common/payment-method.js";
+import type { DateWindow } from "../common/periods.js";
 import { ODOMETER_MAX_KM } from "../vehicles/vehicle.schema.js";
 import { CostClass, EXPENSE_ICONS, type ExpenseIcon } from "./expense-categories.js";
 
@@ -405,9 +406,13 @@ export interface ExpenseSummary {
   /** The month the figures are for, "2026-11" (IST). */
   month: string;
   operating: {
+    /** This month so far. */
     thisMonth: string;
+    /** The same days of last month (1–27 Oct on 27 Nov): a like-for-like comparison. */
     lastMonth: string;
-    /** Change vs last month, whole percent; null when last month had no operating cost. */
+    /** The days `lastMonth` covers. */
+    lastMonthWindow: DateWindow;
+    /** Change vs `lastMonth`, whole percent; null when it had no operating cost. */
     changePercent: number | null;
     /** 1 January to today. */
     thisYear: string;

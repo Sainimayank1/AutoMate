@@ -12,29 +12,23 @@ Each section gives the module's **job**, its **layout** (desktop → mobile), it
 
 **Layout (desktop, `lg:grid-cols-12`):**
 
-1. **Greeting row.** "Good evening, Aarav" (page title style) with a caption showing today's date. Actions on the right: `DateRangePicker` (default: This month) and "Customise".
-2. **Vehicle hero** (full width, `Card` + `hero-glow`):
-   - Left: `VehicleImage` (hero aspect).
-   - Right: an overline "ACTIVE VEHICLE", "Maruti Suzuki Victoris" (`text-2xl`), "LXI · Petrol · Manual" caption, `PlateBadge`, and the **hero metric** odometer `8,450 km`.
-   - Below the metric: 3 compact tiles (`bg-elevated`): This month `1,020 km`, Avg mileage `17.8 km/L`, Health `GaugeRing sm`.
-   - On mobile the hero stacks: image on top with the scrim, the name and plate over the scrim, the metric and tiles below.
-3. **Instrument row** (`StatCard` ×4, 2×2 on mobile): Fuel spend (month) `₹5,539.24`, Total expenses (month), Cost per km `₹17.77`, Avg mileage, each with a trend vs the previous period.
-4. **Main (col-span-8):** `ChartCard` Monthly expenses (stacked bars by category, last 6 months), then `ChartCard` Fuel efficiency (line, km/L per full-tank fill, with gaps where the sequence is partial).
-5. **Aside (col-span-4):**
-   - **Attention**: a combined list of upcoming maintenance and expiring documents, sorted by urgency, each with a `StatusBadge` and "in 1,550 km" / "in 43 days";
-   - **Expense breakdown**: a donut with ≤ 5 segments plus a ranked list;
-   - **Quick actions**: Add fuel, Add expense, Add service, Upload document.
-6. **Recent activity:** `ActivityTimeline`, latest 8, "View all".
+1. **Greeting row** (Stitch "Dashboard"): "Good afternoon, Arjun" and "27 Nov 2026 · Your vehicle ownership overview"; on the right the vehicle selector (the app's active vehicle; a compact model chip on phones), the period selector (This month by default; custom range shows two date pickers) and Refresh. "Customise" opens the customisation sheet (below).
+2. **Vehicle hero** (`lg:col-span-8`): `VehicleImage` with the `PlateBadge` on it; overline "ACTIVE VEHICLE", the name, "LXI · 1.5L · Petrol · Manual · 2025", the ownership badge, the odometer, then **Quick actions** (Add fuel, Add expense, Add service record, Update odometer, View in Garage; Log trip appears with Trips). **Vehicle status** (`lg:col-span-4`) beside it, the action centre: facts from records the user keeps (insurance expiry from the insurance payment, warranty from the vehicle, due and overdue maintenance schedules; documents when built), most urgent first under "Up next". Each row: a state badge (Overdue, Due today, Due soon, Info), its source, the title and detail opening its record, and the action that resolves it ("Log service", "Add renewal"; none for information). The 3 most urgent show, the rest behind "Show N more" so the panel stays beside the hero. Titles: "Attention required", "Vehicle health information incomplete" (while maintenance or documents aren't tracked, saying which), "No issues recorded". **Never** a health score, gauge or "healthy".
+3. **Metric strip** (5 cards, 2 across on phones, the last full width): Spent (net, loan principal excluded), Running cost / km, Average mileage (km/L, km/kg, km/kWh), Distance (from odometer readings), Fuel spend (with litres). Each compares like for like ("−6% vs 1–27 Oct": cost down `success`, up `warning`; mileage up `success`), says why when it can't ("Needs two full-tank fill-ups"), has an ⓘ popover with its definition, and the card opens its module.
+4. **Smart insights** (built, below the metric strip): a full-width card, a `Lightbulb` in an `insight`-tinted tile, "Smart insights" and "From your own records · rules, not AI" (never `Sparkles`: these are not AI). Up to 4 tiles (`bg-elevated`, a 2px left border in the tone: `warning` for costs and worse running, `success` for improvements, muted for context), each with its topic icon, the title ("Fuel costs 16% more per km"), the explanation with the figures, a meta line ("vs 1–27 Oct · Medium confidence") and a "View … →" link (40px tall on phones). Too few records: "Insights compare this period with the one before. They appear once expenses and full-tank fill-ups cover both periods." Nothing notable: "Nothing stands out against 1–27 Oct."
+5. **Spending** (built): "Monthly spending" (`lg:col-span-8`, stacked bars of the last 6 months, up to 12 for long periods, in the five fixed `SpendGroup` series with the legend on top; net, loan principal excluded) beside "Where it went · 1–27 Nov" (`lg:col-span-4`, categories largest first with icon, amount, % and a thin bar in the category colour, each opening its transactions for the vehicle and period). **Fuel & mileage** (built): "Mileage" (`lg:col-span-8`, the Fuel module's `MileageChart`, last 12 full-tank cycles with a dashed "Period avg" line) beside "Fuel this period" (average and latest mileage, fuel bought, fuel spend, average price, fuel cost per km, "View fuel history").
+6. **Bottom row** (built, three equal cards): **Maintenance** ("1 overdue · 2 due soon", the 4 most urgent schedules with the Maintenance module's status badge and due summary, "Last service: …", Add service record · View maintenance), **Expiry dates** (insurance and warranty with Expiring/Valid/Expired/Not added badges; "PUC, registration and licence arrive with Documents"), **Driving** (odometer distance for the period, ~km per day, last reading; "Trips aren't tracked yet").
+7. **Recent activity** (built): a full-width card below: fill-ups, expenses, refunds ("−₹140.00" in `success`) and service records, newest first, 8 per page with `Pager`; a table on desktop (Date, Event with its icon and detail, Odometer, Amount), a list on phones; each row opens its record.
 
-**Widgets** (all `Card`-based and customisable): Vehicle Health, Fuel Efficiency, Monthly Spending, Cost per KM, Upcoming Maintenance, Document Expiry, Recent Activity, Expense Breakdown.
+**Widgets** (all `Card`-based and customisable): Vehicle status, Fuel Efficiency, Monthly Spending, Cost per KM, Upcoming Maintenance, Document Expiry, Recent Activity, Expense Breakdown.
 
-**Customisation:** "Customise" opens a `Sheet` listing the widgets with `Switch` toggles and drag handles (`@dnd-kit`, planned) to reorder. The layout is saved per user, and "Reset to default" is available. The hero and greeting are fixed and can't be hidden.
+**Customisation** (built, Stitch "Dashboard — Customise — Desktop / Mobile"): "Customise" (outline, `SlidersHorizontal`; icon-only on phones) after Refresh opens a `Sheet` (right on desktop, `max-w-md`; a bottom sheet up to 85% high on phones): "Customise dashboard", a SECTIONS list (`bg-elevated`, dividers) with a `Switch`, the name (muted when hidden) and up/down icon buttons (40px on phones; moves are announced), then KEY FIGURES checkboxes ("Choose at least one": the last can't be unticked), and a pinned footer: "Reset to default" (ghost), Cancel, Save. Saved per user. The greeting, the hero and the status panel are fixed and can't be hidden. Every section hidden: a dashed note "Every section is hidden. Use Customise to show them again."
 
 **Rules:**
 
 - Every number links to its module (the StatCard `href`).
 - Use one date range for the whole page.
-- The Attention list shows at most 5 items. When empty, show "All clear · Nothing due in the next 30 days" with `CircleCheck` in success.
+- "Up next" shows the 3 most urgent items; the rest are one tap away. With nothing due, never "All clear" while maintenance or documents are untracked: say what isn't tracked ("No issues recorded" only when everything is).
 
 **States:**
 
@@ -155,11 +149,12 @@ Rules:
 
 ## M05 · Maintenance and service
 
-**Job:** "Is my car healthy, and what's due next?" Emphasise urgency, due dates and odometer progress.
+**Job:** "What's due next, and is anything overdue?" Emphasise urgency, due dates and odometer progress. **Built** (phase 1) from the Stitch "Maintenance", "Maintenance Schedules", "Add Schedule" and "Schedule Details" screens (`features/maintenance`); plan in `docs/architecture/maintenance.md`.
 
 **Maintenance overview (`/maintenance`):**
 
-- **Health header:** `GaugeRing lg` (health score) next to a summary of counts by status (Overdue 0 · Due 0 · Needs inspection 1 · Upcoming 2 · Good 9), as status-coloured numbers with labels.
+- **Status banner:** one line from the schedules (Overdue maintenance / Attention required / Upcoming maintenance / All caught up / Maintenance data incomplete). **No health score or gauge:** maintenance data can't show a vehicle is healthy.
+- **Instruments:** maintenance spend for the period (from Expenses) with the previous window, overdue count, due & upcoming count, next service.
 - **Next service card:** "Periodic service · due at 10,000 km or 14/03/2027, whichever comes first". Show two progress tracks:
   - distance: 8,450 / 10,000 km, "1,550 km left";
   - time: "107 days left".

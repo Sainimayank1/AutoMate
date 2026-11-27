@@ -1,7 +1,7 @@
 import type { MileagePoint } from "@automate/shared";
 import { format, parseISO } from "date-fns";
 import { useId } from "react";
-import { Area, AreaChart, CartesianGrid, XAxis, YAxis } from "recharts";
+import { Area, AreaChart, CartesianGrid, ReferenceLine, XAxis, YAxis } from "recharts";
 
 import {
   type ChartConfig,
@@ -17,7 +17,18 @@ const config = { mileage: { label: "Mileage", color: "var(--chart-1)" } } satisf
  * Mileage per measured full-tank sequence (Stitch "Fuel" trend). Only API-calculated points are
  * drawn, so nothing is interpolated from partial data.
  */
-export function MileageChart({ points, unit }: { points: MileagePoint[]; unit: string }) {
+export function MileageChart({
+  points,
+  unit,
+  average,
+  averageLabel = "Avg",
+}: {
+  points: MileagePoint[];
+  unit: string;
+  /** A dashed reference line (the API's average), labelled "Avg 16.8 km/L". */
+  average?: string | null;
+  averageLabel?: string;
+}) {
   // React ids contain characters that break `url(#…)`.
   const fillId = `mileage-fill-${useId().replace(/[^\w-]/g, "")}`;
   // Numbers for plotting only; labels format the API's strings.
@@ -74,6 +85,19 @@ export function MileageChart({ points, unit }: { points: MileagePoint[]; unit: s
             />
           }
         />
+        {average && (
+          <ReferenceLine
+            y={Number(average)}
+            stroke="var(--muted-foreground)"
+            strokeDasharray="4 4"
+            label={{
+              value: `${averageLabel} ${formatEfficiency(average, unit)}`,
+              position: "insideTopRight",
+              fill: "var(--muted-foreground)",
+              fontSize: 11,
+            }}
+          />
+        )}
         <Area
           dataKey="mileage"
           type="monotone"

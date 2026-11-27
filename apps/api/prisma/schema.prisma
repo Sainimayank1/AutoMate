@@ -22,13 +22,34 @@ model User {
   createdAt       DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt       DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
 
-  sessions          Session[]
-  vehicles          Vehicle[]
-  fuelEntries       FuelEntry[]
-  expenses          Expense[]
-  expenseCategories ExpenseCategory[]
+  sessions             Session[]
+  vehicles             Vehicle[]
+  fuelEntries          FuelEntry[]
+  expenses             Expense[]
+  expenseCategories    ExpenseCategory[]
+  maintenanceSchedules MaintenanceSchedule[]
+  serviceRecords       ServiceRecord[]
+  serviceProviders     ServiceProvider[]
+  components           VehicleComponent[]
+  inspections          Inspection[]
+  preference           UserPreference?
 
   @@map("users")
+}
+
+/// A user's saved settings, one row per user (the dashboard layout now; Settings adds more).
+model UserPreference {
+  id        String   @id @default(uuid(7)) @db.Uuid
+  userId    String   @unique @map("user_id") @db.Uuid
+  /// `DashboardLayout` (@automate/shared): an opaque payload, never filtered on, validated by the
+  /// API on write and brought up to date on read. Null: the default layout.
+  dashboard Json?
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("user_preferences")
 }
 
 /// One signed-in device. Holds only the SHA-256 hash of its refresh token, which rotates on every refresh.
@@ -117,9 +138,13 @@ model Vehicle {
   createdAt              DateTime        @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt              DateTime        @updatedAt @map("updated_at") @db.Timestamptz(3)
 
-  user        User        @relation(fields: [userId], references: [id], onDelete: Cascade)
-  fuelEntries FuelEntry[]
-  expenses    Expense[]
+  user                 User                  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  fuelEntries          FuelEntry[]
+  expenses             Expense[]
+  maintenanceSchedules MaintenanceSchedule[]
+  serviceRecords       ServiceRecord[]
+  components           VehicleComponent[]
+  inspections          Inspection[]
 
   @@unique([userId, registrationNumber])
   @@index([userId, archivedAt])
@@ -288,4 +313,338 @@ model Expense {
   @@index([sharedGroupId])
   @@index([refundOfId])
   @@map("expenses")
+}
+
+enum MaintenancePriority {
+  LOW
+  NORMAL
+  HIGH
+}
+
+/// A maintenance task (MODULES.md M5) that repeats (every intervalKm and/or intervalMonths) or
+/// happens once (at dueDate and/or dueKm), whichever comes first. Mirrors `createScheduleSchema`.
+/// Next due and status are computed on read (schedule-engine.ts), never stored.
+/// CHECK constraints (repeats xor once, positive intervals) are in the migration SQL.
+model MaintenanceSchedule {
+  id               String              @id @default(uuid(7)) @db.Uuid
+  userId           String              @map("user_id") @db.Uuid
+  vehicleId        String              @map("vehicle_id") @db.Uuid
+  name             String
+  /// One of MAINTENANCE_CATEGORY_KEYS, e.g. "BRAKES.BRAKE_PADS".
+  categoryKey      String              @map("category_key")
+  intervalKm       Int?                @map("interval_km")
+  intervalMonths   Int?                @map("interval_months") @db.SmallInt
+  dueDate          DateTime?           @map("due_date") @db.Date
+  dueKm            Int?                @map("due_km")
+  /// Repeating only: when it was last done before being added, if the user knows.
+  lastDoneDate     DateTime?           @map("last_done_date") @db.Date
+  lastDoneKm       Int?                @map("last_done_km")
+  /// The vehicle's odometer when added: the distance basis until a "last done" or completion.
+  addedOdometerKm  Int                 @map("added_odometer_km")
+  remindersEnabled Boolean             @default(true) @map("reminders_enabled")
+  /// Null: DEFAULT_REMINDER_LEAD. Also sets when the schedule shows as "due soon".
+  leadDays         Int?                @map("lead_days") @db.SmallInt
+  leadKm           Int?                @map("lead_km")
+  priority         MaintenancePriority @default(NORMAL)
+  /// The tracked part it watches; cleared if the part is deleted.
+  componentId      String?             @map("component_id") @db.Uuid
+  notes            String?
+  pausedAt         DateTime?           @map("paused_at") @db.Timestamptz(3)
+  createdAt        DateTime            @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt        DateTime            @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  user        User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  vehicle     Vehicle             @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
+  /// Record items that completed it: its history and the basis of its next due.
+  completions ServiceRecordItem[]
+  component   VehicleComponent?   @relation(fields: [componentId], references: [id], onDelete: SetNull)
+  /// Inspection findings it follows up.
+  findings    InspectionItem[]
+
+  /// Read per vehicle (all of a vehicle's schedules are computed together); serves the cascade.
+  @@index([vehicleId])
+  @@map("maintenance_schedules")
+}
+
+enum ServiceRecordType {
+  ROUTINE_SERVICE
+  PREVENTIVE
+  INSPECTION
+  REPAIR
+  COMPONENT_REPLACEMENT
+  EMERGENCY_REPAIR
+  WARRANTY_REPAIR
+  MODIFICATION
+  OTHER
+}
+
+enum ProviderType {
+  AUTHORISED
+  INDEPENDENT
+  TYRES
+  BATTERY
+  BODY_SHOP
+  DETAILING
+  ROADSIDE
+  OTHER
+}
+
+/// A workshop, dealer or mechanic of the user's, shared by their vehicles. Created from a record's
+/// workshop name; names are unique per user, case-insensitively (index in the migration SQL).
+model ServiceProvider {
+  id         String       @id @default(uuid(7)) @db.Uuid
+  userId     String       @map("user_id") @db.Uuid
+  name       String
+  type       ProviderType @default(OTHER)
+  phone      String?
+  email      String?
+  address    String?
+  city       String?
+  /// Shown first in suggestions and lists.
+  preferred  Boolean      @default(false)
+  notes      String?
+  /// Hidden from suggestions; its history stays.
+  archivedAt DateTime?    @map("archived_at") @db.Timestamptz(3)
+  createdAt  DateTime     @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt  DateTime     @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  user        User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  records     ServiceRecord[]
+  components  VehicleComponent[]
+  inspections Inspection[]
+
+  @@index([userId])
+  @@map("service_providers")
+}
+
+/// Work done on a vehicle (MODULES.md M5 D): a service, repair, inspection or replacement, any date
+/// (historical records welcome). Mirrors `createServiceRecordSchema`. Its money, when there is any,
+/// is one linked expense (source MAINTENANCE). CHECK constraints are in the migration SQL.
+model ServiceRecord {
+  id             String            @id @default(uuid(7)) @db.Uuid
+  userId         String            @map("user_id") @db.Uuid
+  vehicleId      String            @map("vehicle_id") @db.Uuid
+  type           ServiceRecordType
+  title          String
+  /// One of MAINTENANCE_CATEGORY_KEYS.
+  categoryKey    String            @map("category_key")
+  serviceDate    DateTime          @map("service_date") @db.Date
+  odometerKm     Int?              @map("odometer_km")
+  providerId     String?           @map("provider_id") @db.Uuid
+  technician     String?
+  description    String?
+  labourAmount   Decimal?          @map("labour_amount") @db.Decimal(12, 2)
+  partsAmount    Decimal?          @map("parts_amount") @db.Decimal(12, 2)
+  otherAmount    Decimal?          @map("other_amount") @db.Decimal(12, 2)
+  taxAmount      Decimal?          @map("tax_amount") @db.Decimal(12, 2)
+  discountAmount Decimal?          @map("discount_amount") @db.Decimal(12, 2)
+  /// Computed by the API (serviceRecordTotal); 0 when nothing was paid.
+  totalAmount    Decimal           @map("total_amount") @db.Decimal(12, 2)
+  paymentMethod  PaymentMethod?    @map("payment_method")
+  warrantyUntil  DateTime?         @map("warranty_until") @db.Date
+  warrantyNotes  String?           @map("warranty_notes")
+  notes          String?
+  createdAt      DateTime          @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt      DateTime          @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  user      User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  vehicle   Vehicle             @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
+  provider  ServiceProvider?    @relation(fields: [providerId], references: [id], onDelete: SetNull)
+  items     ServiceRecordItem[]
+  /// Parts this record fitted (replacements) and lifecycle events it backs.
+  installed VehicleComponent[]
+  events    ComponentEvent[]
+
+  /// Histories are read per vehicle in date order; also serves the cascade from vehicles.
+  @@index([vehicleId, serviceDate])
+  @@index([providerId])
+  @@map("service_records")
+}
+
+/// One line of a record's work. With a schedule, it completes that schedule (once per record).
+model ServiceRecordItem {
+  id          String   @id @default(uuid(7)) @db.Uuid
+  recordId    String   @map("record_id") @db.Uuid
+  position    Int      @db.SmallInt
+  name        String
+  partNumber  String?  @map("part_number")
+  scheduleId  String?  @map("schedule_id") @db.Uuid
+  /// The tracked part this work was on (its lifecycle lists the record).
+  componentId String?  @map("component_id") @db.Uuid
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt   DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  record    ServiceRecord        @relation(fields: [recordId], references: [id], onDelete: Cascade)
+  /// Deleting a schedule keeps the record; the item just stops pointing at it.
+  schedule  MaintenanceSchedule? @relation(fields: [scheduleId], references: [id], onDelete: SetNull)
+  component VehicleComponent?    @relation(fields: [componentId], references: [id], onDelete: SetNull)
+
+  @@unique([recordId, scheduleId])
+  @@index([scheduleId])
+  @@index([componentId])
+  @@map("service_record_items")
+}
+
+enum ComponentCondition {
+  NEW
+  GOOD
+  MONITORING
+  NEEDS_ATTENTION
+  REPLACE_SOON
+  FAILED
+  UNKNOWN
+}
+
+enum ComponentState {
+  INSTALLED
+  REPLACED
+  REMOVED
+}
+
+enum ComponentEventType {
+  INSTALLED
+  INSPECTED
+  REPLACED
+  REMOVED
+}
+
+/// A tracked part of a vehicle (MODULES.md M5 B): fitted, inspected, then replaced or removed.
+/// A replaced part is kept (state REPLACED, replacedById → its successor); history is never
+/// overwritten. Status and estimated life are computed on read (component-life.ts).
+model VehicleComponent {
+  id                 String             @id @default(uuid(7)) @db.Uuid
+  userId             String             @map("user_id") @db.Uuid
+  vehicleId          String             @map("vehicle_id") @db.Uuid
+  /// One of COMPONENT_KIND_KEYS.
+  kind               String
+  name               String
+  position           String?
+  brand              String?
+  partNumber         String?            @map("part_number")
+  installedAt        DateTime?          @map("installed_at") @db.Date
+  installedKm        Int?               @map("installed_km")
+  providerId         String?            @map("provider_id") @db.Uuid
+  /// The service record that fitted it (a replacement).
+  installRecordId    String?            @map("install_record_id") @db.Uuid
+  expectedLifeKm     Int?               @map("expected_life_km")
+  expectedLifeMonths Int?               @map("expected_life_months") @db.SmallInt
+  warrantyUntil      DateTime?          @map("warranty_until") @db.Date
+  warrantyKm         Int?               @map("warranty_km")
+  condition          ComponentCondition @default(UNKNOWN)
+  state              ComponentState     @default(INSTALLED)
+  removedAt          DateTime?          @map("removed_at") @db.Date
+  removedKm          Int?               @map("removed_km")
+  replacedById       String?            @unique @map("replaced_by_id") @db.Uuid
+  notes              String?
+  createdAt          DateTime           @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt          DateTime           @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  user            User                  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  vehicle         Vehicle               @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
+  provider        ServiceProvider?      @relation(fields: [providerId], references: [id], onDelete: SetNull)
+  installRecord   ServiceRecord?        @relation(fields: [installRecordId], references: [id], onDelete: SetNull)
+  replacedBy      VehicleComponent?     @relation("ComponentReplacement", fields: [replacedById], references: [id], onDelete: SetNull)
+  replaces        VehicleComponent?     @relation("ComponentReplacement")
+  events          ComponentEvent[]
+  schedules       MaintenanceSchedule[]
+  recordItems     ServiceRecordItem[]
+  inspectionItems InspectionItem[]
+
+  /// Read per vehicle; serves the cascade.
+  @@index([vehicleId, state])
+  @@index([installRecordId])
+  @@map("vehicle_components")
+}
+
+/// A lifecycle step of a component: fitted, inspected (condition), replaced or removed.
+model ComponentEvent {
+  id          String              @id @default(uuid(7)) @db.Uuid
+  componentId String              @map("component_id") @db.Uuid
+  type        ComponentEventType
+  date        DateTime            @db.Date
+  odometerKm  Int?                @map("odometer_km")
+  condition   ComponentCondition?
+  /// The service record behind it (a replacement); kept as history if that record is deleted.
+  recordId    String?             @map("record_id") @db.Uuid
+  notes       String?
+  createdAt   DateTime            @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt   DateTime            @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  component VehicleComponent @relation(fields: [componentId], references: [id], onDelete: Cascade)
+  record    ServiceRecord?   @relation(fields: [recordId], references: [id], onDelete: SetNull)
+
+  @@index([componentId, date])
+  @@index([recordId])
+  @@map("component_events")
+}
+
+enum InspectionKind {
+  SELF_CHECK
+  PROFESSIONAL
+}
+
+enum InspectionCondition {
+  GOOD
+  NORMAL
+  MONITOR
+  ATTENTION
+  REPLACE_SOON
+  REPLACED
+  NOT_INSPECTED
+}
+
+/// A checklist inspection (MODULES.md M5; condition monitoring): the user's own check or a
+/// workshop's, kept apart by `kind`. Mirrors `createInspectionSchema`.
+model Inspection {
+  id           String         @id @default(uuid(7)) @db.Uuid
+  userId       String         @map("user_id") @db.Uuid
+  vehicleId    String         @map("vehicle_id") @db.Uuid
+  kind         InspectionKind
+  /// One of INSPECTION_TEMPLATE_KEYS (the checklist it started from).
+  templateKey  String         @map("template_key")
+  title        String
+  date         DateTime       @db.Date
+  odometerKm   Int?           @map("odometer_km")
+  inspector    String?
+  providerId   String?        @map("provider_id") @db.Uuid
+  followUpDate DateTime?      @map("follow_up_date") @db.Date
+  notes        String?
+  createdAt    DateTime       @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt    DateTime       @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  user     User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  vehicle  Vehicle          @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
+  provider ServiceProvider? @relation(fields: [providerId], references: [id], onDelete: SetNull)
+  items    InspectionItem[]
+
+  @@index([vehicleId, date])
+  @@index([providerId])
+  @@map("inspections")
+}
+
+/// One checklist line and what was found.
+model InspectionItem {
+  id                 String              @id @default(uuid(7)) @db.Uuid
+  inspectionId       String              @map("inspection_id") @db.Uuid
+  position           Int                 @db.SmallInt
+  /// One of INSPECTION_AREA_KEYS.
+  area               String
+  label              String
+  condition          InspectionCondition
+  notes              String?
+  recommendedAction  String?             @map("recommended_action")
+  componentId        String?             @map("component_id") @db.Uuid
+  /// The schedule created to follow this finding up.
+  followUpScheduleId String?             @map("follow_up_schedule_id") @db.Uuid
+  createdAt          DateTime            @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt          DateTime            @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  inspection       Inspection           @relation(fields: [inspectionId], references: [id], onDelete: Cascade)
+  component        VehicleComponent?    @relation(fields: [componentId], references: [id], onDelete: SetNull)
+  followUpSchedule MaintenanceSchedule? @relation(fields: [followUpScheduleId], references: [id], onDelete: SetNull)
+
+  @@index([inspectionId])
+  @@index([componentId])
+  @@index([followUpScheduleId])
+  @@map("inspection_items")
 }

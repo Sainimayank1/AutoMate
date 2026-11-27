@@ -191,6 +191,8 @@ Manage fuel refills, consumption, mileage, and fuel-related analytics.
 
 ## Module 4 — Expense Management
 
+> **Dashboard:** when recurring payments and the EMI schedule (Expenses phase 4) are built, add them to the dashboard's action centre and metrics in the same change: [docs/architecture/dashboard.md §6](architecture/dashboard.md#6-pending-integrations-do-these-when-the-module-is-built).
+
 Track all financial expenses related to vehicle ownership.
 
 ### Expense categories
@@ -269,7 +271,11 @@ Track all financial expenses related to vehicle ownership.
 
 ## Module 5 — Maintenance & Service Management
 
+> **Dashboard:** when this module is built, wire it into the dashboard in the same change (maintenance overview, status panel, action centre, activity, quick action): [docs/architecture/dashboard.md §6](architecture/dashboard.md#6-pending-integrations-do-these-when-the-module-is-built).
+
 Manage scheduled maintenance, component life, service history, and repair records.
+
+> **Build plan, rules and pending integrations** (Notifications, Documents/attachments, AI, Trips, Settings): [docs/architecture/maintenance.md](architecture/maintenance.md).
 
 ### A. Maintenance schedule
 
@@ -362,6 +368,8 @@ Track components including:
 
 ## Module 6 — Documents & Reminders
 
+> **Dashboard:** when this module is built, wire it into the dashboard in the same change (documents section, status panel, action centre, activity, quick action) and retire the interim warranty/insurance sources: [docs/architecture/dashboard.md §6](architecture/dashboard.md#6-pending-integrations-do-these-when-the-module-is-built).
+
 Manage vehicle documents, their details, digital copies, and expiration reminders.
 
 ### Document types
@@ -424,6 +432,8 @@ Manage vehicle documents, their details, digital copies, and expiration reminder
 ---
 
 ## Module 7 — Trips & Journey Tracking
+
+> **Dashboard:** when this module is built, wire it into the dashboard in the same change (trips overview, trip distance kept apart from odometer distance, activity, quick action): [docs/architecture/dashboard.md §6](architecture/dashboard.md#6-pending-integrations-do-these-when-the-module-is-built).
 
 Record trips, journeys, travel costs, and driving history.
 
@@ -629,6 +639,8 @@ The assistant may have controlled access to backend tools such as:
 ---
 
 ## Module 10 — Notifications Center
+
+> **Dashboard:** when this module is built, add custom reminders and dismissal of informational items to the dashboard's action centre in the same change: [docs/architecture/dashboard.md §6](architecture/dashboard.md#6-pending-integrations-do-these-when-the-module-is-built).
 
 Centralized notifications for all AutoMate modules.
 

@@ -4,7 +4,7 @@ Mobile-first app to manage vehicles, fuel, expenses, maintenance, documents, tri
 
 ## Status
 
-Phase 0 (infrastructure) is done, plus email/password auth. **P0 modules in progress:** Garage (M2) and Fuel (M3) are built; Expenses (M4) is built in approved phases (phases 1 · core, 2 · Fuel link and the Overview tab done; plan and money rules in `docs/architecture/expenses.md`), then Dashboard (M1). Build one module at a time, in this order.
+Phase 0 (infrastructure) is done, plus email/password auth. **P0 modules in progress:** Garage (M2) and Fuel (M3) are built; Expenses (M4) is built in approved phases (phases 1 · core, 2 · Fuel link and the Overview tab done; plan and money rules in `docs/architecture/expenses.md`). **Dashboard (M1) is built** (phases 1–8; rules, API and the integrations still pending from unbuilt modules in `docs/architecture/dashboard.md`). **Maintenance (M5) is built** (phases 1–6 and 9; phases 7 analytics and 8 planning/templates skipped for now; plan, schedule engine, skipped phases and pending integrations in `docs/architecture/maintenance.md`). Build one module at a time, in this order.
 
 ## Token-saving tools (mandatory on every prompt)
 
@@ -48,6 +48,7 @@ pnpm + Turborepo monorepo · TypeScript strict
 - Config from validated env vars, never hardcoded.
 - Money, fuel and other financial values use Decimal (DB) / decimal.js (code), never float.
 - Tests required for calculations: mileage, expense aggregation, loan costs, maintenance intervals.
+- **Dashboard integration:** when you build a module the dashboard is waiting for (Maintenance, Documents, Trips, Notifications, or Expenses recurring/EMI), wire it into the dashboard in the same change and update the table in `docs/architecture/dashboard.md` §6.
 
 ## Domain rules (every module)
 

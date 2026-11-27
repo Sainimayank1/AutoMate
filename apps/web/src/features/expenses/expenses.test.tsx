@@ -172,6 +172,7 @@ const summary = (overrides: Partial<ExpenseSummary> = {}): ExpenseSummary => ({
   operating: {
     thisMonth: "11840.00",
     lastMonth: "12590.00",
+    lastMonthWindow: { from: "2026-10-01", to: "2026-10-27" },
     changePercent: -6,
     thisYear: "87710.00",
     monthsCovered: 9,
@@ -199,6 +200,7 @@ describe("overview", () => {
             operating: {
               thisMonth: "0.00",
               lastMonth: "0.00",
+              lastMonthWindow: { from: "2026-10-01", to: "2026-10-27" },
               changePercent: null,
               thisYear: "0.00",
               monthsCovered: 0,
@@ -231,7 +233,8 @@ describe("overview", () => {
       vehicleId: victoris.id,
     });
     expect(screen.getByText("November 2026")).toBeInTheDocument();
-    expect(screen.getByText("-6% vs October")).toHaveClass("text-success");
+    // Like for like: this month so far vs the same days of last month.
+    expect(screen.getByText(/^-6% vs 1–27 Oct/)).toHaveClass("text-success");
     expect(screen.getByText("9 months")).toBeInTheDocument();
     expect(screen.getByText("₹10.38")).toBeInTheDocument();
     expect(screen.getByText("Over 8,438 km in 2026")).toBeInTheDocument();

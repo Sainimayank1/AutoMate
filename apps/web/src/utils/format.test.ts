@@ -4,6 +4,7 @@ import {
   EMPTY_VALUE,
   formatCurrency,
   formatDate,
+  formatDateRange,
   formatDateTime,
   formatDistance,
   formatEfficiency,
@@ -62,5 +63,18 @@ describe("formatRegistration", () => {
   it("passes unknown formats through and shows a dash for none", () => {
     expect(formatRegistration("CD123ABC45")).toBe("CD123ABC45");
     expect(formatRegistration(null)).toBe(EMPTY_VALUE);
+  });
+});
+
+describe("formatDateRange", () => {
+  const now = new Date("2026-11-27T12:00:00");
+  it("says a period the way people do, with the year only when it's needed", () => {
+    expect(formatDateRange({ from: "2026-10-01", to: "2026-10-27" }, now)).toBe("1–27 Oct");
+    expect(formatDateRange({ from: "2026-02-28", to: "2026-03-27" }, now)).toBe("28 Feb – 27 Mar");
+    expect(formatDateRange({ from: "2025-12-01", to: "2026-01-27" }, now)).toBe(
+      "1 Dec 2025 – 27 Jan 2026",
+    );
+    expect(formatDateRange({ from: "2025-10-01", to: "2025-10-31" }, now)).toBe("1–31 Oct 2025");
+    expect(formatDateRange({ from: "2026-12-01", to: "2026-12-01" }, now)).toBe("1 Dec");
   });
 });

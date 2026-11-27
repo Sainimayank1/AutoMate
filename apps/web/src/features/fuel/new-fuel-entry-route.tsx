@@ -12,7 +12,7 @@ import { useActiveVehicle } from "@/hooks/use-active-vehicle";
 
 /** `/fuel/new[?vehicle=<id>]`: log a fill-up, for the active vehicle unless another is named. */
 export function Component() {
-  const { vehicles, activeVehicle, isPending, isError, error, refetch } = useActiveVehicle();
+  const { vehicles, activeVehicle, isPending, isError, data, error, refetch } = useActiveVehicle();
   const [params] = useSearchParams();
   const vehicle = vehicles.find((item) => item.id === params.get("vehicle")) ?? activeVehicle;
   // For the last price and payment method; the form still opens if this fails.
@@ -22,7 +22,7 @@ export function Component() {
   if (isPending || (vehicle && history.isPending)) {
     return <LoadingState fullScreen label="Loading…" />;
   }
-  if (isError) {
+  if (isError && !data) {
     return (
       <ErrorState
         className="min-h-svh"

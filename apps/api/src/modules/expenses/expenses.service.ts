@@ -6,6 +6,7 @@ import {
   createExpenseSchema,
   type CreateExpenseValues,
   type CreateRefundValues,
+  type DateWindow,
   type Expense,
   type ExpenseDetail,
   type ExpenseIcon,
@@ -36,12 +37,8 @@ import { type Expense as ExpenseRow, Prisma } from "@/generated/prisma/client";
 import { VehiclesService } from "@/modules/vehicles/vehicles.service";
 
 import { ExpenseCategoriesService } from "./expense-categories.service";
-import {
-  type MonthTotal,
-  overviewPeriods,
-  summarizeExpenses,
-  type YearReadings,
-} from "./expense-summary";
+import { ExpenseFiguresService } from "./expense-figures.service";
+import { type MonthTotal, overviewPeriods, summarizeExpenses } from "./expense-summary";
 import { type ExpenseWithCategories, toDbDate, toExpense, toExpenseInput } from "./expenses.mapper";
 
 const NOT_FOUND = "Expense not found";
@@ -78,6 +75,7 @@ export class ExpensesService {
     private readonly prisma: PrismaService,
     private readonly vehicles: VehiclesService,
     private readonly categories: ExpenseCategoriesService,
+    private readonly figures: ExpenseFiguresService,
   ) {}
 
   async list(userId: string, query: ExpenseListQuery): Promise<Paginated<Expense>> {
@@ -103,7 +101,7 @@ export class ExpensesService {
     const now = new Date(); // one clock for the queries and the figures (month boundaries)
     const period = overviewPeriods(now);
     const vehicle = vehicleId ? Prisma.sql`AND e.vehicle_id = ${vehicleId}::uuid` : Prisma.empty;
-    const [totals, readings] = await Promise.all([
+    const [totals, readings, [lastMonthSoFar]] = await Promise.all([
       this.prisma.$queryRaw<
         {
           month: string;
@@ -121,36 +119,15 @@ export class ExpensesService {
         WHERE e.user_id = ${userId}::uuid AND e.date >= ${period.from}::date AND e.date <= ${period.to}::date
         ${vehicle}
         GROUP BY 1, 2, 3, 4, 5`,
-      this.prisma.$queryRaw<
-        {
-          vehicle_id: string;
-          readings: number;
-          min_in_year: number | null;
-          max_in_year: number | null;
-          before: number | null;
-          cost_after_first: Prisma.Decimal;
-        }[]
-      >`
-        WITH r AS (
-          SELECT e.vehicle_id,
-                 count(*) FILTER (WHERE e.date >= ${period.yearStart}::date)::int AS readings,
-                 min(e.odometer_km) FILTER (WHERE e.date >= ${period.yearStart}::date) AS min_in_year,
-                 max(e.odometer_km) FILTER (WHERE e.date >= ${period.yearStart}::date) AS max_in_year,
-                 max(e.odometer_km) FILTER (WHERE e.date < ${period.yearStart}::date) AS before,
-                 min(e.date) FILTER (WHERE e.date >= ${period.yearStart}::date) AS first_date
-          FROM expenses e
-          WHERE e.user_id = ${userId}::uuid AND e.odometer_km IS NOT NULL AND e.date <= ${period.to}::date
-          ${vehicle}
-          GROUP BY e.vehicle_id
-        )
-        SELECT r.vehicle_id, r.readings, r.min_in_year, r.max_in_year, r.before,
-               (SELECT coalesce(sum(CASE WHEN x.kind = 'REFUND' THEN -x.amount ELSE x.amount END), 0)
-                FROM expenses x
-                JOIN expense_categories c ON c.id = x.category_id
-                WHERE x.user_id = ${userId}::uuid AND x.vehicle_id = r.vehicle_id
-                  AND c.cost_class = 'OPERATING'
-                  AND x.date > r.first_date AND x.date <= ${period.to}::date) AS cost_after_first
-        FROM r`,
+      this.figures.readings(userId, { from: period.yearStart, to: period.to }, vehicleId),
+      this.prisma.$queryRaw<{ total: Prisma.Decimal }[]>`
+        SELECT coalesce(sum(CASE WHEN e.kind = 'REFUND' THEN -e.amount ELSE e.amount END), 0) AS total
+        FROM expenses e
+        JOIN expense_categories c ON c.id = e.category_id
+        WHERE e.user_id = ${userId}::uuid AND c.cost_class = 'OPERATING'
+          AND e.date >= ${period.lastMonthWindow.from}::date
+          AND e.date <= ${period.lastMonthWindow.to}::date
+        ${vehicle}`,
     ]);
     const summary = summarizeExpenses(
       totals.map((row) => ({
@@ -161,15 +138,9 @@ export class ExpensesService {
         kind: row.kind,
         total: new Prisma.Decimal(row.total),
       })),
-      readings.map((row): YearReadings => ({
-        vehicleId: row.vehicle_id,
-        readings: row.readings,
-        minInYear: row.min_in_year,
-        maxInYear: row.max_in_year,
-        before: row.before,
-        costAfterFirst: new Prisma.Decimal(row.cost_after_first),
-      })),
+      readings,
       now,
+      new Prisma.Decimal(lastMonthSoFar!.total),
     );
     const categories = await this.prisma.expenseCategory.findMany({
       where: { id: { in: summary.categories.map((item) => item.categoryId) } },
@@ -200,6 +171,35 @@ export class ExpensesService {
           : [];
       }),
     };
+  }
+
+  /**
+   * Net spending (refunds subtracted) of one vehicle in system categories, by IST month and
+   * top-level category key. For modules that report their own money (Maintenance), so their
+   * figures are always the ones Expenses shows. The caller checks the vehicle is the user's.
+   */
+  async spendByMonth(
+    userId: string,
+    vehicleId: string,
+    window: DateWindow,
+    categoryKeys: string[],
+  ): Promise<{ month: string; categoryKey: string; total: Prisma.Decimal }[]> {
+    const rows = await this.prisma.$queryRaw<
+      { month: string; category_key: string; total: Prisma.Decimal }[]
+    >`
+      SELECT to_char(e.date, 'YYYY-MM') AS month, c.key AS category_key,
+             sum(CASE WHEN e.kind = 'REFUND' THEN -e.amount ELSE e.amount END) AS total
+      FROM expenses e
+      JOIN expense_categories c ON c.id = e.category_id
+      WHERE e.user_id = ${userId}::uuid AND e.vehicle_id = ${vehicleId}::uuid
+        AND e.date >= ${window.from}::date AND e.date <= ${window.to}::date
+        AND c.key IN (${Prisma.join(categoryKeys)})
+      GROUP BY 1, 2`;
+    return rows.map((row) => ({
+      month: row.month,
+      categoryKey: row.category_key,
+      total: new Prisma.Decimal(row.total),
+    }));
   }
 
   async get(userId: string, id: string): Promise<ExpenseDetail> {

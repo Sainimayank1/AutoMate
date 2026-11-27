@@ -28,6 +28,7 @@ import {
   deleteText,
   remainingRefund,
   sourceHref,
+  sourceModule,
 } from "@/features/expenses/utils/expense-helpers";
 import { PAYMENT_METHOD_LABELS } from "@/features/fuel/constants";
 import { vehicleName } from "@/features/garage/constants";
@@ -246,7 +247,7 @@ export function Component() {
                 <Button asChild>
                   <Link to={sourceHref(expense)!}>
                     <Pencil data-icon="inline-start" />
-                    Edit in Fuel
+                    Edit in {sourceModule(expense)}
                   </Link>
                 </Button>
               )}
