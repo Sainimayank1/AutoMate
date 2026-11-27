@@ -44,7 +44,7 @@ export function Component() {
         { icon: ShieldCheck, text: "RC, insurance and PUC in one place, with expiry alerts" },
         { icon: Sparkles, text: "An AI assistant grounded in your own service history", ai: true },
       ]}
-      footer="Passwords are stored only as secure hashes · AutoMate India"
+      footer="AutoMate India"
     >
       <form noValidate onSubmit={onSubmit} className="flex flex-col gap-4">
         <FormError message={errors.root?.server?.message} />

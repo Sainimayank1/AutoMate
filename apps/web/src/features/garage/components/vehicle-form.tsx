@@ -4,10 +4,10 @@ import { format, parseISO } from "date-fns";
 import { CarFront, Search, TriangleAlert, Truck, Van } from "lucide-react";
 import type { ReactNode } from "react";
 import { useFormContext, useWatch } from "react-hook-form";
-import { NumericFormat } from "react-number-format";
 
 import { DatePicker } from "@/components/common/date-picker";
 import { FormField } from "@/components/common/form-field";
+import { NumberInput } from "@/components/common/number-input";
 import {
   Field,
   FieldContent,
@@ -16,12 +16,7 @@ import {
   FieldTitle,
 } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
-import {
-  InputGroup,
-  InputGroupAddon,
-  InputGroupInput,
-  InputGroupText,
-} from "@/components/ui/input-group";
+import { InputGroup, InputGroupAddon, InputGroupInput } from "@/components/ui/input-group";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import {
   Select,
@@ -183,7 +178,7 @@ export function SpecificationsFields({ compact }: SectionProps) {
             <SelectTrigger
               ref={field.ref}
               id={field.id}
-              className="h-10 w-full"
+              className="w-full data-[size=default]:h-10"
               onBlur={field.onBlur}
             >
               <SelectValue />
@@ -427,7 +422,7 @@ function ChoiceField({
               ref={field.ref}
               id={field.id}
               aria-invalid={field["aria-invalid"]}
-              className="h-10 w-full"
+              className="w-full data-[size=default]:h-10"
             >
               <SelectValue placeholder="Choose…" />
             </SelectTrigger>
@@ -558,37 +553,15 @@ function NumberField({
       label={label}
       optional={optional}
       description={description}
-      render={({ value, onChange, onBlur, ref, id, name: inputName, disabled, ...aria }) => (
-        <InputGroup className={cn("h-10", warning && "border-warning")}>
-          {prefix && (
-            <InputGroupAddon>
-              <InputGroupText>{prefix}</InputGroupText>
-            </InputGroupAddon>
-          )}
-          <NumericFormat
-            customInput={InputGroupInput}
-            getInputRef={ref}
-            id={id}
-            name={inputName}
-            disabled={disabled}
-            aria-invalid={aria["aria-invalid"]}
-            value={value}
-            onValueChange={(values) => onChange(values.value)}
-            onBlur={onBlur}
-            inputMode={decimals ? "decimal" : "numeric"}
-            thousandSeparator=","
-            thousandsGroupStyle="lakh"
-            decimalScale={decimals}
-            allowNegative={false}
-            placeholder={placeholder}
-            className="font-mono tabular-nums"
-          />
-          {suffix && (
-            <InputGroupAddon align="inline-end">
-              <InputGroupText>{suffix}</InputGroupText>
-            </InputGroupAddon>
-          )}
-        </InputGroup>
+      render={(field) => (
+        <NumberInput
+          {...field}
+          prefix={prefix}
+          suffix={suffix}
+          placeholder={placeholder}
+          decimals={decimals}
+          warning={warning}
+        />
       )}
     />
   );

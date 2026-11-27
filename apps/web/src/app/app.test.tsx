@@ -17,9 +17,9 @@ describe("session restore on page load", () => {
       config.url === "/auth/refresh" ? ok(testSession()) : fail(404, "NOT_FOUND", "Not found"),
     );
 
-    const router = renderApp("/fuel");
-    expect(await screen.findByRole("heading", { level: 1, name: "Fuel" })).toBeInTheDocument();
-    expect(router.state.location.pathname).toBe("/fuel");
+    const router = renderApp("/trips");
+    expect(await screen.findByRole("heading", { level: 1, name: "Trips" })).toBeInTheDocument();
+    expect(router.state.location.pathname).toBe("/trips");
     expect(calls.filter((call) => call.url === "/auth/refresh")).toHaveLength(1);
   });
 
@@ -27,7 +27,7 @@ describe("session restore on page load", () => {
     useSessionStore.setState({ status: "unknown", session: null });
     mockApi(fail(401, "UNAUTHORIZED", "Your session has expired."));
 
-    const router = renderApp("/fuel");
+    const router = renderApp("/trips");
     expect(await screen.findByRole("heading", { name: "Welcome back" })).toBeInTheDocument();
     expect(router.state.location.pathname).toBe("/login");
   });
@@ -36,9 +36,9 @@ describe("session restore on page load", () => {
 describe("app shell", () => {
   it("lists all 12 modules in the navigation and opens the requested one", async () => {
     signIn();
-    renderApp("/fuel");
+    renderApp("/trips");
 
-    expect(await screen.findByRole("heading", { level: 1, name: "Fuel" })).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { level: 1, name: "Trips" })).toBeInTheDocument();
     const nav = screen.getByRole("navigation", { name: "Main" });
     for (const appModule of appModules) {
       expect(within(nav).getByRole("link", { name: appModule.title })).toHaveAttribute(

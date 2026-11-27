@@ -13,7 +13,7 @@ const PASSWORD = "Drive2026safe";
 describe("sign in", () => {
   it("signs in and returns to the page the user asked for", async () => {
     const calls = mockApi(ok(testSession()));
-    const router = renderApp("/fuel"); // RequireAuth → /login, remembering /fuel
+    const router = renderApp("/trips"); // RequireAuth → /login, remembering /trips
     const user = userEvent.setup();
 
     await user.type(await screen.findByLabelText("Email address"), "  Arjun.Mehta@Example.in ");
@@ -21,8 +21,8 @@ describe("sign in", () => {
     await user.click(screen.getByRole("checkbox", { name: "Keep me signed in on this device" }));
     await user.click(screen.getByRole("button", { name: "Sign in to AutoMate" }));
 
-    expect(await screen.findByRole("heading", { level: 1, name: "Fuel" })).toBeInTheDocument();
-    expect(router.state.location.pathname).toBe("/fuel");
+    expect(await screen.findByRole("heading", { level: 1, name: "Trips" })).toBeInTheDocument();
+    expect(router.state.location.pathname).toBe("/trips");
     // The shared schema normalises the email before it is sent.
     expect(JSON.parse(calls[0]?.data as string)).toEqual({
       email: "arjun.mehta@example.in",

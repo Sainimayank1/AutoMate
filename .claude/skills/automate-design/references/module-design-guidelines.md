@@ -91,11 +91,11 @@ Rules:
   - A `DataTable` with columns Date, Odometer, Quantity, ₹/L, Total, Fill (Full/Partial badge), Mileage, Station.
   - Mobile list rows: date and station on the left; total on the right; quantity · odometer · mileage as a caption.
 
-**Add/Edit fuel (`ResponsiveDialog`):**
+**Add/Edit fuel (task page, Stitch "Add Fuel": `/fuel/new`, `/fuel/:vehicleId/:entryId/edit`):**
 
-- **Field order:** Vehicle (prefilled with the active one), Date & time (now), Odometer (hint "Last reading: 8,450 km on 26/11/2026"), Fuel type (from the vehicle), Quantity (L), Price per litre (₹, last used), Total (₹), Fill type (segmented Full / Partial, default Full), Station (combobox of recent stations), Payment method (segmented UPI / Card / Cash / Other), Receipt (`FileUpload`, optional), Notes (optional).
-- Any two of quantity, price and total compute the third.
-- If the odometer is ≤ the previous reading, show an inline warning ("Lower than your last reading (8,450 km). Check the value, or save it flagged for review."). Never block silently.
+- **Field order:** Vehicle (prefilled with the active one), Date & time (now), Odometer (hint "Last reading: 8,450 km on 26/11/2026"), Fuel type (from the vehicle), Quantity (L), Price per litre (₹, last used), Total (₹), Fill type (Full / Partial cards, default Full), "I didn't log a fill-up before this one" (restarts the mileage sequence), Station (recent stations as suggestions), Payment method (select, last used), Location (automatic and read-only: the device position when the form opens, shown as its address, with Refresh and Remove; editing keeps the recorded one), Notes. Receipt (`FileUpload`) arrives with file storage (M6).
+- Quantity × price fills the total; the total stays editable (pump rounding) and must be within ₹1 or 1% of quantity × price.
+- The odometer must fit between the fill-ups before and after it (equal allowed). The API refuses an out-of-order reading and the message lands on the field ("Lower than 8,412 km, recorded on 24/11/2026. Check the reading or the date."). Never block silently.
 
 **Fuel record detail (`Sheet`):**
 

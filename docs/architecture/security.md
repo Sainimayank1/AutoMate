@@ -29,6 +29,7 @@ Baseline controls in Phase 0 and the rules every module follows. Related: [backe
 - **Validate everything** with a shared Zod schema. Bound string lengths and numeric ranges (odometer, amounts) so huge inputs are rejected.
 - **No raw SQL with string interpolation.** Use Prisma queries or tagged `$queryRaw` templates (parameterised); never `$queryRawUnsafe` with user input.
 - **No secrets in code, logs or responses.** Add new sensitive field names to the redaction list when introducing them.
+- **Location is personal data.** The fuel form reads the device position only after the browser's own permission prompt, and the user can drop it before saving. Coordinates travel in request bodies (never URLs, which are logged) and are never logged; the reverse geocoder (`GEOCODER_URL`) receives them server-side. Use a keyed provider in production; the public OpenStreetMap server is for development (1 request/s, attribution shown in the form).
 - **Sensitive routes** get a stricter `@Throttle()`: login and register 10/min per IP, refresh 30/min. Password reset gets the same when it ships.
 
 ## 3. File uploads (when Documents ships)

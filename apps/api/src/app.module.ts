@@ -14,6 +14,8 @@ import { DatabaseModule } from "./database/database.module";
 import { HealthModule } from "./health/health.module";
 import { AuthModule } from "./modules/auth/auth.module";
 import { JwtAuthGuard } from "./modules/auth/guards/jwt-auth.guard";
+import { FuelModule } from "./modules/fuel/fuel.module";
+import { GeocodingModule } from "./modules/geocoding/geocoding.module";
 import { UsersModule } from "./modules/users/users.module";
 import { VehiclesModule } from "./modules/vehicles/vehicles.module";
 
@@ -34,6 +36,8 @@ import { VehiclesModule } from "./modules/vehicles/vehicles.module";
     AuthModule,
     UsersModule,
     VehiclesModule,
+    FuelModule,
+    GeocodingModule,
     HealthModule,
     // Product modules (vehicles, fuel, expenses, ...) are added here as they are built.
   ],

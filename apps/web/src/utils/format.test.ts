@@ -30,6 +30,8 @@ describe("Indian formatters", () => {
     expect(formatVolume("35.42")).toBe("35.42 L");
     expect(formatEfficiency(15.5)).toBe("15.5 km/L");
     expect(formatEfficiency(15)).toBe("15.0 km/L");
+    expect(formatVolume("8.5", "kg")).toBe("8.5 kg");
+    expect(formatEfficiency("24.18", "km/kg")).toBe("24.2 km/kg");
   });
 
   it("formats dates as DD/MM/YYYY", () => {

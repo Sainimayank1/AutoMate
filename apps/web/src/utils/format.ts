@@ -71,14 +71,20 @@ export function formatDistance(km: NumericValue | null | undefined): string {
   return withUnit(formatWith(getNumberFormatter(0, 1), km), UNITS.distance);
 }
 
-/** 35.42 L */
-export function formatVolume(litres: NumericValue | null | undefined): string {
-  return withUnit(formatWith(getNumberFormatter(0, 2), litres), UNITS.volume);
+/** 35.42 L (or kg for CNG, kWh for electric) */
+export function formatVolume(
+  quantity: NumericValue | null | undefined,
+  unit: string = UNITS.volume,
+): string {
+  return withUnit(formatWith(getNumberFormatter(0, 2), quantity), unit);
 }
 
-/** 15.5 km/L */
-export function formatEfficiency(kmPerLitre: NumericValue | null | undefined): string {
-  return withUnit(formatWith(getNumberFormatter(1, 1), kmPerLitre), UNITS.efficiency);
+/** 15.5 km/L (or km/kg, km/kWh) */
+export function formatEfficiency(
+  value: NumericValue | null | undefined,
+  unit: string = UNITS.efficiency,
+): string {
+  return withUnit(formatWith(getNumberFormatter(1, 1), value), unit);
 }
 
 function toDate(value: DateValue | null | undefined): Date | null {

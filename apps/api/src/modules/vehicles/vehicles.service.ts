@@ -65,10 +65,32 @@ export class VehiclesService {
     if (count === 0) throw new NotFoundException(NOT_FOUND);
   }
 
-  private async findOwned(userId: string, id: string): Promise<VehicleRow> {
-    const row = await this.prisma.vehicle.findFirst({ where: { id, userId } });
+  /** The user's vehicle row, or 404. Also used by modules that record against a vehicle. */
+  async findOwned(
+    userId: string,
+    id: string,
+    db: Prisma.TransactionClient = this.prisma,
+  ): Promise<VehicleRow> {
+    const row = await db.vehicle.findFirst({ where: { id, userId } });
     if (!row) throw new NotFoundException(NOT_FOUND);
     return row;
+  }
+
+  /**
+   * `findOwned` inside a transaction, holding the row lock until it commits, so concurrent writes
+   * to the vehicle's records (e.g. two fuel entries checking the odometer order) run one at a time.
+   */
+  async lockOwned(userId: string, id: string, tx: Prisma.TransactionClient): Promise<VehicleRow> {
+    await tx.$queryRaw`SELECT 1 FROM vehicles WHERE id = ${id}::uuid AND user_id = ${userId}::uuid FOR UPDATE`;
+    return this.findOwned(userId, id, tx);
+  }
+
+  /** A newer reading from another module (fuel, service, trips): raise, never lower. */
+  async raiseOdometer(id: string, km: number, tx: Prisma.TransactionClient): Promise<void> {
+    await tx.vehicle.updateMany({
+      where: { id, odometerKm: { lt: km } },
+      data: { odometerKm: km },
+    });
   }
 
   /** Archived vehicles count too: a registration belongs to one vehicle per user. */

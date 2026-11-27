@@ -127,25 +127,26 @@ Touch targets are at least 40px on phones, and there's no horizontal page scroll
 
 ## Component inventory
 
-**Primitives** (`components/ui/`, shadcn): accordion, alert, alert-dialog, avatar, badge, breadcrumb, button, calendar, card, checkbox, dialog, dropdown-menu, empty, field, input, input-group, label, popover, radio-group, select, separator, sheet, sidebar, skeleton, sonner, spinner, switch, table, tabs, textarea, tooltip.
+**Primitives** (`components/ui/`, shadcn): accordion, alert, alert-dialog, avatar, badge, breadcrumb, button, calendar, card, chart (Recharts), checkbox, dialog, dropdown-menu, empty, field, input, input-group, label, popover, radio-group, select, separator, sheet, sidebar, skeleton, sonner, spinner, switch, table, tabs, textarea, tooltip.
 
 **App building blocks** (`components/common/`):
 
-| Component                 | Purpose                                                                                       |
-| ------------------------- | --------------------------------------------------------------------------------------------- |
-| `PageContainer`           | Page width, gutters, vertical rhythm                                                          |
-| `PageHeader`              | h1 + description + page actions                                                               |
-| `SectionHeader`           | h2 + description + section actions                                                            |
-| `Breadcrumbs`             | Built from route `handle.title`s                                                              |
-| `SearchInput`             | Search field with icon and clear button (controlled)                                          |
-| `StatCard`                | Label, value, hint and icon; optional link to its module; loading skeleton                    |
-| `DataTable`               | TanStack Table v8: sortable headers, pagination, loading and empty rows                       |
-| `ConfirmDialog`           | Confirm/cancel with async pending state and a destructive variant                             |
-| `FormField` / `FormError` | react-hook-form field wiring (`optional` adds "(optional)" to the label) / form-level error   |
-| `DatePicker`              | Popover + Calendar with month/year dropdowns (1950 → +15 years), shows DD/MM/YYYY             |
-| `PlateBadge`              | Registration chip in Geist Mono: `HR-26-EV-4821`                                              |
-| `VehicleImage`            | Vehicle visual; until photos are supported, the glow-panel fallback (`panel` or 40px `thumb`) |
-| `UnsavedChangesGuard`     | Asks before leaving a dirty form (in-app navigation and closing the tab)                      |
+| Component                 | Purpose                                                                                             |
+| ------------------------- | --------------------------------------------------------------------------------------------------- |
+| `PageContainer`           | Page width, gutters, vertical rhythm                                                                |
+| `PageHeader`              | h1 + description + page actions                                                                     |
+| `SectionHeader`           | h2 + description + section actions                                                                  |
+| `Breadcrumbs`             | Built from route `handle.title`s                                                                    |
+| `SearchInput`             | Search field with icon and clear button (controlled)                                                |
+| `NumberInput`             | Number with Indian grouping and a unit (₹ prefix, km/L suffix); spread a `FormField` render onto it |
+| `StatCard`                | Label, value, hint and icon; optional link to its module; loading skeleton                          |
+| `DataTable`               | TanStack Table v8: sortable headers, pagination, loading and empty rows                             |
+| `ConfirmDialog`           | Confirm/cancel with async pending state and a destructive variant                                   |
+| `FormField` / `FormError` | react-hook-form field wiring (`optional` adds "(optional)" to the label) / form-level error         |
+| `DatePicker`              | Popover + Calendar with month/year dropdowns (1950 → +15 years), shows DD/MM/YYYY                   |
+| `PlateBadge`              | Registration chip in Geist Mono: `HR-26-EV-4821`                                                    |
+| `VehicleImage`            | Vehicle visual; until photos are supported, the glow-panel fallback (`panel` or 40px `thumb`)       |
+| `UnsavedChangesGuard`     | Asks before leaving a dirty form (in-app navigation and closing the tab)                            |
 
 **Layout** (`components/layout/`): `AppShell`, `AppSidebar` (with `VehicleSelector`, the active-vehicle switcher), `AppHeader`, `ThemeToggle`, `UserMenu`, `BrandLogo`/`BrandMark`, and `TaskPage` (full-page flows outside the shell: a focused header with back button, used by the add and edit vehicle pages).
 

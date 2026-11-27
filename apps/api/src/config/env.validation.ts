@@ -54,6 +54,16 @@ const envSchema = z
     REDIS_HOST: z.string().default("localhost"),
     REDIS_PORT: z.coerce.number().int().min(1).max(65535).default(6379),
 
+    /**
+     * Reverse geocoding for the fuel form's automatic location. Any Nominatim-compatible
+     * `/reverse` endpoint: the public OpenStreetMap one (default; fine for development, max
+     * 1 request/s) or a keyed provider such as LocationIQ in production (key sent as `key`).
+     */
+    GEOCODER_URL: z
+      .url({ protocol: /^https?$/ })
+      .default("https://nominatim.openstreetmap.org/reverse"),
+    GEOCODER_API_KEY: z.string().optional(),
+
     STORAGE_PROVIDER: z.enum(["r2", "s3"]).optional(),
     STORAGE_BUCKET: z.string().optional(),
     STORAGE_REGION: z.string().optional(),

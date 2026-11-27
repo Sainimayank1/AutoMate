@@ -86,7 +86,14 @@ export const appModules = [
     path: "/fuel",
     icon: Fuel,
     navGroup: "management",
-    lazy: () => import("@/features/fuel/route"),
+    lazy: () => import("@/features/fuel/fuel-route"),
+    taskRoutes: [
+      { path: "/fuel/new", lazy: () => import("@/features/fuel/new-fuel-entry-route") },
+      {
+        path: "/fuel/:vehicleId/:entryId/edit",
+        lazy: () => import("@/features/fuel/edit-fuel-entry-route"),
+      },
+    ],
   },
   {
     id: "expenses",

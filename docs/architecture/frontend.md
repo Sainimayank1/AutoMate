@@ -26,7 +26,7 @@ apps/web/src/
 ├── components/
 │   ├── ui/                     # shadcn/ui primitives (generated, owned by us)
 │   ├── common/                 # PageContainer, PageHeader, SectionHeader, Breadcrumbs,
-│   │                           # SearchInput, StatCard, DataTable, ConfirmDialog,
+│   │                           # SearchInput, StatCard, DataTable, ConfirmDialog, NumberInput,
 │   │                           # FormField, FormError, DatePicker, ModulePlaceholder
 │   ├── feedback/               # EmptyState, ErrorState, LoadingState, LoadingSkeleton,
 │   │                           # RouteError/NotFoundState, AppErrorFallback
@@ -65,30 +65,30 @@ features/fuel/
 
 ## 3. Dependency responsibilities
 
-| Concern            | Package                                                                                 | Where it's wired                                       |
-| ------------------ | --------------------------------------------------------------------------------------- | ------------------------------------------------------ |
-| Routing            | react-router 8 (data router)                                                            | `app/router/routes.tsx`                                |
-| Server state       | @tanstack/react-query 5                                                                 | `lib/query-client.ts`                                  |
-| Client state       | zustand 5                                                                               | `stores/`                                              |
-| HTTP               | axios                                                                                   | `lib/api-client.ts`                                    |
-| API contract types | @automate/shared (workspace)                                                            | `lib/api-client.ts`, `lib/api-error.ts`                |
-| Forms              | react-hook-form + @hookform/resolvers + zod 4                                           | `components/common/form-field.tsx`, `lib/forms.ts`     |
-| UI primitives      | shadcn/ui (radix-ui, `cn`, class-variance-authority)                                    | `components/ui/`                                       |
-| Icons              | lucide-react                                                                            | everywhere                                             |
-| Theme              | next-themes                                                                             | `app/providers/app-providers.tsx`, `index.html`        |
-| Toasts             | sonner                                                                                  | `components/ui/sonner.tsx`                             |
-| Tables             | @tanstack/react-table 8                                                                 | `components/common/data-table.tsx`                     |
-| Dates              | date-fns 4, react-day-picker (via shadcn calendar)                                      | `utils/format.ts`, `components/common/date-picker.tsx` |
-| Error boundaries   | react-error-boundary + router `errorElement`                                            | `app/App.tsx`, `app/router/routes.tsx`                 |
-| Fonts              | @fontsource-variable/manrope, inter, geist-mono (self-hosted, Stitch)                   | `styles/index.css`                                     |
-| Tests              | vitest, @testing-library/react, user-event, jest-dom, jsdom                             | `vite.config.ts`, `test/setup.ts`                      |
-| Lint/format        | eslint 10 (typescript-eslint, react-hooks, react-refresh, simple-import-sort), prettier | `eslint.config.js`, root `.prettierrc`                 |
+| Concern            | Package                                                                                  | Where it's wired                                       |
+| ------------------ | ---------------------------------------------------------------------------------------- | ------------------------------------------------------ |
+| Routing            | react-router 8 (data router)                                                             | `app/router/routes.tsx`                                |
+| Server state       | @tanstack/react-query 5                                                                  | `lib/query-client.ts`                                  |
+| Client state       | zustand 5                                                                                | `stores/`                                              |
+| HTTP               | axios                                                                                    | `lib/api-client.ts`                                    |
+| API contract types | @automate/shared (workspace)                                                             | `lib/api-client.ts`, `lib/api-error.ts`                |
+| Forms              | react-hook-form + @hookform/resolvers + zod 4                                            | `components/common/form-field.tsx`, `lib/forms.ts`     |
+| UI primitives      | shadcn/ui (radix-ui, `cn`, class-variance-authority)                                     | `components/ui/`                                       |
+| Icons              | lucide-react                                                                             | everywhere                                             |
+| Theme              | next-themes                                                                              | `app/providers/app-providers.tsx`, `index.html`        |
+| Toasts             | sonner                                                                                   | `components/ui/sonner.tsx`                             |
+| Tables             | @tanstack/react-table 8                                                                  | `components/common/data-table.tsx`                     |
+| Charts             | recharts 3 via shadcn `chart` (first used by Fuel; import only from lazy feature routes) | `components/ui/chart.tsx`                              |
+| Dates              | date-fns 4, react-day-picker (via shadcn calendar)                                       | `utils/format.ts`, `components/common/date-picker.tsx` |
+| Error boundaries   | react-error-boundary + router `errorElement`                                             | `app/App.tsx`, `app/router/routes.tsx`                 |
+| Fonts              | @fontsource-variable/manrope, inter, geist-mono (self-hosted, Stitch)                    | `styles/index.css`                                     |
+| Tests              | vitest, @testing-library/react, user-event, jest-dom, jsdom                              | `vite.config.ts`, `test/setup.ts`                      |
+| Lint/format        | eslint 10 (typescript-eslint, react-hooks, react-refresh, simple-import-sort), prettier  | `eslint.config.js`, root `.prettierrc`                 |
 
 **Approved but not installed yet.** Install each one with the module that first needs it, and import it only from that module's lazy route so it stays out of the startup bundle:
 
 | Package                   | Install with            |
 | ------------------------- | ----------------------- |
-| recharts                  | Dashboard / Analytics   |
 | react-dropzone, react-pdf | Documents               |
 | @dnd-kit/*                | Dashboard customisation |
 | papaparse                 | Backup & Export         |
@@ -293,6 +293,7 @@ Current coverage:
 - App shell: session restore on load (valid and invalid cookie), all 12 nav links, redirect from `/`, not-found page, signed-in users kept off `/login`.
 - Auth pages: sign-in (normalised email, remember-me, return to the requested page), wrong credentials, password reveal, registration validation, duplicate email on its field, successful registration.
 - Garage: empty state, cards/filters/active switch, the full wizard (per-step validation, lakh-grouped input, normalised payload, new vehicle becomes active), a registration conflict jumping back to step 1, details + Specifications tab, delete-by-typing-the-plate, edit with the odometer warning. Plate formatting has unit tests; the refresh lock has one too.
+- Fuel: no-vehicle and first-fill-up states, API figures and explained missing mileage, filters, delete with confirmation, add (last price and payment carried over, total from quantity × price, the API's odometer error on its field, normalised payload, the vehicle becomes active), total mismatch blocked, edit, the automatic read-only location (address saved with the coordinates; blocked access, refresh and remove).
 
 Every calculation or formatting rule added later gets a test next to it.
 
