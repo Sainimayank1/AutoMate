@@ -1,4 +1,10 @@
-import { ReportingPeriod, SpendGroup } from "@automate/shared";
+import {
+  DashboardMetric,
+  DashboardWidget,
+  INSIGHT_LIMIT,
+  ReportingPeriod,
+  SpendGroup,
+} from "@automate/shared";
 import type { ApiResponseSchemaHost } from "@nestjs/swagger";
 
 import { VEHICLE_SCHEMA } from "@/modules/vehicles/vehicles.constants";
@@ -191,5 +197,90 @@ export const DASHBOARD_OVERVIEW_SCHEMA: Schema = {
         },
       },
     }),
+    insights: section({
+      type: "object",
+      properties: {
+        items: {
+          type: "array",
+          maxItems: INSIGHT_LIMIT,
+          items: {
+            type: "object",
+            properties: {
+              id: { type: "string", example: "spending_change" },
+              topic: { type: "string", enum: ["spending", "fuel", "usage", "maintenance"] },
+              tone: { type: "string", enum: ["negative", "positive", "neutral"] },
+              title: { type: "string", example: "Spending is up 51%" },
+              explanation: {
+                type: "string",
+                example: "₹9,368.21 so far against ₹6,200.00. Fuel rose the most: +₹3,518.21.",
+              },
+              metric: {
+                type: "object",
+                properties: {
+                  label: { type: "string", example: "Spent" },
+                  value: { type: "string", example: "₹9,368.21" },
+                  previous: { type: "string", nullable: true, example: "₹6,200.00" },
+                },
+              },
+              comparedWith: {
+                type: "object",
+                nullable: true,
+                properties: { from: day("2026-10-01"), to: day("2026-10-27") },
+              },
+              confidence: { type: "string", nullable: true, enum: ["high", "medium", "low"] },
+              action: {
+                type: "object",
+                properties: {
+                  label: { type: "string", example: "View transactions" },
+                  href: { type: "string", example: "/expenses/transactions?vehicle=…" },
+                },
+              },
+            },
+          },
+        },
+        needs: {
+          type: "array",
+          items: { type: "string", enum: ["expenses", "fuel_cycles", "odometer"] },
+        },
+      },
+    }),
+  },
+};
+
+/** OpenAPI shape of `ActivityItem` (@automate/shared). */
+export const ACTIVITY_ITEM_SCHEMA: Schema = {
+  type: "object",
+  properties: {
+    id: { type: "string", example: "expense:0190d4a2-…" },
+    kind: { type: "string", enum: ["fuel", "expense", "refund", "service"] },
+    date: { type: "string", format: "date", example: "2026-11-24" },
+    title: { type: "string", example: "IndianOil XP95" },
+    detail: { type: "string", nullable: true, example: "32.4 L at ₹104.32/L" },
+    amount: decimal("3380.00"),
+    odometerKm: { type: "integer", nullable: true, example: 8412 },
+    href: { type: "string", example: "/fuel/…/…/edit" },
+  },
+};
+
+/** OpenAPI shape of `DashboardLayout` (@automate/shared). */
+export const DASHBOARD_LAYOUT_SCHEMA: Schema = {
+  type: "object",
+  properties: {
+    widgets: {
+      type: "array",
+      description: "Every section once, in display order",
+      items: {
+        type: "object",
+        properties: {
+          id: { type: "string", enum: Object.values(DashboardWidget) },
+          visible: { type: "boolean" },
+        },
+      },
+    },
+    metrics: {
+      type: "array",
+      description: "The key figures shown, at least one",
+      items: { type: "string", enum: Object.values(DashboardMetric) },
+    },
   },
 };

@@ -7,10 +7,11 @@ import { VehiclesModule } from "@/modules/vehicles/vehicles.module";
 
 import { DashboardController } from "./dashboard.controller";
 import { DashboardService } from "./dashboard.service";
+import { DashboardLayoutService } from "./dashboard-layout.service";
 
 @Module({
   imports: [VehiclesModule, ExpensesModule, FuelModule, MaintenanceModule],
   controllers: [DashboardController],
-  providers: [DashboardService],
+  providers: [DashboardService, DashboardLayoutService],
 })
 export class DashboardModule {}

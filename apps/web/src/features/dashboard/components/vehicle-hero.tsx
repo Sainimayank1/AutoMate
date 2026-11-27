@@ -1,5 +1,5 @@
 import type { Vehicle } from "@automate/shared";
-import { Fuel, Gauge, ReceiptIndianRupee } from "lucide-react";
+import { Fuel, Gauge, ReceiptIndianRupee, Wrench } from "lucide-react";
 import { Link } from "react-router";
 
 import { PlateBadge } from "@/components/common/plate-badge";
@@ -18,7 +18,7 @@ const label = "text-xs font-semibold tracking-wider uppercase";
 
 /**
  * Stitch "Dashboard" vehicle hero: the active vehicle, its odometer and the quick actions that
- * exist today. Deviation: the design system's vehicle visual instead of a photo (photos need file
+ * exist today (Log trip and Add document join when Trips and Documents are built). Deviation: the design system's vehicle visual instead of a photo (photos need file
  * storage, not in this project).
  */
 export function VehicleHero({ vehicle }: { vehicle: Vehicle }) {
@@ -80,6 +80,12 @@ export function VehicleHero({ vehicle }: { vehicle: Vehicle }) {
               <Link to="/expenses/new">
                 <ReceiptIndianRupee data-icon="inline-start" />
                 Add expense
+              </Link>
+            </Button>
+            <Button asChild size="sm" variant="outline" className={action}>
+              <Link to="/maintenance/records/new">
+                <Wrench data-icon="inline-start" />
+                Add service record
               </Link>
             </Button>
             <Button asChild size="sm" variant="outline" className={action}>

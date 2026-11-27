@@ -32,8 +32,24 @@ model User {
   serviceProviders     ServiceProvider[]
   components           VehicleComponent[]
   inspections          Inspection[]
+  preference           UserPreference?
 
   @@map("users")
+}
+
+/// A user's saved settings, one row per user (the dashboard layout now; Settings adds more).
+model UserPreference {
+  id        String   @id @default(uuid(7)) @db.Uuid
+  userId    String   @unique @map("user_id") @db.Uuid
+  /// `DashboardLayout` (@automate/shared): an opaque payload, never filtered on, validated by the
+  /// API on write and brought up to date on read. Null: the default layout.
+  dashboard Json?
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("user_preferences")
 }
 
 /// One signed-in device. Holds only the SHA-256 hash of its refresh token, which rotates on every refresh.

@@ -2,7 +2,12 @@ import { z } from "zod";
 
 import { paginationQuerySchema } from "../api/pagination.js";
 
-import { checkPeriodQuery, type PeriodWindow, periodQueryFields } from "../common/periods.js";
+import {
+  checkPeriodQuery,
+  type DateWindow,
+  type PeriodWindow,
+  periodQueryFields,
+} from "../common/periods.js";
 import type { SpendGroup } from "../expenses/expense-categories.js";
 import type { ExpenseCategoryRef } from "../expenses/expense.schema.js";
 import type { MileagePoint } from "../fuel/fuel.schema.js";
@@ -175,7 +180,44 @@ export interface DashboardOverview {
   maintenance: DashboardSection<DashboardMaintenance>;
   expiries: DashboardSection<ExpiryItem[]>;
   driving: DashboardSection<DrivingOverview>;
+  insights: DashboardSection<DashboardInsights>;
 }
+
+// ---- smart insights (deterministic rules over the vehicle's own records, never AI)
+
+/** What an insight is about; the dashboard shows at most one per topic. */
+export type InsightTopic = "spending" | "fuel" | "usage" | "maintenance";
+/** `negative`: it costs more or runs worse; `positive`: the reverse; `neutral`: neither. */
+export type InsightTone = "negative" | "positive" | "neutral";
+/** How far the figures behind it can be trusted, where that varies (fuel cycles, readings). */
+export type InsightConfidence = "high" | "medium" | "low";
+
+/** A notable change in the vehicle's records. */
+export interface Insight {
+  /** The rule that found it. */
+  id: string;
+  topic: InsightTopic;
+  tone: InsightTone;
+  title: string;
+  explanation: string;
+  /** The figure it rests on and the one it's compared with, formatted. */
+  metric: { label: string; value: string; previous: string | null };
+  /** The window compared with; null for a run of records (the last 3 full tanks, 3 months). */
+  comparedWith: DateWindow | null;
+  confidence: InsightConfidence | null;
+  action: { label: string; href: string };
+}
+
+/** Records some insights still need, in this period and the one it's compared with. */
+export type InsightNeed = "expenses" | "fuel_cycles" | "odometer";
+
+export interface DashboardInsights {
+  /** Costs and worse running first, then improvements, then the rest; at most `INSIGHT_LIMIT`. */
+  items: Insight[];
+  needs: InsightNeed[];
+}
+
+export const INSIGHT_LIMIT = 4;
 
 // ---- recent activity (`GET /dashboard/activity`)
 
@@ -206,4 +248,87 @@ export interface ActivityItem {
   odometerKm: number | null;
   /** The record it opens. */
   href: string;
+}
+
+// ---- customisation (`GET/PUT /dashboard/layout`), saved per user
+
+/**
+ * Sections the user can show, hide and reorder. The greeting, the vehicle hero and the status
+ * panel (it carries overdue obligations) are fixed.
+ */
+export const DashboardWidget = {
+  METRICS: "metrics",
+  INSIGHTS: "insights",
+  SPENDING: "spending",
+  FUEL: "fuel",
+  MAINTENANCE: "maintenance",
+  EXPIRIES: "expiries",
+  DRIVING: "driving",
+  ACTIVITY: "activity",
+} as const;
+export type DashboardWidget = (typeof DashboardWidget)[keyof typeof DashboardWidget];
+
+/** The key figures the user can choose from (keys of `DashboardMetrics`), in their fixed order. */
+export const DashboardMetric = {
+  SPENT: "spent",
+  RUNNING_COST_PER_KM: "runningCostPerKm",
+  MILEAGE: "mileage",
+  DISTANCE: "distance",
+  FUEL_SPEND: "fuelSpend",
+} as const satisfies Record<string, keyof DashboardMetrics>;
+export type DashboardMetric = (typeof DashboardMetric)[keyof typeof DashboardMetric];
+
+const WIDGETS = Object.values(DashboardWidget);
+const METRICS = Object.values(DashboardMetric);
+const distinct = (values: string[]) => new Set(values).size === values.length;
+
+/** The whole layout: every section once, in order, and at least one key figure. */
+export const dashboardLayoutSchema = z.object({
+  widgets: z
+    .array(z.object({ id: z.enum(DashboardWidget), visible: z.boolean() }))
+    .refine(
+      (widgets) => widgets.length === WIDGETS.length && distinct(widgets.map((w) => w.id)),
+      "List every section once",
+    ),
+  metrics: z
+    .array(z.enum(DashboardMetric))
+    .min(1, "Choose at least one key figure")
+    .refine(distinct, "Choose each key figure once"),
+});
+export type DashboardLayout = z.output<typeof dashboardLayoutSchema>;
+
+export const DEFAULT_DASHBOARD_LAYOUT: DashboardLayout = {
+  widgets: WIDGETS.map((id) => ({ id, visible: true })),
+  metrics: METRICS,
+};
+
+const isWidget = (value: unknown): value is DashboardWidget =>
+  (WIDGETS as unknown[]).includes(value);
+const isMetric = (value: unknown): value is DashboardMetric =>
+  (METRICS as unknown[]).includes(value);
+
+/**
+ * A saved layout made current: sections that no longer exist are dropped, and new ones are added,
+ * shown, where the default has them (after the section they follow); key figures keep their fixed
+ * order, and none chosen means all.
+ */
+export function normalizeDashboardLayout(saved: unknown): DashboardLayout {
+  const value = (saved ?? {}) as { widgets?: unknown; metrics?: unknown };
+  const widgets: DashboardLayout["widgets"] = [];
+  for (const item of Array.isArray(value.widgets) ? value.widgets : []) {
+    const { id, visible } = (item ?? {}) as { id?: unknown; visible?: unknown };
+    if (isWidget(id) && !widgets.some((widget) => widget.id === id)) {
+      widgets.push({ id, visible: visible !== false });
+    }
+  }
+  WIDGETS.forEach((id, index) => {
+    if (widgets.some((widget) => widget.id === id)) return;
+    const after = widgets.findIndex((widget) => widget.id === WIDGETS[index - 1]);
+    widgets.splice(after + 1, 0, { id, visible: true });
+  });
+  const chosen = Array.isArray(value.metrics) ? value.metrics.filter(isMetric) : [];
+  return {
+    widgets,
+    metrics: chosen.length ? METRICS.filter((metric) => chosen.includes(metric)) : METRICS,
+  };
 }

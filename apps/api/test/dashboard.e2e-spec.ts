@@ -5,13 +5,17 @@
 import { randomUUID } from "node:crypto";
 
 import {
+  type ActivityItem,
   addDays,
   type ApiErrorResponse,
   type ApiSuccessResponse,
+  type DashboardLayout,
   type DashboardMetrics,
   type DashboardOverview,
+  DEFAULT_DASHBOARD_LAYOUT,
   type FuelOverview,
   istToday,
+  type PageMeta,
   ReportingPeriod,
   resolvePeriod,
   type SpendingOverview,
@@ -30,6 +34,7 @@ import { seedSystemExpenseCategories } from "@/modules/expenses/expense-categori
 
 const DOMAIN = "dashboard.e2e.automate.test";
 const OVERVIEW = "/api/v1/dashboard/overview";
+const LAYOUT = "/api/v1/dashboard/layout";
 
 describe("Dashboard (e2e)", () => {
   let app: NestExpressApplication;
@@ -177,6 +182,9 @@ describe("Dashboard (e2e)", () => {
             title: "Insurance expires in 24 days",
             detail: expect.stringMatching(/^From your insurance payment of /) as string,
             href: `/expenses/transactions/${dataOf<{ id: string }>(policy).id}`,
+            source: "insurance",
+            state: "due_soon",
+            action: { label: "Add renewal", href: "/expenses/new" },
           },
           expect.objectContaining({
             id: "warranty",
@@ -265,6 +273,25 @@ describe("Dashboard (e2e)", () => {
     });
     // No schedule and no service record yet.
     expect(overview.maintenance).toEqual({ state: "empty" });
+    // Insights: spending fell (last month had the insurance payment); fuel and distance have
+    // nothing to compare with yet, and say so.
+    expect(overview.insights).toEqual({
+      state: "ok",
+      data: {
+        items: [
+          expect.objectContaining({
+            id: "spending_change",
+            tone: "positive",
+            title: "Spending is down 71%",
+            explanation: expect.stringMatching(
+              /^₹5,140\.00 so far against ₹18,000\.00\. .+ fell the most: −₹15,000\.00\.$/,
+            ) as string,
+            comparedWith: previous,
+          }) as object,
+        ],
+        needs: ["fuel_cycles", "odometer"],
+      },
+    });
   });
 
   it("shows maintenance from the Maintenance module, and counts it as tracked", async () => {
@@ -297,6 +324,65 @@ describe("Dashboard (e2e)", () => {
     });
   });
 
+  it("lists what happened, newest first, a page at a time, never a service twice", async () => {
+    const car = await vehicle(arjun, { odometerKm: 8000 });
+    const today = istToday(new Date());
+    await post(arjun, `/api/v1/vehicles/${car.id}/fuel-entries`, {
+      filledAt: `${addDays(today, -3)}T00:01:00.000+05:30`,
+      odometerKm: 8100,
+      fuelType: "PETROL",
+      quantity: "30",
+      pricePerUnit: "100",
+      totalAmount: "3000",
+      isFullTank: true,
+    }).expect(201);
+    const toll = dataOf<{ id: string }>(
+      await post(arjun, "/api/v1/expenses", {
+        allocation: { mode: "single", vehicleId: car.id },
+        categoryId: keyed.get("DAILY_USAGE"),
+        subcategoryId: keyed.get("DAILY_USAGE.TOLL"),
+        title: "Kherki Daula FASTag",
+        amount: "640",
+        date: addDays(today, -2),
+      }).expect(201),
+    );
+    await post(arjun, `/api/v1/expenses/${toll.id}/refunds`, {
+      amount: "140",
+      date: today,
+      reason: "REFUND",
+    }).expect(201);
+    const service = dataOf<{ id: string }>(
+      await post(arjun, `/api/v1/vehicles/${car.id}/service-records`, {
+        type: "ROUTINE_SERVICE",
+        title: "Periodic service",
+        categoryKey: "GENERAL.PERIODIC_SERVICE",
+        serviceDate: today,
+        odometerKm: 8300,
+        labourAmount: "1200",
+        partsAmount: "1450",
+        paymentMethod: "UPI",
+      }).expect(201),
+    );
+
+    const page = (n: number) =>
+      get(arjun, `/api/v1/dashboard/activity?vehicleId=${car.id}&page=${n}&pageSize=3`).expect(200);
+    const first = await page(1);
+    // The service's own expense isn't listed: 3 money events + 1 service.
+    expect((first.body as ApiSuccessResponse<ActivityItem[], PageMeta>).meta).toMatchObject({
+      total: 4,
+      totalPages: 2,
+    });
+    expect(dataOf<ActivityItem[]>(first).map((item) => [item.kind, item.href])).toEqual([
+      ["service", `/maintenance/records/${car.id}/${service.id}`],
+      ["refund", `/expenses/transactions/${toll.id}`],
+      ["expense", `/expenses/transactions/${toll.id}`],
+    ]);
+    expect(dataOf<ActivityItem[]>(await page(2))).toMatchObject([
+      { kind: "fuel", detail: "30 L at ₹100/L", odometerKm: 8100, amount: "3000.00" },
+    ]);
+    await get(priya, `/api/v1/dashboard/activity?vehicleId=${car.id}`).expect(404);
+  });
+
   it("has no figures for a vehicle with nothing recorded, but still a status", async () => {
     const car = await vehicle(arjun);
     const overview = dataOf<DashboardOverview>(
@@ -305,6 +391,10 @@ describe("Dashboard (e2e)", () => {
     expect(overview.metrics).toEqual({ state: "empty" });
     expect(overview.spending).toEqual({ state: "empty" });
     expect(overview.fuel).toEqual({ state: "empty" });
+    expect(overview.insights).toEqual({
+      state: "ok",
+      data: { items: [], needs: ["expenses", "fuel_cycles", "odometer"] },
+    });
     expect(overview.status).toMatchObject({
       state: "ok",
       data: { level: "incomplete", items: [] },
@@ -331,5 +421,38 @@ describe("Dashboard (e2e)", () => {
     await get(arjun, `${OVERVIEW}?vehicleId=${car.id}&period=fortnight`).expect(400);
     await get(arjun, OVERVIEW).expect(400);
     await get(priya, `${OVERVIEW}?vehicleId=${car.id}`).expect(404);
+  });
+
+  it("saves each user's own layout, validates it and resets to the default", async () => {
+    const put = (token: string, body: object) =>
+      request(app.getHttpServer()).put(LAYOUT).auth(token, { type: "bearer" }).send(body);
+    const layoutOf = (res: request.Response) => dataOf<DashboardLayout>(res);
+    const fresh = arjun; // no other test saves a layout
+    expect(layoutOf(await get(fresh, LAYOUT).expect(200))).toEqual(DEFAULT_DASHBOARD_LAYOUT);
+
+    const mine: DashboardLayout = {
+      widgets: [...DEFAULT_DASHBOARD_LAYOUT.widgets]
+        .reverse()
+        .map((widget) => ({ ...widget, visible: widget.id !== "spending" })),
+      metrics: ["fuelSpend", "spent"],
+    };
+    const saved = layoutOf(await put(fresh, mine).expect(200));
+    // Stored in canonical form: the key figures in their fixed order.
+    expect(saved).toEqual({ ...mine, metrics: ["spent", "fuelSpend"] });
+    expect(layoutOf(await get(fresh, LAYOUT).expect(200))).toEqual(saved);
+    // Someone else's layout is untouched.
+    expect(layoutOf(await get(priya, LAYOUT).expect(200))).toEqual(DEFAULT_DASHBOARD_LAYOUT);
+
+    const invalid = await put(fresh, { ...mine, metrics: [] }).expect(400);
+    expect(errorOf(invalid).details).toEqual([
+      { field: "metrics", message: "Choose at least one key figure" },
+    ]);
+    await put(fresh, { ...mine, widgets: mine.widgets.slice(1) }).expect(400);
+    await put(fresh, { ...mine, widgets: [{ id: "weather", visible: true }] }).expect(400);
+    expect(layoutOf(await get(fresh, LAYOUT).expect(200))).toEqual(saved);
+
+    await put(fresh, DEFAULT_DASHBOARD_LAYOUT).expect(200);
+    expect(layoutOf(await get(fresh, LAYOUT).expect(200))).toEqual(DEFAULT_DASHBOARD_LAYOUT);
+    await request(app.getHttpServer()).get(LAYOUT).expect(401);
   });
 });

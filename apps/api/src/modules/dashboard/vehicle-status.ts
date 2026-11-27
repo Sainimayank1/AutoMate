@@ -8,21 +8,14 @@ import type {
   VehicleStatus,
 } from "@automate/shared";
 
+import { day, km } from "./format";
+
 /** Expiring soon (design skill: documents ≤ 30 days are a warning). */
 export const EXPIRING_DAYS = 30;
 /** A warranty this close to its km limit is worth a warning. */
 export const WARRANTY_KM_NOTICE = 1_000;
 
 const DAY_MS = 24 * 60 * 60 * 1000;
-const dayFormat = new Intl.DateTimeFormat("en-IN", {
-  day: "numeric",
-  month: "short",
-  year: "numeric",
-  timeZone: "UTC",
-});
-const kmFormat = new Intl.NumberFormat("en-IN");
-const day = (iso: string) => dayFormat.format(new Date(`${iso}T00:00:00.000Z`));
-const km = (value: number) => `${kmFormat.format(value)} km`;
 const daysUntil = (today: string, date: string) =>
   Math.round((Date.parse(date) - Date.parse(today)) / DAY_MS);
 const inDays = (days: number) =>
@@ -159,7 +152,11 @@ function maintenanceItem(item: StatusItem): ActionItem {
     source: "maintenance",
     state:
       item.severity === "critical" ? "overdue" : item.severity === "warning" ? "due_soon" : "info",
-    action: { label: "Log service", href: "/maintenance/records/new" },
+    // The record form completes that schedule (`?schedule=`, Maintenance's own param).
+    action: {
+      label: "Log service",
+      href: `/maintenance/records/new?schedule=${item.id.replace(/^maintenance:/, "")}`,
+    },
   };
 }
 

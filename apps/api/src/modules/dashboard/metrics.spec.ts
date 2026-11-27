@@ -101,4 +101,34 @@ describe("buildMetrics", () => {
     expect(metrics.mileage).toMatchObject({ value: null, unit: "km/kg" });
     expect(metrics.distance.value).toBeNull();
   });
+
+  it("doesn't compare with a window that records only partly cover", () => {
+    const now = window({
+      records: 6,
+      spent: "10718",
+      fuel: "6718",
+      distanceKm: 1092,
+      costPerKm: "9.82",
+      mileage: "17.0",
+      cycles: 2,
+      quantity: "64.4",
+    });
+    const before = window({
+      records: 1,
+      spent: "1000",
+      fuel: "1000",
+      distanceKm: 100,
+      costPerKm: "10",
+      mileage: "16.0",
+      cycles: 1,
+      quantity: "10",
+    });
+    const metrics = buildMetrics(now, before, false);
+    expect(metrics.spent).toMatchObject({ value: "10718.00", previous: null });
+    expect(metrics.fuelSpend.previous).toBeNull();
+    expect(metrics.distance.previous).toBeNull();
+    expect(metrics.runningCostPerKm.previous).toBeNull();
+    // Whole full-tank cycles still compare.
+    expect(metrics.mileage).toMatchObject({ previous: "16.00", changePercent: 6 });
+  });
 });

@@ -36,7 +36,9 @@ export function FuelSection({ fuel, range }: { fuel: FuelOverview; range: string
     <div className="grid gap-6 lg:grid-cols-12">
       <Card className="lg:col-span-8">
         <CardHeader>
-          <CardTitle>Mileage</CardTitle>
+          <CardTitle role="heading" aria-level={2}>
+            Mileage
+          </CardTitle>
           <p className="text-sm text-muted-foreground">Full-tank to full-tank cycles</p>
         </CardHeader>
         {/* Taller beside the fuel list on wide screens, so the card has no empty band. */}
@@ -58,7 +60,9 @@ export function FuelSection({ fuel, range }: { fuel: FuelOverview; range: string
       </Card>
       <Card className="lg:col-span-4">
         <CardHeader>
-          <CardTitle>Fuel this period</CardTitle>
+          <CardTitle role="heading" aria-level={2}>
+            Fuel this period
+          </CardTitle>
           <p className="text-sm text-muted-foreground">{range}</p>
         </CardHeader>
         <CardContent className="flex flex-col gap-4">
@@ -78,7 +82,10 @@ export function FuelSection({ fuel, range }: { fuel: FuelOverview; range: string
               </div>
             ))}
           </dl>
-          <Link to="/fuel" className="text-sm font-medium text-primary hover:underline">
+          <Link
+            to="/fuel"
+            className="self-start text-sm font-medium text-primary hover:underline max-md:inline-flex max-md:min-h-10 max-md:items-center"
+          >
             View fuel history
           </Link>
         </CardContent>

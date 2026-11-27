@@ -13,7 +13,12 @@ import {
 import { Prisma } from "@/generated/prisma/client";
 import type { FuelInWindow } from "@/modules/fuel/fuel.calculations";
 
-type Row = { month: string | null; category: ExpenseCategoryRef; total: Prisma.Decimal };
+/** Net spending of one top-level category (in one month when split by month). */
+export type CategoryRow = {
+  month: string | null;
+  category: ExpenseCategoryRef;
+  total: Prisma.Decimal;
+};
 
 const zero = () => new Prisma.Decimal(0);
 
@@ -31,8 +36,8 @@ export function trendMonths(period: DateWindow): string[] {
  * months around it in the five chart groups. Amounts arrive net and without loan principal.
  */
 export function spendingOverview(
-  period: Row[],
-  monthly: Row[],
+  period: CategoryRow[],
+  monthly: CategoryRow[],
   months: string[],
 ): SpendingOverview {
   const total = period.reduce((sum, row) => sum.plus(row.total), zero());

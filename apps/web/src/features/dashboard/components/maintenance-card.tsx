@@ -23,7 +23,9 @@ export function MaintenanceCard({
   return (
     <Card className="h-full">
       <CardHeader>
-        <CardTitle>Maintenance</CardTitle>
+        <CardTitle role="heading" aria-level={2}>
+          Maintenance
+        </CardTitle>
         <p className="text-sm tabular-nums">
           {overdue || dueSoon ? (
             <>
@@ -73,10 +75,16 @@ export function MaintenanceCard({
           </p>
         )}
         <div className="mt-auto flex flex-wrap gap-x-4 gap-y-2 text-sm font-medium">
-          <Link to="/maintenance/records/new" className="text-primary hover:underline">
+          <Link
+            to="/maintenance/records/new"
+            className="text-primary hover:underline max-md:inline-flex max-md:min-h-10 max-md:items-center"
+          >
             Add service record
           </Link>
-          <Link to="/maintenance" className="text-primary hover:underline">
+          <Link
+            to="/maintenance"
+            className="text-primary hover:underline max-md:inline-flex max-md:min-h-10 max-md:items-center"
+          >
             View maintenance
           </Link>
         </div>
@@ -90,7 +98,9 @@ export function MaintenanceSetup() {
   return (
     <Card className="h-full">
       <CardHeader>
-        <CardTitle>Maintenance</CardTitle>
+        <CardTitle role="heading" aria-level={2}>
+          Maintenance
+        </CardTitle>
       </CardHeader>
       <CardContent className="flex flex-1 flex-col items-start gap-3">
         <Wrench className="size-5 text-muted-foreground" aria-hidden />

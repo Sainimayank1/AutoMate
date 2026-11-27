@@ -4,6 +4,7 @@ import {
   type ExpenseCategoryRef,
   type ExpenseIcon,
   ExpenseKind,
+  ExpenseSource,
   INSURANCE_POLICY_KEYS,
 } from "@automate/shared";
 import { Injectable } from "@nestjs/common";
@@ -192,12 +193,36 @@ export class ExpenseFiguresService {
     return row ? { km: row.odometerKm!, date: row.date.toISOString().slice(0, 10) } : null;
   }
 
-  /** Whether the vehicle has any expense at all (fill-ups included). */
-  async hasAny(userId: string, vehicleId: string): Promise<boolean> {
-    return !!(await this.prisma.expense.findFirst({
+  /**
+   * The vehicle's latest money events (fill-ups, expenses, refunds), newest first, and how many
+   * there are. A service's own expense is left out: Maintenance lists the service itself.
+   */
+  async events(userId: string, vehicleId: string, take: number) {
+    const where: Prisma.ExpenseWhereInput = {
+      userId,
+      vehicleId,
+      source: { not: ExpenseSource.MAINTENANCE },
+    };
+    const [rows, count] = await this.prisma.$transaction([
+      this.prisma.expense.findMany({
+        where,
+        include: { category: true, subcategory: true },
+        orderBy: [{ date: "desc" }, { createdAt: "desc" }, { id: "desc" }],
+        take,
+      }),
+      this.prisma.expense.count({ where }),
+    ]);
+    return { rows, count };
+  }
+
+  /** The date of the vehicle's earliest expense (fill-ups included): records start there. */
+  async firstDate(userId: string, vehicleId: string): Promise<string | null> {
+    const row = await this.prisma.expense.findFirst({
       where: { userId, vehicleId },
-      select: { id: true },
-    }));
+      orderBy: { date: "asc" },
+      select: { date: true },
+    });
+    return row?.date.toISOString().slice(0, 10) ?? null;
   }
 
   /** The insurance payment with the latest policy expiry (a policy's dates live on its payment). */

@@ -47,6 +47,9 @@ describe("vehicleStatus", () => {
         title: "Insurance expires in 24 days",
         detail: "From your insurance payment of 18 Aug 2026",
         href: "/expenses/transactions/pay",
+        source: "insurance",
+        state: "due_soon",
+        action: { label: "Add renewal", href: "/expenses/new" },
       },
     ]);
     const title = (policyEnd: string) =>
@@ -56,15 +59,21 @@ describe("vehicleStatus", () => {
         maintenance: NONE,
         today: TODAY,
       }).items[0]!;
-    expect(title("2026-11-27").title).toBe("Insurance expires today");
+    expect(title("2026-11-27")).toMatchObject({
+      title: "Insurance expires today",
+      state: "due_today",
+    });
     expect(title("2026-11-28").title).toBe("Insurance expires tomorrow");
     expect(title("2026-11-26")).toMatchObject({
       severity: "critical",
       title: "Insurance expired on 26 Nov 2026",
+      state: "overdue",
     });
     expect(title("2027-08-18")).toMatchObject({
       severity: "info",
       title: "Insurance valid until 18 Aug 2027",
+      state: "info",
+      action: null, // nothing to do yet
     });
   });
 
@@ -183,5 +192,33 @@ describe("expiryDates", () => {
       expect.objectContaining({ state: "expired", summary: "Expired on 1 Nov 2026" }),
       expect.objectContaining({ state: "expired", summary: "Ended at 8,000 km" }),
     ]);
+  });
+});
+
+describe("the action centre", () => {
+  it("gives maintenance items their state and the action that fits", () => {
+    const status = vehicleStatus({
+      vehicle: vehicle(),
+      insurance: null,
+      maintenance: {
+        tracked: true,
+        items: [
+          {
+            id: "maintenance:brakes",
+            severity: "critical",
+            title: "Brake inspection is 212 km overdue",
+            detail: "Due at 8,200 km",
+            href: "/maintenance/schedules/brakes",
+          },
+        ],
+      },
+      today: TODAY,
+    });
+    expect(status.items[0]).toMatchObject({
+      source: "maintenance",
+      state: "overdue",
+      action: { label: "Log service", href: "/maintenance/records/new?schedule=brakes" },
+      href: "/maintenance/schedules/brakes",
+    });
   });
 });

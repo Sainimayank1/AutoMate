@@ -21,7 +21,9 @@ export function ExpiryCard({ items }: { items: ExpiryItem[] }) {
   return (
     <Card className="h-full">
       <CardHeader>
-        <CardTitle>Expiry dates</CardTitle>
+        <CardTitle role="heading" aria-level={2}>
+          Expiry dates
+        </CardTitle>
       </CardHeader>
       <CardContent className="flex flex-1 flex-col gap-4">
         <ul className="flex flex-col divide-y">

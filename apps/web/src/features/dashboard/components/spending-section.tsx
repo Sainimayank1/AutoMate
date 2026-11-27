@@ -68,12 +68,17 @@ export function SpendingSection({
       <Card className="lg:col-span-8">
         <CardHeader className="flex flex-wrap items-start justify-between gap-2">
           <div className="flex flex-col gap-1">
-            <CardTitle>Monthly spending</CardTitle>
+            <CardTitle role="heading" aria-level={2}>
+              Monthly spending
+            </CardTitle>
             <p className="text-sm text-muted-foreground tabular-nums">
               {formatCurrency(spending.total)} in {range} · loan principal not included
             </p>
           </div>
-          <Link to="/expenses" className="text-sm font-medium text-primary hover:underline">
+          <Link
+            to="/expenses"
+            className="text-sm font-medium text-primary hover:underline max-md:inline-flex max-md:min-h-10 max-md:items-center"
+          >
             View expenses
           </Link>
         </CardHeader>
@@ -155,7 +160,9 @@ export function SpendingSection({
 
       <Card className="lg:col-span-4">
         <CardHeader>
-          <CardTitle>Where it went · {range}</CardTitle>
+          <CardTitle role="heading" aria-level={2}>
+            Where it went · {range}
+          </CardTitle>
         </CardHeader>
         <CardContent>
           {spending.categories.length === 0 ? (

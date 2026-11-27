@@ -27,7 +27,9 @@ export function DrivingCard({ driving, range }: { driving: DrivingOverview; rang
   return (
     <Card className="h-full">
       <CardHeader>
-        <CardTitle>Driving</CardTitle>
+        <CardTitle role="heading" aria-level={2}>
+          Driving
+        </CardTitle>
       </CardHeader>
       <CardContent className="flex flex-1 flex-col gap-4">
         <div>

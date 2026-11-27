@@ -1,7 +1,17 @@
-import type { StatusItem, UntrackedArea, VehicleStatus } from "@automate/shared";
+import type {
+  ActionItem,
+  DueState,
+  ItemSource,
+  UntrackedArea,
+  VehicleStatus,
+} from "@automate/shared";
 import { cn } from "cn";
-import { ChevronRight, CircleAlert, ShieldCheck, TriangleAlert } from "lucide-react";
+import { CircleAlert, Clock, Info, ShieldCheck, TriangleAlert } from "lucide-react";
+import { useState } from "react";
 import { Link } from "react-router";
+
+import { StatusBadge, type StatusTone } from "@/components/common/status-badge";
+import { Button } from "@/components/ui/button";
 
 const TITLES: Record<VehicleStatus["level"], string> = {
   attention: "Attention required",
@@ -10,21 +20,29 @@ const TITLES: Record<VehicleStatus["level"], string> = {
   no_issues: "No issues recorded",
 };
 
-const SEVERITY = {
-  critical: {
-    icon: CircleAlert,
-    label: "Urgent",
-    box: "border-destructive/40 bg-destructive/10",
-    text: "text-destructive",
-  },
-  warning: {
-    icon: TriangleAlert,
-    label: "Due soon",
-    box: "border-warning/40 bg-warning/10",
-    text: "text-warning",
-  },
-  info: { icon: ShieldCheck, label: "For information", box: "bg-muted/40", text: "" },
-} as const;
+const STATE: Record<DueState, { label: string; tone: StatusTone; icon: typeof Clock }> = {
+  overdue: { label: "Overdue", tone: "destructive", icon: CircleAlert },
+  due_today: { label: "Due today", tone: "warning", icon: TriangleAlert },
+  due_soon: { label: "Due soon", tone: "warning", icon: Clock },
+  info: { label: "Info", tone: "neutral", icon: Info },
+};
+
+/** The most urgent first; the rest one tap away, so the panel stays beside the hero. */
+const VISIBLE = 3;
+
+const SOURCE: Record<ItemSource, string> = {
+  maintenance: "Maintenance",
+  insurance: "Insurance",
+  warranty: "Warranty",
+};
+
+/** Row surface by state (Stitch: red for overdue, amber for due, neutral otherwise). */
+const BOX: Record<DueState, string> = {
+  overdue: "border-destructive/40 bg-destructive/10",
+  due_today: "border-warning/40 bg-warning/10",
+  due_soon: "border-warning/40 bg-warning/10",
+  info: "bg-muted/40",
+};
 
 const untrackedText = (areas: UntrackedArea[]) =>
   areas.length > 1
@@ -34,10 +52,15 @@ const untrackedText = (areas: UntrackedArea[]) =>
       : "Documents aren't tracked yet";
 
 /**
- * Stitch "Dashboard" vehicle status: facts from records the user keeps, most urgent first, each
- * opening its record. While something is untracked it says so instead of calling the car healthy.
+ * Stitch "Dashboard" vehicle status, which is also the action centre: why the status is what it
+ * is, then everything up next across modules, most urgent first. Each row opens its record and
+ * carries the one action that fits. While something is untracked it says so instead of calling
+ * the car healthy.
  */
 export function StatusPanel({ status }: { status: VehicleStatus }) {
+  const [expanded, setExpanded] = useState(false);
+  const hidden = status.items.length - VISIBLE;
+  const shown = expanded ? status.items : status.items.slice(0, VISIBLE);
   return (
     <section
       aria-labelledby="vehicle-status-title"
@@ -57,51 +80,77 @@ export function StatusPanel({ status }: { status: VehicleStatus }) {
         )}
       </div>
       {status.items.length > 0 ? (
-        <ul className="flex flex-col gap-2.5">
-          {status.items.map((item) => (
-            <li key={item.id}>
-              <StatusRow item={item} />
-            </li>
-          ))}
-        </ul>
+        <div className="flex flex-col gap-2">
+          <h3 className="text-xs font-semibold tracking-wider text-muted-foreground uppercase">
+            Up next
+          </h3>
+          <ul id="up-next" className="flex flex-col gap-2">
+            {shown.map((item) => (
+              <li key={item.id}>
+                <ActionRow item={item} />
+              </li>
+            ))}
+          </ul>
+          {hidden > 0 && (
+            <Button
+              variant="link"
+              size="sm"
+              className="h-auto self-start p-0 max-md:min-h-10"
+              aria-expanded={expanded}
+              aria-controls="up-next"
+              onClick={() => setExpanded(!expanded)}
+            >
+              {expanded ? "Show fewer" : `Show ${hidden} more`}
+            </Button>
+          )}
+        </div>
       ) : (
-        <p className="text-sm text-muted-foreground">
-          No insurance or warranty dates on record for this vehicle.
+        <p className="flex items-center gap-2 text-sm text-muted-foreground">
+          <ShieldCheck className="size-4 shrink-0" aria-hidden />
+          Nothing due on the records AutoMate has.
         </p>
       )}
     </section>
   );
 }
 
-function StatusRow({ item }: { item: StatusItem }) {
-  const severity = SEVERITY[item.severity];
-  const Icon = severity.icon;
-  const body = (
-    <div className={cn("flex items-start gap-2.5 rounded-lg border p-3", severity.box)}>
-      <Icon
-        className={cn("mt-0.5 size-4 shrink-0", severity.text || "text-muted-foreground")}
-        aria-hidden
-      />
-      <div className="flex min-w-0 flex-1 flex-col gap-0.5">
-        <span className={cn("text-sm font-medium", severity.text)}>
-          <span className="sr-only">{severity.label}: </span>
-          {item.title}
+function ActionRow({ item }: { item: ActionItem }) {
+  const state = STATE[item.state];
+  const text = (
+    <span className="flex min-w-0 flex-col gap-0.5">
+      <span className="text-sm font-medium">{item.title}</span>
+      {item.detail && <span className="text-xs text-muted-foreground">{item.detail}</span>}
+    </span>
+  );
+  return (
+    <div className={cn("flex flex-col gap-1.5 rounded-lg border p-3", BOX[item.state])}>
+      {/* State, source and the action on one line; the title opens the record (never nested). */}
+      <div className="flex items-center justify-between gap-2">
+        <span className="flex min-w-0 items-center gap-2">
+          <StatusBadge tone={state.tone} icon={state.icon} label={state.label} />
+          <span className="truncate text-xs text-muted-foreground">{SOURCE[item.source]}</span>
         </span>
-        {item.detail && <span className="text-xs text-muted-foreground">{item.detail}</span>}
+        {item.action && (
+          <Button
+            asChild
+            size="xs"
+            variant="outline"
+            className="shrink-0 bg-card max-md:h-10 max-md:px-3"
+          >
+            <Link to={item.action.href}>{item.action.label}</Link>
+          </Button>
+        )}
       </div>
-      {item.href && (
-        <ChevronRight className="mt-0.5 size-4 shrink-0 text-muted-foreground" aria-hidden />
+      {item.href ? (
+        <Link
+          to={item.href}
+          className="rounded-md outline-none hover:opacity-90 focus-visible:ring-2 focus-visible:ring-ring"
+        >
+          {text}
+        </Link>
+      ) : (
+        text
       )}
     </div>
-  );
-  return item.href ? (
-    <Link
-      to={item.href}
-      className="block rounded-lg outline-none hover:opacity-90 focus-visible:ring-2 focus-visible:ring-ring"
-    >
-      {body}
-    </Link>
-  ) : (
-    body
   );
 }

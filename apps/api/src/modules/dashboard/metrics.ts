@@ -31,28 +31,37 @@ const km = (value: number | null) => (value === null ? null : new Prisma.Decimal
 
 /**
  * The core metrics for the period vs the window it's compared with. A window with no records has
- * nothing to compare with (null), never a misleading zero.
+ * nothing to compare with (null), never a misleading zero; nor does one that records only partly
+ * cover (`covered` false: they start inside it), except mileage, whose full-tank cycles are whole.
  */
-export function buildMetrics(now: WindowFigures, before: WindowFigures): DashboardMetrics {
+export function buildMetrics(
+  now: WindowFigures,
+  before: WindowFigures,
+  covered = true,
+): DashboardMetrics {
   const unit = FUEL_UNIT[now.fuel.fuelType];
   const hadFuel = !before.totals.fuel.isZero() || !before.fuel.quantity.isZero();
   return {
     spent: {
-      ...compare(now.totals.spent, before.totals.records ? before.totals.spent : null, 2),
+      ...compare(
+        now.totals.spent,
+        covered && before.totals.records ? before.totals.spent : null,
+        2,
+      ),
       records: now.totals.records,
     },
-    runningCostPerKm: compare(now.usage.costPerKm, before.usage.costPerKm, 2),
+    runningCostPerKm: compare(now.usage.costPerKm, covered ? before.usage.costPerKm : null, 2),
     mileage: {
       ...compare(now.fuel.mileage, before.fuel.mileage, 2),
       unit: `km/${unit}`,
       cycles: now.fuel.cycles,
     },
     distance: {
-      ...compare(km(now.usage.distanceKm), km(before.usage.distanceKm), 0),
+      ...compare(km(now.usage.distanceKm), covered ? km(before.usage.distanceKm) : null, 0),
       readings: now.usage.readings,
     },
     fuelSpend: {
-      ...compare(now.totals.fuel, hadFuel ? before.totals.fuel : null, 2),
+      ...compare(now.totals.fuel, covered && hadFuel ? before.totals.fuel : null, 2),
       quantity: now.fuel.quantity.toFixed(2),
       unit,
     },

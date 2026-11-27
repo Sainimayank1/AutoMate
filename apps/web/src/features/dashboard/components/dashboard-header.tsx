@@ -6,6 +6,7 @@ import {
 } from "@automate/shared";
 import { format, parseISO } from "date-fns";
 import { RefreshCw } from "lucide-react";
+import type { ReactNode } from "react";
 
 import { DatePicker } from "@/components/common/date-picker";
 import { Button } from "@/components/ui/button";
@@ -51,7 +52,8 @@ export function DashboardGreeting({ children }: { children?: React.ReactNode }) 
 
 /**
  * Stitch "Dashboard" header controls: the vehicle (the app's active vehicle, shared with the
- * sidebar switcher), the period, and refresh. A custom period shows its two dates.
+ * sidebar switcher), the period, refresh and `children` (Customise). A custom period shows its two
+ * dates.
  */
 export function DashboardControls({
   vehicles,
@@ -61,6 +63,7 @@ export function DashboardControls({
   shown,
   refreshing,
   onRefresh,
+  children,
 }: {
   vehicles: Vehicle[];
   vehicleId: string;
@@ -70,6 +73,7 @@ export function DashboardControls({
   shown?: DateWindow;
   refreshing: boolean;
   onRefresh: () => void;
+  children?: ReactNode;
 }) {
   const custom = period.period === ReportingPeriod.CUSTOM;
   const selected = vehicles.find((vehicle) => vehicle.id === vehicleId);
@@ -78,7 +82,7 @@ export function DashboardControls({
       <Select value={vehicleId} onValueChange={onVehicleChange}>
         <SelectTrigger
           aria-label="Vehicle"
-          className="min-w-0 flex-1 max-md:data-[size=default]:h-10 sm:w-80 sm:flex-none"
+          className="min-w-28 flex-1 max-md:data-[size=default]:h-10 sm:w-80 sm:flex-none"
         >
           {/* A compact chip on phones (Stitch mobile): the model; the full name and plate above. */}
           <SelectValue>
@@ -155,10 +159,11 @@ export function DashboardControls({
           <Button
             variant="outline"
             size="icon"
-            className="max-md:size-10"
+            className="aria-disabled:opacity-50 max-md:size-10"
             aria-label="Refresh dashboard"
-            onClick={onRefresh}
-            disabled={refreshing}
+            // aria-disabled, not disabled: the button keeps focus while it refreshes.
+            onClick={() => !refreshing && onRefresh()}
+            aria-disabled={refreshing}
           >
             <RefreshCw
               className={refreshing ? "animate-spin motion-reduce:animate-none" : undefined}
@@ -167,6 +172,7 @@ export function DashboardControls({
         </TooltipTrigger>
         <TooltipContent>Refresh</TooltipContent>
       </Tooltip>
+      {children}
     </div>
   );
 }
