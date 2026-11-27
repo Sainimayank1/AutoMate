@@ -1,9 +1,21 @@
 import "@testing-library/jest-dom/vitest";
 
 import { cleanup } from "@testing-library/react";
-import { afterEach, vi } from "vitest";
+import { afterEach, beforeEach, vi } from "vitest";
 
-afterEach(cleanup);
+import { queryClient } from "@/lib/query-client";
+import { fail, mockApi } from "@/test/mock-api";
+
+// No test talks to a real server: unmocked requests get a 404 (never a 401, which would sign out).
+beforeEach(() => {
+  mockApi(fail(404, "NOT_FOUND", "Not mocked in this test"));
+});
+
+// The app's QueryClient is a singleton: drop cached API data so tests can't leak into each other.
+afterEach(() => {
+  cleanup();
+  queryClient.clear();
+});
 
 // jsdom has no matchMedia; the sidebar and theme provider need it. Reports desktop, light mode.
 Object.defineProperty(window, "matchMedia", {
@@ -26,3 +38,9 @@ globalThis.ResizeObserver ??= class {
   unobserve() {}
   disconnect() {}
 };
+
+// jsdom gaps used by Radix Select and by page scrolling.
+Element.prototype.hasPointerCapture ??= () => false;
+Element.prototype.releasePointerCapture ??= () => {};
+Element.prototype.scrollIntoView ??= () => {};
+window.scrollTo = vi.fn() as typeof window.scrollTo;

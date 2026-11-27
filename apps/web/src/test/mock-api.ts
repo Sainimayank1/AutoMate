@@ -1,4 +1,10 @@
-import type { ApiErrorResponse, AuthSession, ErrorCode, UserProfile } from "@automate/shared";
+import type {
+  ApiErrorResponse,
+  AuthSession,
+  ErrorCode,
+  UserProfile,
+  Vehicle,
+} from "@automate/shared";
 import { AxiosError, type AxiosResponse, type InternalAxiosRequestConfig } from "axios";
 
 import { apiClient } from "@/lib/api-client";
@@ -64,4 +70,40 @@ export const testSession = (accessToken = "access-1"): AuthSession => ({
   user: testUser,
   accessToken,
   expiresIn: 900,
+});
+
+/** The canonical sample vehicle (localization-and-sample-data.md), as the API returns it. */
+export const testVehicle = (overrides: Partial<Vehicle> = {}): Vehicle => ({
+  id: "0190d4a2-0000-7000-8000-00000000a001",
+  make: "Maruti Suzuki",
+  model: "Victoris",
+  variant: "LXI",
+  manufacturingYear: 2025,
+  category: "SUV",
+  registrationNumber: "HR26EV4821",
+  registrationDate: null,
+  fuelType: "PETROL",
+  transmission: "MANUAL",
+  engineCapacityCc: 1462,
+  engineConfiguration: null,
+  fuelTankCapacityL: 45,
+  colour: "Pearl Silver",
+  ownershipType: "OWNED",
+  purchaseDate: "2025-02-14",
+  purchasePrice: "1145000.00",
+  odometerKm: 8450,
+  vin: null,
+  engineNumber: null,
+  fuelSpecification: null,
+  engineOilSpecification: null,
+  tyreSize: null,
+  batteryType: null,
+  warrantyExpiryDate: null,
+  warrantyKmLimit: null,
+  notes: null,
+  profileCompletion: 63,
+  archivedAt: null,
+  createdAt: "2026-11-27T05:00:00.000Z",
+  updatedAt: "2026-11-27T05:00:00.000Z",
+  ...overrides,
 });

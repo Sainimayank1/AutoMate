@@ -13,23 +13,23 @@ This skill tells you how things should look and behave. **The Stitch project is 
 
 The approved designs live in the Stitch project **"AutoMate Design System Platform"** (`projects/4873202931996632861`), whose design system is **"AutoMate Cockpit"** (`assets/canvas_node_node_14159650301022119993`). The app's tokens in `index.css` are the Stitch tokens, so a Stitch screen translates almost one-to-one into our primitives.
 
-Load the tools first (they are deferred): ToolSearch `select:mcp__stitch__list_screens,mcp__stitch__get_screen,mcp__stitch__download_file,mcp__stitch__generate_screen_from_text,mcp__stitch__edit_screens`.
+**Reading** works through the Stitch MCP tools (deferred; load them with ToolSearch `select:mcp__stitch__list_screens,mcp__stitch__get_screen,mcp__stitch__download_file`). **Writing doesn't:** this is a web-canvas project (`DESIGN_V2`). For it, MCP `generate_screen_from_text` returns an id but never places the screen on the canvas: the id then 404s, and the screen uses a different design system at 2560 px. `edit_screens` can't find canvas screens at all. Create and edit screens through the **Stitch web app's chat** on the project canvas (https://stitch.google.com/projects/4873202931996632861), which applies the AutoMate tokens and 1280 / 390 px sizes.
 
 **Before building or changing any screen:**
 
-1. **Find it.** Run `list_screens` with project id `4873202931996632861`. Screens come in pairs, "<Screen> — Desktop" (1280 px) and "<Screen> — Mobile" (390 px). Existing: Dashboard, Login, Register, Garage, Vehicle Details, Add Vehicle Wizard, Expenses, Add Expense, Fuel and Add Fuel.
+1. **Find it.** Run `list_screens` with project id `4873202931996632861`. Screens come in pairs, "<Screen> — Desktop" (1280 px) and "<Screen> — Mobile" (390 px). Desktop/mobile pairs exist for most modules (Dashboard, Login, Register, Garage, Vehicle Details, Add Vehicle steps 1–5, Edit Vehicle, Expenses, Fuel, Maintenance, Documents, Trips, Analytics & TCO, Settings, Notifications) plus dialogs and empty states; `list_screens` is the current list.
 2. **If it exists,** `download_file` its `htmlCode.name` and build from it: the same layout, hierarchy, copy and states, translated to our primitives and tokens (`dark-surface-container-low` → `bg-card`; the full mapping is in `references/color-system.md`). Big screens overflow the tool output and are saved to a file; extract the parts you need from it.
 3. **If the flow needs a screen that doesn't exist** (a new page, dialog, sheet, wizard step, or an empty, error or success state), **create it in Stitch first, then build from it:**
-   - Call `generate_screen_from_text` with `projectId: "4873202931996632861"` and `designSystem: "assets/canvas_node_node_14159650301022119993"`, so it reuses the AutoMate tokens.
-   - Generate both `DESKTOP` and `MOBILE` (two calls), titled "<Screen> — Desktop" and "<Screen> — Mobile".
+   - In the Stitch web app chat for this project (use the browser tools, or ask the user to run it if you have no browser access), ask for the screen by exact title, "<Screen> — Desktop" (1280 px) and "<Screen> — Mobile" (390 px), "using the AutoMate design system and the existing app shell".
    - Put the relevant data in the prompt:
      - the requirements from `docs/MODULES.md`;
      - the fields and validation from the shared Zod schema in `packages/shared`;
      - every state (loading, empty, error, success, disabled-with-reason);
      - Indian formats and the canonical sample data from `references/localization-and-sample-data.md`;
      - what's out of scope (for example "no Google or OTP sign-in").
-   - Generation takes minutes. Don't retry on a timeout; poll `get_screen` instead.
-   - Review the result against this skill (accent budget, status colours, truthful data). Fix problems in Stitch with `edit_screens`, so the design and the code don't drift.
+   - Generation takes a few minutes. When it's done, confirm the screen with `list_screens` (it must appear there) and read it with `download_file`.
+   - Review the result against this skill (accent budget, status colours, truthful data). Fix problems through the same chat, so the design and the code don't drift.
+   - If a screen can't be created (no browser, Stitch down), say so to the user, build from the closest existing screens plus this skill, and list the screen as "to design" in the PR so it gets created and compared later.
 4. **Allowed deviations from a Stitch screen** are limited to:
    - removing controls for features that aren't built ("Forgot password?", social sign-in);
    - accessibility fixes;

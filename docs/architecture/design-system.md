@@ -9,7 +9,10 @@ AutoMate looks like a car's digital cockpit crossed with a fintech app: deep gra
 - **Build from Stitch.** Every screen starts from its Stitch design (desktop and mobile). If the screen doesn't exist, generate it in Stitch first. The `automate-design` skill has the workflow.
 - **Never hardcode colours.** Use semantic tokens (`bg-card`, `text-muted-foreground`, `border`, `bg-primary`…). Light and dark mode then come for free.
 - **Don't rebuild primitives.** Buttons, dialogs, menus, popovers, tooltips, tabs and so on come from `components/ui/`. If a primitive is missing, add it with `pnpm dlx shadcn@latest add <name>` (run in `apps/web`).
-- **Extend, don't fork.** Pass `className` or variants to a primitive. Edit a file in `components/ui/` only for an app-wide change, and note why in the file. Current edits: `input.tsx` and `textarea.tsx` render placeholders at 60% so they never read as typed values, and `hooks/use-mobile.ts` was rewritten with `useSyncExternalStore`.
+- **Extend, don't fork.** Pass `className` or variants to a primitive. Edit a file in `components/ui/` only for an app-wide change, and note why in the file. Current edits:
+  - `input.tsx` and `textarea.tsx` render placeholders at 60%, so they never read as typed values.
+  - `field.tsx` targets `has-data-[state=checked]` for choice cards, because Radix radios mark selection with `data-state`, not `data-checked`.
+  - `hooks/use-mobile.ts` was rewritten with `useSyncExternalStore`.
 - **Restraint.** No decorative gradients (except `hero-glow`), no gratuitous animation, no oversized cards. Separate areas with tonal surface steps and 1px borders rather than heavy shadows.
 
 ## Colour tokens
@@ -128,24 +131,30 @@ Touch targets are at least 40px on phones, and there's no horizontal page scroll
 
 **App building blocks** (`components/common/`):
 
-| Component                 | Purpose                                                                    |
-| ------------------------- | -------------------------------------------------------------------------- |
-| `PageContainer`           | Page width, gutters, vertical rhythm                                       |
-| `PageHeader`              | h1 + description + page actions                                            |
-| `SectionHeader`           | h2 + description + section actions                                         |
-| `Breadcrumbs`             | Built from route `handle.title`s                                           |
-| `SearchInput`             | Search field with icon and clear button (controlled)                       |
-| `StatCard`                | Label, value, hint and icon; optional link to its module; loading skeleton |
-| `DataTable`               | TanStack Table v8: sortable headers, pagination, loading and empty rows    |
-| `ConfirmDialog`           | Confirm/cancel with async pending state and a destructive variant          |
-| `FormField` / `FormError` | react-hook-form field wiring / form-level error                            |
-| `DatePicker`              | Popover + Calendar, shows DD/MM/YYYY                                       |
+| Component                 | Purpose                                                                                       |
+| ------------------------- | --------------------------------------------------------------------------------------------- |
+| `PageContainer`           | Page width, gutters, vertical rhythm                                                          |
+| `PageHeader`              | h1 + description + page actions                                                               |
+| `SectionHeader`           | h2 + description + section actions                                                            |
+| `Breadcrumbs`             | Built from route `handle.title`s                                                              |
+| `SearchInput`             | Search field with icon and clear button (controlled)                                          |
+| `StatCard`                | Label, value, hint and icon; optional link to its module; loading skeleton                    |
+| `DataTable`               | TanStack Table v8: sortable headers, pagination, loading and empty rows                       |
+| `ConfirmDialog`           | Confirm/cancel with async pending state and a destructive variant                             |
+| `FormField` / `FormError` | react-hook-form field wiring (`optional` adds "(optional)" to the label) / form-level error   |
+| `DatePicker`              | Popover + Calendar with month/year dropdowns (1950 → +15 years), shows DD/MM/YYYY             |
+| `PlateBadge`              | Registration chip in Geist Mono: `HR-26-EV-4821`                                              |
+| `VehicleImage`            | Vehicle visual; until photos are supported, the glow-panel fallback (`panel` or 40px `thumb`) |
+| `UnsavedChangesGuard`     | Asks before leaving a dirty form (in-app navigation and closing the tab)                      |
 
-**Layout** (`components/layout/`): `AppShell`, `AppSidebar`, `AppHeader`, `ThemeToggle`, `UserMenu`, `BrandLogo`/`BrandMark`.
+**Layout** (`components/layout/`): `AppShell`, `AppSidebar` (with `VehicleSelector`, the active-vehicle switcher), `AppHeader`, `ThemeToggle`, `UserMenu`, `BrandLogo`/`BrandMark`, and `TaskPage` (full-page flows outside the shell: a focused header with back button, used by the add and edit vehicle pages).
 
 **Feedback** (`components/feedback/`): `EmptyState`, `ErrorState` (safe message plus retry), `LoadingState`, `LoadingSkeleton`, `RouteError`/`NotFoundState`, `AppErrorFallback`.
 
-**Feature-level (auth):** `AuthLayout`, `PasswordInput` (show/hide toggle).
+**Feature-level:**
+
+- Auth: `AuthLayout`, `PasswordInput` (show/hide toggle).
+- Garage: `VehicleCard`, `DetailList` ("Not added · Add" for missing values), `DeleteVehicleDialog` (type the plate to confirm), and the vehicle form sections. Their choice fields come in four styles: `cards` (radio + description), `tiles` (icon over label), `segmented` (one joined track), and `select` (the edit page's compact mode).
 
 ## Accessibility checklist
 

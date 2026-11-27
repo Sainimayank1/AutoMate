@@ -86,13 +86,12 @@ features/fuel/
 
 **Approved but not installed yet.** Install each one with the module that first needs it, and import it only from that module's lazy route so it stays out of the startup bundle:
 
-| Package                   | Install with                     |
-| ------------------------- | -------------------------------- |
-| recharts                  | Dashboard / Analytics            |
-| react-dropzone, react-pdf | Documents                        |
-| react-number-format       | First money/odometer form (Fuel) |
-| @dnd-kit/*                | Dashboard customisation          |
-| papaparse                 | Backup & Export                  |
+| Package                   | Install with            |
+| ------------------------- | ----------------------- |
+| recharts                  | Dashboard / Analytics   |
+| react-dropzone, react-pdf | Documents               |
+| @dnd-kit/*                | Dashboard customisation |
+| papaparse                 | Backup & Export         |
 
 **Deviations from TECH_STACK.md:**
 
@@ -105,7 +104,7 @@ features/fuel/
 
 ## 4. Routing
 
-- **One registry.** `app/modules.ts` lists every module (id, title, path, icon, nav group, lazy entry). `routes.tsx` maps it to routes, and `AppSidebar` maps it to navigation. Nothing else hardcodes module paths.
+- **One registry.** `app/modules.ts` lists every module: id, title, path, icon, nav group and lazy entry, plus optional `children` (sub-pages inside the shell, e.g. `:vehicleId`) and `taskRoutes` (full-page flows outside the shell, e.g. `/garage/new`). `routes.tsx` maps it to routes, and `AppSidebar` maps it to navigation. Nothing else hardcodes module paths.
 - **Route tree:**
   ```
   SessionGate                        (root: restores the session once; errorElement, hydrateFallback)
@@ -113,10 +112,11 @@ features/fuel/
   │   ├── /login                     → features/auth/login-route.tsx
   │   └── /register                  → features/auth/register-route.tsx
   └── RequireAuth                    (signed-out users go to /login with state.from)
+      ├── <module taskRoutes>        (full-page flows, e.g. /garage/new, /garage/:id/edit → TaskPage)
       └── AppShell                   (sidebar + header)
           └── (errorElement: page errors render inside the shell)
               ├── /             → redirect /dashboard
-              ├── /<module>     → features/<module>/route.tsx (lazy, own chunk)
+              ├── /<module>     → the module's index page (lazy, own chunk) + its `children`
               └── *             → NotFoundState
   ```
 - **Lazy routes.** Each `features/<id>/route.tsx` exports `Component` (React Router's lazy-route convention); later it can also export `loader`, `ErrorBoundary`, etc. Each module ships as its own JS chunk.
@@ -130,28 +130,28 @@ features/fuel/
 
 Email and password only (no Google or OTP). The API side is described in [backend.md §6](backend.md#6-authentication) and [security.md](security.md).
 
-| Piece                         | Where                                                              | What it does                                                                                                                                                      |
-| ----------------------------- | ------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Access token                  | `stores/session-store.ts` (memory only)                            | 15-minute JWT, sent as `Authorization: Bearer` by the request interceptor                                                                                         |
-| Refresh token                 | httpOnly cookie `automate_rt`, path `/api/v1/auth`                 | JavaScript never sees it; `apiClient` sends it because of `withCredentials: true`                                                                                 |
-| Session restore               | `refreshSession()` in `lib/api-client.ts`, called by `SessionGate` | One `POST /auth/refresh` per page load; success stores the user and token, failure marks the visitor signed out                                                   |
-| Expired access token          | Response interceptor                                               | On a 401 from a non-auth route: refresh once, then replay the request. Concurrent 401s share one refresh, because the server rotates the cookie                   |
-| Sign in / register / sign out | `features/auth/hooks/use-auth.ts` → `services/auth-service.ts`     | Sign-in and registration store the session and clear the query cache; sign-out calls `/auth/logout`, then clears the session and cache, even if the request fails |
-| Forms                         | `login-route.tsx`, `register-route.tsx`                            | Shared zod schemas (`loginSchema`, `registerSchema` from `@automate/shared`); API errors are mapped onto the form by `applyServerErrors`                          |
+| Piece                         | Where                                                              | What it does                                                                                                                                                                                                                                                                                  |
+| ----------------------------- | ------------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Access token                  | `stores/session-store.ts` (memory only)                            | 15-minute JWT, sent as `Authorization: Bearer` by the request interceptor                                                                                                                                                                                                                     |
+| Refresh token                 | httpOnly cookie `automate_rt`, path `/api/v1/auth`                 | JavaScript never sees it; `apiClient` sends it because of `withCredentials: true`                                                                                                                                                                                                             |
+| Session restore               | `refreshSession()` in `lib/api-client.ts`, called by `SessionGate` | One `POST /auth/refresh` per page load; success stores the user and token, failure marks the visitor signed out                                                                                                                                                                               |
+| Expired access token          | Response interceptor                                               | On a 401 from a non-auth route: refresh once, then replay the request. Concurrent 401s in a tab share one refresh; other tabs wait their turn on a Web Lock (`automate:auth-refresh`), because the server rotates the cookie and parallel refreshes from several tabs would sign the user out |
+| Sign in / register / sign out | `features/auth/hooks/use-auth.ts` → `services/auth-service.ts`     | Sign-in and registration store the session and clear the query cache; sign-out calls `/auth/logout`, then clears the session and cache, even if the request fails                                                                                                                             |
+| Forms                         | `login-route.tsx`, `register-route.tsx`                            | Shared zod schemas (`loginSchema`, `registerSchema` from `@automate/shared`); API errors are mapped onto the form by `applyServerErrors`                                                                                                                                                      |
 
 The session store has a `status` of `unknown`, `authenticated` or `anonymous`. Never treat `unknown` as signed out; wait for the gate.
 
 ## 5. State management
 
-| State                                | Home                      | Notes                                                                                               |
-| ------------------------------------ | ------------------------- | --------------------------------------------------------------------------------------------------- |
-| Anything from the API                | TanStack Query            | Query keys per feature, e.g. `["fuel", vehicleId, filters]`                                         |
-| Session (status, user, access token) | `stores/session-store.ts` | Memory only; restored from the refresh cookie on load; cleared when a refresh fails and on sign-out |
-| Active vehicle id                    | `stores/vehicle-store.ts` | Persisted to localStorage (`automate.active-vehicle`); the vehicle record itself comes from a query |
-| Theme                                | next-themes               | localStorage `automate.theme`, applied pre-paint by `index.html`                                    |
-| Sidebar open/collapsed               | shadcn `SidebarProvider`  | Cookie `sidebar_state`, restored by `AppShell`                                                      |
-| Form state                           | react-hook-form           | Per form                                                                                            |
-| Local UI state                       | `useState`                | Dialogs, tabs, etc.                                                                                 |
+| State                                | Home                      | Notes                                                                                                                                                                                                                        |
+| ------------------------------------ | ------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Anything from the API                | TanStack Query            | Query keys per feature, e.g. `["fuel", vehicleId, filters]`                                                                                                                                                                  |
+| Session (status, user, access token) | `stores/session-store.ts` | Memory only; restored from the refresh cookie on load; cleared when a refresh fails and on sign-out                                                                                                                          |
+| Active vehicle id                    | `stores/vehicle-store.ts` | Persisted per device (`automate.active-vehicle`). Read it through `useActiveVehicle()` (`hooks/`), which falls back to the first vehicle if the stored one is gone or archived; the vehicle record itself comes from a query |
+| Theme                                | next-themes               | localStorage `automate.theme`, applied pre-paint by `index.html`                                                                                                                                                             |
+| Sidebar open/collapsed               | shadcn `SidebarProvider`  | Cookie `sidebar_state`, restored by `AppShell`                                                                                                                                                                               |
+| Form state                           | react-hook-form           | Per form                                                                                                                                                                                                                     |
+| Local UI state                       | `useState`                | Dialogs, tabs, etc.                                                                                                                                                                                                          |
 
 React Context is used only by libraries (theme, query client, sidebar, tooltip). Don't add app contexts for global state; use a Zustand store.
 
@@ -272,16 +272,16 @@ Users only ever see `ApiError.message` or fixed copy; stack traces and raw serve
 
 ## 10. Adding a feature module
 
-1. Add an entry to `appModules` in `src/app/modules.ts` with id, title, description, path, icon, `navGroup` and `lazy: () => import("@/features/<id>/route")`.
-2. Create `src/features/<id>/route.tsx` exporting `Component`.
+1. Add an entry to `appModules` in `src/app/modules.ts` with id, title, description, path, icon, `navGroup` and `lazy: () => import("@/features/<id>/<id>-route")`.
+2. Create that route file exporting `Component`. Sub-pages go in `children`, add/edit flows in `taskRoutes`, each with its own lazy route file (see `features/garage`).
 
 The route, sidebar link, breadcrumb and page title follow from the registry. To build out one of the existing 12, replace its `route.tsx` body with the real page, and delete `ModulePlaceholder` once all 12 are built.
 
 ## 11. Testing
 
-Vitest with jsdom (`pnpm test`). The setup file adds jest-dom matchers, cleans up after each test and stubs `matchMedia` and `ResizeObserver`. Helpers:
+Vitest with jsdom (`pnpm test`). The setup file adds jest-dom matchers and stubs `matchMedia`, `ResizeObserver` and the pointer-capture/scroll APIs Radix Select needs. Before each test every request gets a 404 ("not mocked"; never a 401, which would sign out); after each test it unmounts and clears the shared QueryClient cache, so tests can't leak data into each other. Helpers:
 
-- `test/mock-api.ts`: `mockApi()` swaps axios's network layer, so the real interceptors run against canned replies (one reply, or a function per URL). It also has `ok()`/`fail()` envelope builders and a `testUser`.
+- `test/mock-api.ts`: `mockApi()` swaps axios's network layer, so the real interceptors run against canned replies (one reply, or a function per URL). It also has `ok()`/`fail()` envelope builders, a `testUser` and `testVehicle()`.
 - `test/render-app.tsx`: `renderApp(path)` renders the real providers and route tree in a memory router.
 
 Current coverage:
@@ -292,6 +292,7 @@ Current coverage:
 - The form pattern.
 - App shell: session restore on load (valid and invalid cookie), all 12 nav links, redirect from `/`, not-found page, signed-in users kept off `/login`.
 - Auth pages: sign-in (normalised email, remember-me, return to the requested page), wrong credentials, password reveal, registration validation, duplicate email on its field, successful registration.
+- Garage: empty state, cards/filters/active switch, the full wizard (per-step validation, lakh-grouped input, normalised payload, new vehicle becomes active), a registration conflict jumping back to step 1, details + Specifications tab, delete-by-typing-the-plate, edit with the odometer warning. Plate formatting has unit tests; the refresh lock has one too.
 
 Every calculation or formatting rule added later gets a test next to it.
 

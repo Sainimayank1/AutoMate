@@ -15,7 +15,8 @@ import { configureApp } from "@/app.setup";
 import { PrismaService } from "@/database/prisma.service";
 import { AuthService } from "@/modules/auth/auth.service";
 
-const DOMAIN = "e2e.automate.test";
+/** Unique per test file: files run in parallel and each cleans up only its own users. */
+const DOMAIN = "auth.e2e.automate.test";
 const PASSWORD = "Drive2026safe";
 const AUTH = "/api/v1/auth";
 

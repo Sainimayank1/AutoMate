@@ -45,44 +45,36 @@ Each section gives the module's **job**, its **layout** (desktop → mobile), it
 
 ## M02 · Garage / Vehicle management
 
-**Job:** a beautiful, image-rich collection of the user's vehicles, and the hub for each vehicle.
+**Job:** a beautiful, image-rich collection of the user's vehicles, and the hub for each vehicle. **Built** from the Stitch Garage, Vehicle Details, Add Vehicle (steps 1–5), Edit Vehicle, empty-state and delete-dialog screens (`features/garage`).
 
-**Garage overview (`/garage`):**
+**Garage overview (`/garage`):** PageHeader "Your garage" with fleet totals and "Add vehicle"; filter chips from the data (All, Owned, Financed, each fuel type, Archived); a `lg:grid-cols-2` grid of `VehicleCard`s (Active vehicle / Standby / Archived badge, plate, odometer · fuel · ownership tiles, profile completion, Set active / Restore, View profile). The active vehicle has the primary border. First use shows the glow-panel empty state.
 
-- PageHeader "Garage" with the action "Add vehicle".
-- A `ToggleGroup` switches between Grid and List view (remembered).
-- Grid: `VehicleCard`s (`sm:grid-cols-2 xl:grid-cols-3`). The active vehicle has the cyan ring, and the primary vehicle shows a "Primary" badge.
-- List view: a `DataTable` with columns thumb + name, plate, fuel, odometer, mileage, month spend and actions.
-- Filter: Active / Archived.
+**Add vehicle wizard (`/garage/new`, task page outside the shell):** a five-segment step rail (labels hide on phones) and one card per step.
 
-**Add vehicle wizard (`/garage/new`, full route).** A horizontal stepper on desktop (numbered steps with connecting hairlines; the current step in primary, completed steps with `Check`). On mobile, a compact "Step 2 of 5 · Specifications" header with a `Progress` bar.
-
-1. **Basic details:** make (combobox), model, variant, year, registration (auto-uppercased, formatted as a plate), nickname (optional), photo.
-2. **Specifications:** fuel type (segmented), transmission (segmented), tank capacity (L), engine (cc), colour, VIN (optional).
-3. **Ownership details:** ownership type (RadioGroup cards: Owned outright / Loan / Lease / Company), purchase date and price, current odometer. If the type is Loan: lender, loan amount, rate, tenure, EMI and EMI start date.
-4. **Additional information:** insurance policy (optional quick-add), service interval preferences, notes.
-5. **Review and confirmation:** read-only summary cards per step, each with an "Edit" link that jumps back.
+1. **Basic details:** manufacturer (free text with suggestions for common makes), model, variant, year, registration, category tiles.
+2. **Specifications:** fuel type (segmented), transmission, colour; engine, configuration and tank hidden for electric.
+3. **Ownership:** Owned / Financed cards, purchase date and price, current odometer.
+4. **Vehicle info** (optional): registration & identity, maintenance specs, warranty, notes.
+5. **Review:** a summary card per step with "Edit" to jump back.
 
 Rules:
 
-- "Back" never loses data. The draft is kept in form state, and leaving shows an unsaved-changes guard.
-- Only the final step creates the vehicle. On success, the vehicle becomes active and the user lands on its detail page with a toast.
+- "Back" never loses data, and leaving with input asks first (`UnsavedChangesGuard`).
+- Only the final step creates the vehicle. On success it becomes active and the user lands on its detail page with a toast.
+- A server error on a field (e.g. a registration already in the garage) jumps back to that field's step.
 
-**Vehicle detail (`/garage/:id/:tab`):**
+**Vehicle detail (`/garage/:id`):** a back button with name and plate, "Edit vehicle" and an overflow menu (Set as active, Archive / Restore, Delete); the hero (placeholder panel, profile completion, specs line, odometer, purchase and registration facts); tabs **Overview** (Registration & identity, Technical summary) and **Specifications** (every field grouped, "Not added · Add" links into the edit page). An archived vehicle shows a banner with Restore.
 
-- **Hero:** photo (21:9), name, `PlateBadge`, key specs, odometer `MetricValue`, actions (Edit, Set as active, overflow: Archive, Delete).
-- **Tabs:** Overview · Specifications · Fuel History · Expenses · Maintenance · Documents · Trips · Ownership Cost. Mobile tabs scroll horizontally, with the active tab scrolled into view.
-  - **Overview:** instruments, `ActivityTimeline` and the Attention list.
-  - **Specifications:** a definition list (`grid grid-cols-[auto_1fr] gap-x-8 gap-y-3`) in a Card with groups (Identity, Engine & fuel, Ownership).
-  - **Data tabs:** reuse each module's list component, filtered to the vehicle. Don't build second implementations.
-  - **Ownership Cost:** the M08 cost breakdown for this vehicle.
-- **Edit vehicle:** the same field groups as the wizard, as one sectioned form page (no stepper).
-- **Vehicle settings:** default fuel type, reminder lead times, primary vehicle toggle.
+- **Add as modules ship:** Fuel History, Expenses, Maintenance, Documents, Trips and Ownership Cost tabs (reuse each module's list component, filtered to the vehicle); the activity timeline; mileage and service status on cards and the hero. Never show those figures before the data exists.
+
+**Edit vehicle (`/garage/:id/edit`):** the same field groups as one sectioned page with a section index (desktop) and an "Unsaved changes" badge. Lowering the odometer shows a warning, not an error.
 
 **Archive vs delete:**
 
-- **Archive:** a `ConfirmDialog` (non-destructive) saying "Archive Hyundai Creta? It will be hidden from the switcher and dashboard. Records are kept and you can restore it anytime."
-- **Delete:** a destructive `ConfirmDialog` that lists the consequences with counts ("This permanently deletes 42 fuel entries, 18 expenses, 6 service records and 4 documents."). The user must type the registration number to confirm. Recommend Archive instead with an inline link.
+- **Archive:** a `ConfirmDialog` (non-destructive): "Archive Hyundai Creta? It will be hidden from the switcher and dashboard. Records are kept and you can restore it anytime."
+- **Delete:** a destructive dialog that says the deletion is permanent, offers "Archive it instead", and unlocks only after the registration is typed. When other modules hold records, list the counts ("This permanently deletes 42 fuel entries…").
+
+**Not built (deliberately):** photos (until file storage), the grid/list toggle, Leased and Family ownership, loan details (Expenses/EMI), vehicle settings (default fuel, reminder lead times: Settings and Notifications).
 
 ---
 

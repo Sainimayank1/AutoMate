@@ -23,6 +23,7 @@ model User {
   updatedAt       DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
 
   sessions Session[]
+  vehicles Vehicle[]
 
   @@map("users")
 }
@@ -44,4 +45,78 @@ model Session {
 
   @@index([userId])
   @@map("sessions")
+}
+
+enum FuelType {
+  PETROL
+  DIESEL
+  CNG
+  ELECTRIC
+  HYBRID
+}
+
+enum Transmission {
+  MANUAL
+  AMT
+  IMT
+  CVT
+  DCT
+  AUTOMATIC
+}
+
+enum VehicleCategory {
+  HATCHBACK
+  SEDAN
+  SUV
+  MUV
+  OTHER
+}
+
+enum OwnershipType {
+  OWNED
+  FINANCED
+}
+
+/// A vehicle in a user's garage (MODULES.md M2). Mirrors `createVehicleSchema` in @automate/shared.
+model Vehicle {
+  id                     String          @id @default(uuid(7)) @db.Uuid
+  userId                 String          @map("user_id") @db.Uuid
+  make                   String
+  model                  String
+  variant                String?
+  manufacturingYear      Int             @map("manufacturing_year") @db.SmallInt
+  category               VehicleCategory
+  /// Normalised (upper-case, no separators), e.g. HR26EV4821.
+  registrationNumber     String          @map("registration_number")
+  registrationDate       DateTime?       @map("registration_date") @db.Date
+  fuelType               FuelType        @map("fuel_type")
+  transmission           Transmission
+  engineCapacityCc       Int?            @map("engine_capacity_cc")
+  engineConfiguration    String?         @map("engine_configuration")
+  fuelTankCapacityL      Int?            @map("fuel_tank_capacity_l") @db.SmallInt
+  colour                 String?
+  ownershipType          OwnershipType   @map("ownership_type")
+  purchaseDate           DateTime?       @map("purchase_date") @db.Date
+  purchasePrice          Decimal?        @map("purchase_price") @db.Decimal(12, 2)
+  /// Current reading. Odometer history arrives with the Fuel module.
+  odometerKm             Int             @map("odometer_km")
+  vin                    String?
+  engineNumber           String?         @map("engine_number")
+  fuelSpecification      String?         @map("fuel_specification")
+  engineOilSpecification String?         @map("engine_oil_specification")
+  tyreSize               String?         @map("tyre_size")
+  batteryType            String?         @map("battery_type")
+  warrantyExpiryDate     DateTime?       @map("warranty_expiry_date") @db.Date
+  warrantyKmLimit        Int?            @map("warranty_km_limit")
+  notes                  String?
+  /// Set when archived: hidden from the switcher, records kept, restorable.
+  archivedAt             DateTime?       @map("archived_at") @db.Timestamptz(3)
+  createdAt              DateTime        @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt              DateTime        @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, registrationNumber])
+  @@index([userId, archivedAt])
+  @@map("vehicles")
 }

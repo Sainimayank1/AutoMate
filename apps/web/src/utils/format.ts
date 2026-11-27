@@ -98,3 +98,14 @@ export function formatDateTime(value: DateValue | null | undefined): string {
   const date = toDate(value);
   return date ? format(date, DATE_TIME_FORMAT) : EMPTY_VALUE;
 }
+
+const STANDARD_PLATE = /^([A-Z]{2})(\d{1,2})([A-Z]{0,3})(\d{1,4})$/;
+const BHARAT_PLATE = /^(\d{2})(BH)(\d{4})([A-Z]{1,2})$/;
+
+/** HR26EV4821 → HR-26-EV-4821, 22BH1234AA → 22-BH-1234-AA (Stitch plate style). Unknown formats pass through. */
+export function formatRegistration(value: string | null | undefined): string {
+  if (!value) return EMPTY_VALUE;
+  const plate = value.toUpperCase().replace(/[^A-Z0-9]/g, "");
+  const parts = STANDARD_PLATE.exec(plate) ?? BHARAT_PLATE.exec(plate);
+  return parts ? parts.slice(1).filter(Boolean).join("-") : plate;
+}

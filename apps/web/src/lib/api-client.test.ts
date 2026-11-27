@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { refreshSession, request } from "@/lib/api-client";
 import { ApiError, isRetryableError, normalizeApiError } from "@/lib/api-error";
@@ -133,6 +133,18 @@ describe("expired access tokens", () => {
     );
     expect(error.message).toBe("Incorrect email or password.");
     expect(calls).toHaveLength(1);
+  });
+
+  it("refreshes inside a cross-tab lock so tabs never rotate the cookie at the same time", async () => {
+    const request = vi.fn((_name: string, task: () => Promise<unknown>) => task());
+    vi.stubGlobal("navigator", { ...navigator, locks: { request } });
+    try {
+      mockApi(ok(testSession("locked")));
+      await expect(refreshSession()).resolves.toBe(true);
+      expect(request).toHaveBeenCalledWith("automate:auth-refresh", expect.any(Function));
+    } finally {
+      vi.unstubAllGlobals();
+    }
   });
 
   it("refreshSession restores a session from the cookie", async () => {

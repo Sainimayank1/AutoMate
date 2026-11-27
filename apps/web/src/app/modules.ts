@@ -14,6 +14,7 @@ import {
   Wrench,
 } from "lucide-react";
 import type { ComponentType } from "react";
+import type { RouteObject } from "react-router";
 
 export type NavGroup = "overview" | "vehicles" | "management" | "intelligence" | "personal";
 
@@ -24,8 +25,12 @@ export type AppModule = {
   path: string;
   icon: LucideIcon;
   navGroup: NavGroup;
-  /** Route module; must export `Component`. Each module becomes its own JS chunk. */
+  /** Route module for `path`; must export `Component`. Each module becomes its own JS chunk. */
   lazy: () => Promise<{ Component: ComponentType }>;
+  /** Sub-pages inside the app shell, relative to `path` (e.g. `:vehicleId`). */
+  children?: RouteObject[];
+  /** Full-page task flows outside the shell, with absolute paths (e.g. `/garage/new`). */
+  taskRoutes?: RouteObject[];
 };
 
 /** Sidebar groups, in display order (Stitch dashboard). */
@@ -58,7 +63,21 @@ export const appModules = [
     path: "/garage",
     icon: Car,
     navGroup: "vehicles",
-    lazy: () => import("@/features/garage/route"),
+    lazy: () => import("@/features/garage/garage-route"),
+    children: [
+      {
+        path: ":vehicleId",
+        lazy: () => import("@/features/garage/vehicle-route"),
+        handle: { title: "Vehicle details" },
+      },
+    ],
+    taskRoutes: [
+      { path: "/garage/new", lazy: () => import("@/features/garage/new-vehicle-route") },
+      {
+        path: "/garage/:vehicleId/edit",
+        lazy: () => import("@/features/garage/edit-vehicle-route"),
+      },
+    ],
   },
   {
     id: "fuel",

@@ -8,6 +8,7 @@ import {
   formatDistance,
   formatEfficiency,
   formatNumber,
+  formatRegistration,
   formatVolume,
 } from "@/utils/format";
 
@@ -44,5 +45,20 @@ describe("Indian formatters", () => {
     }
     expect(formatDate("not a date")).toBe(EMPTY_VALUE);
     expect(formatDate(null)).toBe(EMPTY_VALUE);
+  });
+});
+
+describe("formatRegistration", () => {
+  it("formats Indian plates with hyphens", () => {
+    expect(formatRegistration("HR26EV4821")).toBe("HR-26-EV-4821");
+    expect(formatRegistration("DL8CAB5678")).toBe("DL-8-CAB-5678");
+    expect(formatRegistration("MH124821")).toBe("MH-12-4821");
+    expect(formatRegistration("22BH1234AA")).toBe("22-BH-1234-AA");
+    expect(formatRegistration("hr 26 ev 4821")).toBe("HR-26-EV-4821");
+  });
+
+  it("passes unknown formats through and shows a dash for none", () => {
+    expect(formatRegistration("CD123ABC45")).toBe("CD123ABC45");
+    expect(formatRegistration(null)).toBe(EMPTY_VALUE);
   });
 });

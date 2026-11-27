@@ -15,6 +15,7 @@ import { HealthModule } from "./health/health.module";
 import { AuthModule } from "./modules/auth/auth.module";
 import { JwtAuthGuard } from "./modules/auth/guards/jwt-auth.guard";
 import { UsersModule } from "./modules/users/users.module";
+import { VehiclesModule } from "./modules/vehicles/vehicles.module";
 
 @Module({
   imports: [
@@ -32,6 +33,7 @@ import { UsersModule } from "./modules/users/users.module";
     DatabaseModule,
     AuthModule,
     UsersModule,
+    VehiclesModule,
     HealthModule,
     // Product modules (vehicles, fuel, expenses, ...) are added here as they are built.
   ],

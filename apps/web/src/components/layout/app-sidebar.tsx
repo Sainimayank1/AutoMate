@@ -2,6 +2,7 @@ import { Link, NavLink, useLocation } from "react-router";
 
 import { type AppModule, appModules, NAV_GROUP_LABELS, type NavGroup } from "@/app/modules";
 import { BrandMark } from "@/components/layout/brand-logo";
+import { VehicleSelector } from "@/components/layout/vehicle-selector";
 import {
   Sidebar,
   SidebarContent,
@@ -59,6 +60,7 @@ export function AppSidebar() {
             </SidebarMenuButton>
           </SidebarMenuItem>
         </SidebarMenu>
+        <VehicleSelector />
       </SidebarHeader>
 
       <nav aria-label="Main" className="flex min-h-0 flex-1 flex-col">

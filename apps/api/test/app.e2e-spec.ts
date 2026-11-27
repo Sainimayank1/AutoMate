@@ -60,7 +60,7 @@ describe("API (e2e)", () => {
   afterAll(async () => {
     await app
       ?.get(PrismaService)
-      .user.deleteMany({ where: { email: { endsWith: "@e2e.automate.test" } } });
+      .user.deleteMany({ where: { email: { endsWith: "@app.e2e.automate.test" } } });
     await app?.close();
   });
 
@@ -101,7 +101,7 @@ describe("API (e2e)", () => {
       .post("/api/v1/auth/register")
       .send({
         name: "App E2E",
-        email: `app-${randomUUID()}@e2e.automate.test`,
+        email: `user-${randomUUID()}@app.e2e.automate.test`,
         password: "Drive2026safe",
         acceptedTerms: true,
       })

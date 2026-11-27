@@ -4,7 +4,7 @@ Mobile-first app to manage vehicles, fuel, expenses, maintenance, documents, tri
 
 ## Status
 
-Stack locked. Current phase: **Phase 0 — Infrastructure** (monorepo, web + api bootstrap, shared packages, DB, Docker, config, linting, CI/deploy foundations). Do not build product modules until Phase 0 is done.
+Phase 0 (infrastructure) is done, plus email/password auth. **P0 modules in progress:** Garage (M2) is built; next is Fuel (M3), then Expenses (M4) and Dashboard (M1). Build one module at a time, in this order.
 
 ## Source of truth
 

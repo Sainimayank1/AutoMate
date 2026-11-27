@@ -47,6 +47,10 @@ export function DatePicker({
       <PopoverContent className="w-auto p-0" align="start">
         <Calendar
           mode="single"
+          // Month and year dropdowns: purchase and registration dates are often years back.
+          captionLayout="dropdown"
+          startMonth={new Date(1950, 0)}
+          endMonth={new Date(new Date().getFullYear() + 15, 11)}
           selected={value}
           defaultMonth={value}
           disabled={disabledDates}

@@ -33,7 +33,8 @@ src/
 ├── health/                     health module (Terminus)
 ├── modules/
 │   ├── auth/                   register/login/refresh/logout, JWT strategy, global guard, @Public, @CurrentUser
-│   └── users/                  UsersService (owns `users`), GET /users/me
+│   ├── users/                  UsersService (owns `users`), GET /users/me
+│   └── vehicles/               Garage (M2): CRUD, archive/restore, profile completion (vehicles.mapper.ts)
 ├── storage/                    StorageProvider contract
 └── generated/prisma/           Prisma client (generated, gitignored)
 ```

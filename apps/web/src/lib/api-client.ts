@@ -60,12 +60,23 @@ export async function request<TData>(config: AxiosRequestConfig): Promise<TData>
 let refreshing: Promise<boolean> | null = null;
 
 /**
+ * Tabs share one refresh cookie and the server rotates it on every refresh, so two tabs refreshing
+ * at once (e.g. a restored browser session) would knock each other out. A Web Lock makes tabs take
+ * turns: each refreshes with the cookie the previous one left.
+ */
+function oneTabAtATime<T>(task: () => Promise<T>): Promise<T> {
+  return typeof navigator !== "undefined" && navigator.locks
+    ? navigator.locks.request("automate:auth-refresh", task)
+    : task();
+}
+
+/**
  * Trades the refresh cookie for a new session, or marks the user signed out.
- * Runs on page load and after a 401; concurrent callers share one request, because
- * the server rotates the cookie and a second refresh with the old one would fail.
+ * Runs on page load and after a 401. Concurrent callers in this tab share one request, and
+ * other tabs wait their turn (see `oneTabAtATime`): the server rotates the cookie each time.
  */
 export function refreshSession(): Promise<boolean> {
-  refreshing ??= request<AuthSession>({ method: "POST", url: "/auth/refresh" })
+  refreshing ??= oneTabAtATime(() => request<AuthSession>({ method: "POST", url: "/auth/refresh" }))
     .then(({ user, accessToken }) => {
       useSessionStore.getState().setSession({ user, accessToken });
       return true;
