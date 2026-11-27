@@ -102,7 +102,33 @@ export const appModules = [
     path: "/expenses",
     icon: ReceiptIndianRupee,
     navGroup: "management",
-    lazy: () => import("@/features/expenses/route"),
+    lazy: () => import("@/features/expenses/expenses-route"),
+    children: [
+      {
+        path: "transactions",
+        lazy: () => import("@/features/expenses/transactions-route"),
+        handle: { title: "Transactions" },
+        children: [
+          {
+            path: ":expenseId",
+            lazy: () => import("@/features/expenses/expense-details-route"),
+            handle: { title: "Expense" },
+          },
+        ],
+      },
+      {
+        path: "categories",
+        lazy: () => import("@/features/expenses/categories-route"),
+        handle: { title: "Categories" },
+      },
+    ],
+    taskRoutes: [
+      { path: "/expenses/new", lazy: () => import("@/features/expenses/new-expense-route") },
+      {
+        path: "/expenses/:expenseId/edit",
+        lazy: () => import("@/features/expenses/edit-expense-route"),
+      },
+    ],
   },
   {
     id: "maintenance",

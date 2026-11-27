@@ -64,7 +64,7 @@ Use these values for all mockups, placeholders, stories, tests that need realist
 | Lifetime fuel | 474.0 L · ₹44,958.90 |
 | Fuel cost per km | ₹5.33 |
 
-### Expenses since purchase (operating)
+### Expenses since purchase
 
 | Category | Amount |
 | --- | --- |
@@ -76,10 +76,10 @@ Use these values for all mockups, placeholders, stories, tests that need realist
 | Parking | ₹960.00 |
 | Washing | ₹1,800.00 |
 | Loan interest (8 EMIs) | ₹46,767.00 |
-| **Operating cost** | **₹1,49,975.90** → **₹17.77/km** over 8,438 km |
+| **Operating cost** (fuel, maintenance, tolls, parking, washing) | **₹52,308.90** → **₹6.20/km** over 8,438 km |
 | Loan principal (not an ownership cost) | ₹86,705.00 |
 | **Cash outflow** (excluding down payment) | **₹2,36,680.90** |
-| **Economic ownership cost** (operating + depreciation) | **₹3,19,975.90** |
+| **Economic ownership cost** (operating + insurance + loan interest + accessories + depreciation) | **₹3,19,975.90** |
 
 ### Maintenance and documents
 

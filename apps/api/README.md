@@ -103,7 +103,7 @@ apps/api/
 Not exercised yet; verify these steps on the first deploy.
 
 - Build: `pnpm install --frozen-lockfile --prod=false && pnpm --filter api build`
-- Pre-deploy: `pnpm --filter api prisma:deploy`
+- Pre-deploy: `pnpm --filter api prisma:deploy && pnpm --filter api prisma:seed` (migrations, then the system expense categories)
 - Start: `pnpm --filter api start`
 - Health check path: `/api/v1/health`
 - Env: `NODE_ENV=production`, `TRUST_PROXY=1`, `DATABASE_URL` (Neon), `FRONTEND_URL` (the Cloudflare Pages origin), `JWT_ACCESS_SECRET`

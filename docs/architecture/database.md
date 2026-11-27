@@ -4,15 +4,15 @@ Related: [backend.md](backend.md) · [MODULES.md §13](../MODULES.md) (cross-mod
 
 ## 1. Setup
 
-| Piece          | Location                                                                                                           |
-| -------------- | ------------------------------------------------------------------------------------------------------------------ |
-| Schema         | `apps/api/prisma/schema.prisma`: `User`, `Session` (auth), `Vehicle` (Garage), `FuelEntry` (Fuel); more per module |
-| CLI config     | `apps/api/prisma.config.ts`: schema path, migrations path, seed command, `DATABASE_URL`                            |
-| Migrations     | `apps/api/prisma/migrations/` (created with the first model)                                                       |
-| Client         | generated to `apps/api/src/generated/prisma` (gitignored); import `@/generated/prisma/client`                      |
-| Runtime access | `PrismaService` (`src/database/`), global, uses the `@prisma/adapter-pg` driver adapter                            |
-| Local DB       | `docker compose up -d` → PostgreSQL 17 on `127.0.0.1:5432`, persistent volume `postgres-data`                      |
-| Production     | Neon (pooled connection string, `sslmode=require`)                                                                 |
+| Piece          | Location                                                                                                                                                     |
+| -------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Schema         | `apps/api/prisma/schema.prisma`: `User`, `Session` (auth), `Vehicle` (Garage), `FuelEntry` (Fuel), `ExpenseCategory` + `Expense` (Expenses); more per module |
+| CLI config     | `apps/api/prisma.config.ts`: schema path, migrations path, seed command, `DATABASE_URL`                                                                      |
+| Migrations     | `apps/api/prisma/migrations/` (created with the first model)                                                                                                 |
+| Client         | generated to `apps/api/src/generated/prisma` (gitignored); import `@/generated/prisma/client`                                                                |
+| Runtime access | `PrismaService` (`src/database/`), global, uses the `@prisma/adapter-pg` driver adapter                                                                      |
+| Local DB       | `docker compose up -d` → PostgreSQL 17 on `127.0.0.1:5432`, persistent volume `postgres-data`                                                                |
+| Production     | Neon (pooled connection string, `sslmode=require`)                                                                                                           |
 
 How Prisma 7 differs from older guides:
 
@@ -83,8 +83,8 @@ pnpm --filter api prisma:migrate --name add_vehicles   # creates + applies the m
 - Destructive changes (dropping or renaming columns) follow expand → migrate data → contract across separate deploys.
 - To reset local data: `pnpm --filter api exec prisma migrate reset`. This drops and recreates the local database.
 
-Production: `pnpm --filter api prisma:deploy` (`prisma migrate deploy`) runs as Render's pre-deploy command. It only applies committed migrations and never generates new ones.
+Production: `pnpm --filter api prisma:deploy && pnpm --filter api prisma:seed` runs as Render's pre-deploy command (migrations, then reference data). It only applies committed migrations and never generates new ones.
 
 ## 5. Seeding
 
-`prisma/seed.ts` (run with `pnpm --filter api prisma:seed`) is for **reference data only**, such as default expense categories once that table exists. Write it as idempotent `upsert`s so it can run repeatedly. Never seed users, vehicles or sample business data; tests create their own data.
+`prisma/seed.ts` (run with `pnpm --filter api prisma:seed`) is for **reference data only**: today the system expense categories, upserted by `key` from `SYSTEM_EXPENSE_CATEGORIES` (`@automate/shared`). It runs on every deploy after migrations, and the expenses e2e tests call the same function. Write it as idempotent `upsert`s so it can run repeatedly. Never seed users, vehicles or sample business data; tests create their own data.

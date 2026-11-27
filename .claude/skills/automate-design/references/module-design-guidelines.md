@@ -123,10 +123,11 @@ Rules:
 
 - PageHeader with the action "Add expense", a DateRangePicker and vehicle scope (supports All vehicles).
 - **Instruments:** This month, This year, Avg monthly, Cost per km.
-- **Money separation panel** (a Card with 3 `bg-elevated` tiles, always present):
-  1. **Operating expenses**: running and ownership costs, including loan **interest**;
-  2. **Loan principal**: repayments of the loan itself, _not an ownership cost_;
-  3. **Total cash outflow** = 1 + 2.
+- **Money separation panel** (a Card with 3 `bg-elevated` tiles, always present; definitions in `docs/architecture/expenses.md`):
+  1. **Operating cost**: running the vehicle (fuel, servicing, repairs, tolls, parking, washing). Cost per km uses only this;
+  2. **Cash outflow**: everything paid, including the full EMI (principal too);
+  3. **Economic ownership cost**: operating + insurance and taxes + loan interest and charges + accessories + depreciation (an estimate).
+     Loan principal never appears in operating or economic cost.
 
   Each tile has a one-line definition tooltip. Principal never appears inside operating totals or cost per km.
 
@@ -136,9 +137,9 @@ Rules:
   - **Source** shows a link chip when the expense originates elsewhere: "Fuel entry", "Service record", "Insurance", "Trip". Editing such an expense redirects to the origin record ("Edit in Fuel") instead of allowing divergent edits.
   - Mobile: list rows.
 
-**Categories** (one fixed icon and colour each, defined once in `EXPENSE_CATEGORY_META`): Fuel, Maintenance, Repairs, Insurance, EMI, Tolls, Parking, Washing, Accessories, Tyres, Battery, Fines & challans, Registration, Other.
+**Categories**: 8 system groups with subcategories (`SYSTEM_EXPENSE_CATEGORIES` in `@automate/shared`): Fuel, Maintenance & servicing, Repairs, Insurance & legal, Finance, Daily usage, Accessories & upgrades, Other; plus custom ones. Colour by group (`categoryTone` in `features/expenses/constants.ts`): Fuel `chart-1`, Maintenance & Repairs `chart-2`, Insurance & legal `chart-3`, Finance `chart-4`, everything else `chart-5`.
 
-**Add/Edit expense (`ResponsiveDialog`):**
+**Add/Edit expense (task page, Stitch "Add Expense" / "Edit Expense": `/expenses/new`, `/expenses/:id/edit`; numbered sections with a summary card as the review step):**
 
 - **Field order:** Category first, as a grid of icon tiles (3 columns on mobile, 4 on desktop); the selected tile gets a cyan ring. Then Amount (large `text-2xl` input with the ₹ prefix), Date, Vehicle, Payment method, Vendor (optional), Odometer (optional), Receipt, Notes.
 - Choosing **Fuel** redirects to the Fuel form ("Fuel expenses are created from fuel entries").

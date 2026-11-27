@@ -37,7 +37,7 @@ Every JSON 2xx response is wrapped by `ResponseEnvelopeInterceptor`. Controllers
 - API: extend `paginationQuerySchema` (`@automate/shared`) for the route's query DTO; return `Paginated` from `@/common/pagination/paginated`, either `Paginated.of(all, query)` for a list computed in memory or `pageArgs(query)` plus a `count` in one `$transaction`. `ResponseEnvelopeInterceptor` turns it into `data` + `meta`. Document it with `@ApiEnvelopeResponse(ItemSchema, { paginated: true })`.
 - Web: `requestPage<T>()` returns `{ items, meta }`; `requestAllPages<T>()` walks every page for small sets the UI needs whole (the vehicle switcher). Show `<Pager>`; give `DataTable` one page with `paginate={false}`.
 
-Paginated today: `GET /vehicles`, `GET /vehicles/:vehicleId/fuel-entries`.
+Paginated today: `GET /vehicles`, `GET /vehicles/:vehicleId/fuel-entries`, `GET /expenses`, `GET /expense-categories`.
 
 - **Not wrapped:** `204 No Content` (use `@HttpCode(204)` for deletes) and file streams (`StreamableFile`), so downloads and HTTP semantics stay standard.
 

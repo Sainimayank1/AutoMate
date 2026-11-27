@@ -6,6 +6,7 @@
 import { PrismaPg } from "@prisma/adapter-pg";
 
 import { PrismaClient } from "../src/generated/prisma/client.js";
+import { seedSystemExpenseCategories } from "../src/modules/expenses/expense-categories.seed.js";
 
 async function main(): Promise<void> {
   const prisma = new PrismaClient({
@@ -13,8 +14,8 @@ async function main(): Promise<void> {
   });
   try {
     await prisma.$connect();
-    // No reference tables yet; add upserts here as modules introduce them.
-    console.log("Seed complete (nothing to seed yet).");
+    const categories = await seedSystemExpenseCategories(prisma);
+    console.log(`Seed complete: ${categories} system expense categories.`);
   } finally {
     await prisma.$disconnect();
   }

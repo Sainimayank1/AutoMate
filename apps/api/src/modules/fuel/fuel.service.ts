@@ -18,10 +18,12 @@ import {
 import { Paginated } from "@/common/pagination/paginated";
 import { PrismaService } from "@/database/prisma.service";
 import type { Prisma, Vehicle as VehicleRow } from "@/generated/prisma/client";
+import { LinkedExpensesService } from "@/modules/expenses/linked-expenses.service";
 import { VehiclesService } from "@/modules/vehicles/vehicles.service";
 
 import { byHistoryOrder, computeMileage, summarize } from "./fuel.calculations";
 import { toFuelEntry } from "./fuel.mapper";
+import { toFuelExpense } from "./fuel-expense";
 
 const NOT_FOUND = "Fuel entry not found";
 
@@ -37,13 +39,15 @@ const istDate = new Intl.DateTimeFormat("en-IN", {
  * Owns `fuel_entries`. Every query is scoped by `userId` and `vehicleId`; the vehicle comes from
  * `VehiclesService`, which also receives new odometer readings. Writes run in one transaction
  * holding the vehicle's row lock, so the odometer order can't be broken by concurrent saves.
- * (Expenses, M4, plugs in here: create/update/delete the linked fuel expense in the same transaction.)
+ * Every fill-up is also an expense: the linked expense is created, updated and deleted in the same
+ * transaction (`LinkedExpensesService`), so fuel spend appears in Expenses exactly once.
  */
 @Injectable()
 export class FuelService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly vehicles: VehiclesService,
+    private readonly expenses: LinkedExpensesService,
   ) {}
 
   /**
@@ -90,6 +94,7 @@ export class FuelService {
       const filledAt = new Date(input.filledAt);
       await assertOdometerInOrder(tx, vehicleId, filledAt, input.odometerKm);
       const row = await tx.fuelEntry.create({ data: { ...input, filledAt, userId, vehicleId } });
+      await this.expenses.sync(tx, toFuelExpense(row));
       await this.vehicles.raiseOdometer(vehicleId, row.odometerKm, tx);
       return row.id;
     });
@@ -129,7 +134,8 @@ export class FuelService {
         });
       }
 
-      await tx.fuelEntry.update({ where: { id }, data: { ...input, filledAt } });
+      const row = await tx.fuelEntry.update({ where: { id }, data: { ...input, filledAt } });
+      await this.expenses.sync(tx, toFuelExpense(row));
       await this.vehicles.raiseOdometer(vehicleId, odometerKm, tx);
       if (odometerKm < current.odometerKm) {
         // A corrected typo (84120 → 8412) mustn't leave the vehicle at the wrong reading.
@@ -144,7 +150,8 @@ export class FuelService {
   }
 
   /**
-   * Mileage around it is recomputed on the next read. The vehicle keeps its odometer: deleting a
+   * Removes its expense too. Mileage around it is recomputed on the next read. The vehicle keeps
+   * its odometer: deleting a
    * record (often a duplicate) doesn't mean the car didn't drive; a wrong reading is fixed by editing.
    */
   async remove(userId: string, vehicleId: string, id: string): Promise<void> {
@@ -153,6 +160,7 @@ export class FuelService {
       assertWritable(await this.vehicles.lockOwned(userId, vehicleId, tx), null);
       const { count } = await tx.fuelEntry.deleteMany({ where: { id, userId, vehicleId } });
       if (count === 0) throw new NotFoundException(NOT_FOUND);
+      await this.expenses.remove(tx, "FUEL", id);
     });
   }
 

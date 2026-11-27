@@ -295,6 +295,9 @@ Current coverage:
 - Auth pages: sign-in (normalised email, remember-me, return to the requested page), wrong credentials, password reveal, registration validation, duplicate email on its field, successful registration.
 - Garage: empty state, cards/filters/active switch, the full wizard (per-step validation, lakh-grouped input, normalised payload, new vehicle becomes active), a registration conflict jumping back to step 1, details + Specifications tab, delete-by-typing-the-plate, edit with the odometer warning. Plate formatting has unit tests; the refresh lock has one too.
 - Fuel: no-vehicle and first-fill-up states, API figures and explained missing mileage, filters, delete with confirmation, add (last price and payment carried over, total from quantity × price, the API's odometer error on its field, normalised payload, the vehicle becomes active), total mismatch blocked, edit, the automatic read-only location (address saved with the coordinates; blocked access, refresh and remove).
+- Expenses: first-use state, list with API filters/search/paging, fuel rows linked and read-only, EMI split and refunds shown, bulk delete, the details sheet (loan split, refund dialog), add expense (category validation, recent categories, client id, shared equal split to the paisa, loan-interest preset), categories (built-in vs custom, add with cost type and icon). CSV export has a unit test.
+
+The test setup waits up to 3 s for async queries (`asyncUtilTimeout`): a file's first lazy route can be slow to transform in the parallel full run.
 
 Every calculation or formatting rule added later gets a test next to it.
 

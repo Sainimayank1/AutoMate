@@ -7,6 +7,7 @@ import { randomUUID } from "node:crypto";
 import type {
   ApiErrorResponse,
   ApiSuccessResponse,
+  Expense,
   FuelEntry,
   FuelSummary,
   Vehicle,
@@ -20,6 +21,7 @@ import { AppModule } from "@/app.module";
 import { configureApp } from "@/app.setup";
 import { PrismaService } from "@/database/prisma.service";
 import { AuthService } from "@/modules/auth/auth.service";
+import { seedSystemExpenseCategories } from "@/modules/expenses/expense-categories.seed";
 
 const DOMAIN = "fuel.e2e.automate.test";
 const VEHICLES = "/api/v1/vehicles";
@@ -51,6 +53,8 @@ describe("Fuel (e2e)", () => {
     configureApp(app);
     await app.init();
     prisma = app.get(PrismaService);
+    // Fill-ups file their expense under the system Fuel categories (seeded on every deploy).
+    await seedSystemExpenseCategories(prisma);
 
     const signUp = async (name: string) =>
       (
@@ -382,6 +386,65 @@ describe("Fuel (e2e)", () => {
     await as(arjun)
       .patch(`${entries(car.id)}/${other.id}`, { fuelType: "CNG" })
       .expect(400);
+  });
+
+  it("keeps every fill-up's expense in step: one per fill-up, read-only in Expenses", async () => {
+    const car = await vehicle(arjun);
+    const linked = async () => {
+      const res = await as(arjun)
+        .get(`/api/v1/expenses?vehicleId=${car.id}&source=FUEL`)
+        .expect(200);
+      return (res.body as ApiSuccessResponse<Expense[]>).data;
+    };
+    // 00:30 IST on 1 Nov is still 31 Oct in UTC: the expense is dated by the day in India.
+    const entry = dataOf<FuelEntry>(
+      await as(arjun)
+        .post(entries(car.id), {
+          ...fillUp,
+          filledAt: "2026-10-31T19:00:00.000Z",
+          odometerKm: 8000,
+        })
+        .expect(201),
+    );
+    expect(await linked()).toEqual([
+      expect.objectContaining({
+        sourceId: entry.id,
+        title: "IndianOil XP95",
+        amount: "3380.00",
+        date: "2026-11-01",
+        category: expect.objectContaining({ key: "FUEL" }) as object,
+        subcategory: expect.objectContaining({ key: "FUEL.PETROL" }) as object,
+        description: "32.4 L at ₹104.32/L",
+        odometerKm: 8000,
+        paymentMethod: "UPI",
+        editable: false,
+      }),
+    ]);
+
+    await as(arjun)
+      .patch(`${entries(car.id)}/${entry.id}`, {
+        quantity: "30",
+        totalAmount: "3129.60",
+        stationName: "HP Power95",
+      })
+      .expect(200);
+    expect(await linked()).toEqual([
+      expect.objectContaining({
+        title: "HP Power95",
+        amount: "3129.60",
+        description: "30 L at ₹104.32/L",
+      }),
+    ]);
+
+    // The expense can't be changed from Expenses…
+    const expenseId = (await linked())[0]!.id;
+    await as(arjun).patch(`/api/v1/expenses/${expenseId}`, { title: "x" }).expect(409);
+    await as(arjun).delete(`/api/v1/expenses/${expenseId}`).expect(409);
+    // …and goes with its fill-up.
+    await as(arjun)
+      .delete(`${entries(car.id)}/${entry.id}`)
+      .expect(204);
+    expect(await linked()).toEqual([]);
   });
 
   it("keeps an archived vehicle's fill-ups read-only", async () => {
