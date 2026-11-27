@@ -8,7 +8,6 @@ import {
   inspectionCounts,
   type InspectionTemplateKey,
   type Vehicle,
-  type VehicleComponent,
 } from "@automate/shared";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { cn } from "cn";
@@ -75,6 +74,8 @@ import { applyServerErrors } from "@/lib/forms";
 import { formatDistance, formatNumber } from "@/utils/format";
 
 const NONE = "none";
+/** A part a finding can name (id and name are all the form needs). */
+type PartOption = { id: string; name: string };
 const KINDS = [
   { value: "SELF_CHECK" as const, label: INSPECTION_KIND_LABELS.SELF_CHECK },
   { value: "PROFESSIONAL" as const, label: INSPECTION_KIND_LABELS.PROFESSIONAL },
@@ -97,7 +98,7 @@ export function InspectionForm({
 }: {
   mode: "create" | "edit";
   vehicle: Vehicle;
-  components: VehicleComponent[];
+  components: PartOption[];
   defaultValues: InspectionFormValues;
   backTo: string;
   onSave: (values: InspectionFormOutput) => Promise<Inspection>;
@@ -176,7 +177,7 @@ function InspectionFields({
 }: {
   creating: boolean;
   vehicle: Vehicle;
-  components: VehicleComponent[];
+  components: PartOption[];
 }) {
   const form = useFormContext<InspectionFormValues>();
   const { control } = form;
@@ -505,7 +506,7 @@ function ItemCard({
   onRemove,
 }: {
   index: number;
-  components: VehicleComponent[];
+  components: PartOption[];
   onRemove: () => void;
 }) {
   const { control } = useFormContext<InspectionFormValues>();

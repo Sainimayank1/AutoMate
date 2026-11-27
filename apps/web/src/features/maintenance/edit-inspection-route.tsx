@@ -43,7 +43,17 @@ export function Component() {
     <InspectionForm
       mode="edit"
       vehicle={vehicle}
-      components={parts.data?.items ?? []}
+      // Fitted parts, plus any a finding names that has since been replaced or removed.
+      components={[
+        ...(parts.data?.items ?? []),
+        ...inspection.data.items.flatMap((item) =>
+          item.componentId &&
+          item.componentName &&
+          !parts.data?.items.some((part) => part.id === item.componentId)
+            ? [{ id: item.componentId, name: `${item.componentName} (no longer fitted)` }]
+            : [],
+        ),
+      ].filter((part, index, all) => all.findIndex((other) => other.id === part.id) === index)}
       defaultValues={editInspectionForm(inspection.data)}
       backTo={`/maintenance/inspections/${inspectionId}`}
       onSave={(values) => update.mutateAsync(values)}

@@ -292,10 +292,7 @@ function ContactRow({ icon: Icon, children }: { icon: typeof Phone; children: Re
 function Visits({ workshop }: { workshop: ProviderProfile }) {
   const [page, setPage] = useState(1);
   const visits = useWorkshopVisits(workshop.id, { page });
-  const vehicles = [
-    ...(useVehicles().data ?? []),
-    ...(useVehicles({ archived: true }).data ?? []),
-  ];
+  const vehicles = [...(useVehicles().data ?? []), ...(useVehicles({ archived: true }).data ?? [])];
   const items = visits.data?.items;
   return (
     <Card className="lg:col-span-8">
