@@ -90,7 +90,7 @@ Use `PATCH` for updates. Avoid `PUT` unless the client really replaces the whole
 
 - Access tokens come from `POST /auth/register`, `/auth/login` and `/auth/refresh`, as `AuthSession` in the envelope's `data`.
 - The refresh token is never in a body. It lives in the httpOnly cookie `automate_rt` (path `/api/v1/auth`), so browser clients must send credentials (`withCredentials: true`).
-- On a 401 from any other route, call `POST /auth/refresh` once and retry. If that also returns 401, the user is signed out.
+- On a 401 from any other route, call `POST /auth/refresh` once and retry. If that also returns 401, the user is signed out. (An access token returns 401 as soon as its session is deleted, even before it expires.)
 - `POST /auth/register` returns **409 `CONFLICT`** for a taken email, with `details: [{ field: "email", message }]`. Clients read `details` as field errors whenever they have the `FieldError` shape, whatever the code.
 - Cookie routes called from an origin outside `FRONTEND_URL` get **403 `FORBIDDEN`**.
 

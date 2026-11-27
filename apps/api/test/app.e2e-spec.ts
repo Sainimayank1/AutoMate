@@ -2,7 +2,9 @@
  * Boots the real AppModule through the same configureApp() as main.ts.
  * Needs PostgreSQL running (docker compose up -d) and DATABASE_URL in apps/api/.env or the environment.
  */
-import type { ApiErrorResponse, ApiSuccessResponse } from "@automate/shared";
+import { randomUUID } from "node:crypto";
+
+import type { ApiErrorResponse, ApiSuccessResponse, AuthSession } from "@automate/shared";
 import { Body, Controller, Get, Module, Post } from "@nestjs/common";
 import { JwtService } from "@nestjs/jwt";
 import type { NestExpressApplication } from "@nestjs/platform-express";
@@ -14,6 +16,7 @@ import { z } from "zod";
 
 import { AppModule } from "@/app.module";
 import { configureApp } from "@/app.setup";
+import { PrismaService } from "@/database/prisma.service";
 import { JWT_AUDIENCE, JWT_ISSUER } from "@/modules/auth/auth.constants";
 import type { AuthUser } from "@/modules/auth/auth.types";
 import { CurrentUser } from "@/modules/auth/decorators/current-user.decorator";
@@ -55,6 +58,9 @@ describe("API (e2e)", () => {
   });
 
   afterAll(async () => {
+    await app
+      ?.get(PrismaService)
+      .user.deleteMany({ where: { email: { endsWith: "@e2e.automate.test" } } });
     await app?.close();
   });
 
@@ -90,10 +96,31 @@ describe("API (e2e)", () => {
     expect(errorOf(res).code).toBe("UNAUTHORIZED");
   });
 
-  it("accepts a valid access token and exposes the user", async () => {
-    const token = jwt.sign({ sub: "user-123" });
-    const res = await http().get("/api/v1/e2e/me").auth(token, { type: "bearer" }).expect(200);
-    expect(dataOf(res)).toEqual({ id: "user-123" });
+  it("accepts an access token from a real sign-in and exposes the user and session", async () => {
+    const registered = await http()
+      .post("/api/v1/auth/register")
+      .send({
+        name: "App E2E",
+        email: `app-${randomUUID()}@e2e.automate.test`,
+        password: "Drive2026safe",
+        acceptedTerms: true,
+      })
+      .expect(201);
+    const { user, accessToken } = dataOf(registered) as AuthSession;
+
+    const res = await http()
+      .get("/api/v1/e2e/me")
+      .auth(accessToken, { type: "bearer" })
+      .expect(200);
+    const principal = dataOf(res) as AuthUser;
+    expect(principal.id).toBe(user.id);
+    expect(principal.sessionId).toMatch(/^[0-9a-f-]{36}$/);
+  });
+
+  it("refuses a correctly signed token whose session doesn't exist", async () => {
+    const token = jwt.sign({ sub: randomUUID(), sid: randomUUID() });
+    const res = await http().get("/api/v1/e2e/me").auth(token, { type: "bearer" }).expect(401);
+    expect(errorOf(res).code).toBe("UNAUTHORIZED");
   });
 
   it("rejects a token signed with another secret", async () => {

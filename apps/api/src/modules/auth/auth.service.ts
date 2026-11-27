@@ -100,7 +100,7 @@ export class AuthService {
     if (count === 0) throw new UnauthorizedException(SESSION_EXPIRED_MESSAGE);
 
     return {
-      session: this.authSession(session.user),
+      session: this.authSession(session.user, session.id),
       refreshToken,
       persistent: session.persistent,
     };
@@ -117,7 +117,7 @@ export class AuthService {
     client: ClientInfo,
   ): Promise<IssuedSession> {
     const refreshToken = newRefreshToken();
-    await this.prisma.$transaction([
+    const [, session] = await this.prisma.$transaction([
       // Housekeeping: drop this user's expired sessions so the table can't grow without bound.
       this.prisma.session.deleteMany({ where: { userId: user.id, expiresAt: { lt: new Date() } } }),
       this.prisma.session.create({
@@ -130,11 +130,12 @@ export class AuthService {
         },
       }),
     ]);
-    return { session: this.authSession(user), refreshToken, persistent };
+    return { session: this.authSession(user, session.id), refreshToken, persistent };
   }
 
-  private authSession(user: User): AuthSession {
-    const payload: AccessTokenPayload = { sub: user.id };
+  /** The access token names its session, so deleting the session revokes the token at once. */
+  private authSession(user: User, sessionId: string): AuthSession {
+    const payload: AccessTokenPayload = { sub: user.id, sid: sessionId };
     return {
       user: toUserProfile(user),
       accessToken: this.jwt.sign(payload),

@@ -13,6 +13,7 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { AppModule } from "@/app.module";
 import { configureApp } from "@/app.setup";
 import { PrismaService } from "@/database/prisma.service";
+import { AuthService } from "@/modules/auth/auth.service";
 
 const DOMAIN = "e2e.automate.test";
 const PASSWORD = "Drive2026safe";
@@ -52,12 +53,21 @@ describe("Auth (e2e)", () => {
   /** "automate_rt=<token>", ready for a Cookie header. */
   const cookieOf = (res: request.Response) => setCookieOf(res)?.split(";")[0] ?? "";
 
+  /** Registers over HTTP: only for the tests about the register endpoint itself (it is rate-limited). */
   async function register(email = newEmail()) {
     const res = await http()
       .post(`${AUTH}/register`)
       .send({ name: "Arjun Mehta", email, password: PASSWORD, acceptedTerms: true })
       .expect(201);
     return { res, email, cookie: cookieOf(res), session: sessionOf(res) };
+  }
+
+  /** Arrange step: a user with a live session, created through the service so setup isn't rate-limited. */
+  async function signUp(email = newEmail()) {
+    const issued = await app
+      .get(AuthService)
+      .register({ name: "Arjun Mehta", email, password: PASSWORD, acceptedTerms: true }, {});
+    return { email, cookie: `automate_rt=${issued.refreshToken}`, session: issued.session };
   }
 
   it("registers, hashes the password, sets a scoped httpOnly cookie and returns a working access token", async () => {
@@ -86,7 +96,7 @@ describe("Auth (e2e)", () => {
   });
 
   it("rejects a duplicate email with a field error on email", async () => {
-    const { email } = await register();
+    const { email } = await signUp();
     const res = await http()
       .post(`${AUTH}/register`)
       .send({ name: "Someone Else", email, password: PASSWORD, acceptedTerms: true })
@@ -116,7 +126,7 @@ describe("Auth (e2e)", () => {
   });
 
   it("gives the same 401 for a wrong password and an unknown email", async () => {
-    const { email } = await register();
+    const { email } = await signUp();
     const wrongPassword = await http()
       .post(`${AUTH}/login`)
       .send({ email, password: "Wrong2026pass" })
@@ -131,7 +141,7 @@ describe("Auth (e2e)", () => {
   });
 
   it("signs in; without 'keep me signed in' the cookie ends with the browser session", async () => {
-    const { email } = await register();
+    const { email } = await signUp();
     const res = await http()
       .post(`${AUTH}/login`)
       .send({ email, password: PASSWORD, rememberMe: false })
@@ -141,7 +151,7 @@ describe("Auth (e2e)", () => {
   });
 
   it("rotates the refresh token: the new one works, the old one is refused and cleared", async () => {
-    const { cookie: first } = await register();
+    const { cookie: first } = await signUp();
 
     const rotated = await http().post(`${AUTH}/refresh`).set("Cookie", first).expect(200);
     const second = cookieOf(rotated);
@@ -156,12 +166,52 @@ describe("Auth (e2e)", () => {
   });
 
   it("logout ends the session for good", async () => {
-    const { cookie } = await register();
+    const { cookie } = await signUp();
     const res = await http().post(`${AUTH}/logout`).set("Cookie", cookie).expect(204);
     expect(setCookieOf(res)).toMatch(/automate_rt=;/);
     await http().post(`${AUTH}/refresh`).set("Cookie", cookie).expect(401);
     // Logging out twice (or with no cookie) is harmless.
     await http().post(`${AUTH}/logout`).expect(204);
+  });
+
+  const me = (accessToken: string) =>
+    http().get("/api/v1/users/me").set("Authorization", `Bearer ${accessToken}`);
+
+  it("logout revokes the access token immediately, not when it expires", async () => {
+    const { cookie, session } = await signUp();
+    await me(session.accessToken).expect(200);
+
+    await http().post(`${AUTH}/logout`).set("Cookie", cookie).expect(204);
+
+    const res = await me(session.accessToken).expect(401);
+    expect(errorOf(res).error.code).toBe("UNAUTHORIZED");
+  });
+
+  it("deleting a user's sessions in the database signs out every device", async () => {
+    const { email, cookie: laptopCookie, session: laptop } = await signUp();
+    const phoneLogin = await http()
+      .post(`${AUTH}/login`)
+      .send({ email, password: PASSWORD })
+      .expect(200);
+    const phone = sessionOf(phoneLogin);
+    expect(await prisma.session.count({ where: { userId: laptop.user.id } })).toBe(2);
+    await me(laptop.accessToken).expect(200);
+    await me(phone.accessToken).expect(200);
+
+    // What an admin "revoke all sessions" or a password change would do.
+    await prisma.session.deleteMany({ where: { userId: laptop.user.id } });
+
+    await me(laptop.accessToken).expect(401);
+    await me(phone.accessToken).expect(401);
+    await http().post(`${AUTH}/refresh`).set("Cookie", laptopCookie).expect(401);
+    await http().post(`${AUTH}/refresh`).set("Cookie", cookieOf(phoneLogin)).expect(401);
+  });
+
+  it("a refreshed access token belongs to the same session", async () => {
+    const { cookie, session } = await signUp();
+    const rotated = await http().post(`${AUTH}/refresh`).set("Cookie", cookie).expect(200);
+    await me(sessionOf(rotated).accessToken).expect(200);
+    expect(await prisma.session.count({ where: { userId: session.user.id } })).toBe(1);
   });
 
   it("refuses refresh without a cookie, and protected routes without a token", async () => {
@@ -170,7 +220,7 @@ describe("Auth (e2e)", () => {
   });
 
   it("refuses the cookie routes from untrusted sites (CSRF)", async () => {
-    const { cookie } = await register();
+    const { cookie } = await signUp();
     const res = await http()
       .post(`${AUTH}/refresh`)
       .set("Origin", "https://evil.example")

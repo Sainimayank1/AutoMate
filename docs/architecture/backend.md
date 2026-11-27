@@ -96,7 +96,9 @@ Email + password. There is no Google or OTP sign-in.
 
 **Verification** (every request):
 
-- `JwtStrategy` verifies `Authorization: Bearer <token>`: HS256, issuer `automate-api`, audience `automate-web`, expiry. It attaches `{ id }` to `request.user`.
+- `JwtStrategy` verifies `Authorization: Bearer <token>`: HS256, issuer `automate-api`, audience `automate-web`, expiry.
+- It then checks the database: the token's `sid` claim must name a session that still exists, belongs to `sub` and hasn't expired. That's one primary-key lookup per request. Deleting a session (logout, "sign out all devices", a password change) therefore revokes its access tokens immediately, not after the 15-minute expiry.
+- It attaches `{ id, sessionId }` to `request.user`.
 - `JwtAuthGuard` is registered globally; `@Public()` opts a route or controller out.
 - `@CurrentUser()` injects the `AuthUser`.
 
@@ -114,7 +116,7 @@ Register, login and refresh return `AuthSession` (`{ user, accessToken, expiresI
 
 **Tokens and sessions:**
 
-- **Access token:** a 15-minute JWT, signed by the same `JwtModule` settings the strategy verifies.
+- **Access token:** a 15-minute JWT (`{ sub: userId, sid: sessionId }`), signed by the same `JwtModule` settings the strategy verifies. A refresh issues a new token for the same session. The previous one stays valid until it expires, so several open tabs sharing one session don't knock each other out.
 - **Refresh token:** 256 random bits, sent only as the httpOnly cookie `automate_rt` (path `/api/v1/auth`). The database stores only its SHA-256 hash, in `Session` (one row per signed-in device).
 - **Rotation:** a conditional update on the old hash, so two concurrent refreshes with one token can't both succeed.
 - **Lifetime:** sliding, renewed on each refresh. 30 days with "Keep me signed in" (and registration); 1 day without it, with a browser-session cookie.
