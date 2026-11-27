@@ -1,7 +1,7 @@
 import { createVehicleSchema, type CreateVehicleValues, type Vehicle } from "@automate/shared";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { CarFront } from "lucide-react";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { FormProvider, type Resolver, useForm } from "react-hook-form";
 import { Link, useLocation, useNavigate, useParams } from "react-router";
 
@@ -22,7 +22,6 @@ import {
   VehicleInfoFields,
 } from "@/features/garage/components/vehicle-form";
 import {
-  sectionOf,
   toFormValues,
   toVehiclePayload,
   VEHICLE_SECTIONS,
@@ -76,7 +75,7 @@ const SECTION_FIELDS = [
 
 function EditVehicleForm({ vehicle }: { vehicle: Vehicle }) {
   const navigate = useNavigate();
-  const { hash } = useLocation();
+  const { hash, key } = useLocation();
   const update = useUpdateVehicle(vehicle.id);
   const detailsHref = `/garage/${vehicle.id}`;
   const form = useForm<VehicleFormValues, unknown, CreateVehicleValues>({
@@ -90,10 +89,15 @@ function EditVehicleForm({ vehicle }: { vehicle: Vehicle }) {
   });
   const { isDirty, isSubmitting, errors } = form.formState;
 
-  // "Add" links on the details page point at a section (#info, #ownership…).
+  // "Add" links on the details page name a field (#vin, #purchaseDate…): focus it.
+  // (A section hash, #info, is scrolled to by ScrollRestoration.)
   useEffect(() => {
-    if (hash) document.getElementById(hash.slice(1))?.scrollIntoView({ block: "start" });
-  }, [hash]);
+    const name = hash.slice(1);
+    if (!name || !(name in form.getValues())) return;
+    form.setFocus(name as keyof VehicleFormValues);
+    (document.activeElement as HTMLElement | null)?.scrollIntoView({ block: "center" });
+    // `key`: re-entering the same #field (e.g. Enter in the address bar) focuses it again.
+  }, [hash, key, form]);
 
   const submit = form.handleSubmit(
     async (values) => {
@@ -104,15 +108,12 @@ function EditVehicleForm({ vehicle }: { vehicle: Vehicle }) {
         applyServerErrors(form.setError, error);
         // formState isn't updated yet inside this handler; read the fields from the API error.
         const field = Object.keys(normalizeApiError(error).fieldErrors)[0];
-        if (field)
-          document.getElementById(VEHICLE_SECTIONS[sectionOf(field)]!.id)?.scrollIntoView();
+        if (field) form.setFocus(field as keyof VehicleFormValues);
       }
     },
-    (fieldErrors) =>
-      document
-        .getElementById(VEHICLE_SECTIONS[sectionOf(Object.keys(fieldErrors)[0] ?? "")]!.id)
-        ?.scrollIntoView(),
+    // Client-side errors: react-hook-form focuses the first invalid field itself.
   );
+  const activeSection = useActiveSection();
 
   return (
     <TaskPage
@@ -145,7 +146,13 @@ function EditVehicleForm({ vehicle }: { vehicle: Vehicle }) {
                 <li key={section.id}>
                   <a
                     href={`#${section.id}`}
-                    className="block rounded-md px-3 py-2 text-muted-foreground hover:bg-accent hover:text-foreground"
+                    onClick={(event) => {
+                      event.preventDefault();
+                      scrollToSection(section.id);
+                    }}
+                    aria-current={activeSection === section.id ? "location" : undefined}
+                    // Same active look as the main sidebar.
+                    className="block rounded-md border-l-2 border-transparent px-3 py-2 text-muted-foreground transition-colors hover:bg-accent hover:text-foreground aria-[current=location]:border-primary aria-[current=location]:bg-secondary aria-[current=location]:font-medium aria-[current=location]:text-primary"
                   >
                     {section.title}
                   </a>
@@ -162,7 +169,7 @@ function EditVehicleForm({ vehicle }: { vehicle: Vehicle }) {
           >
             <FormError message={errors.root?.server?.message} />
             {VEHICLE_SECTIONS.map((section, index) => (
-              <Card key={section.id} id={section.id} className="scroll-mt-24">
+              <Card key={section.id} id={section.id} tabIndex={-1} className="outline-none">
                 <CardHeader>
                   <CardTitle className="font-heading text-lg">{section.title}</CardTitle>
                 </CardHeader>
@@ -185,4 +192,37 @@ function EditVehicleForm({ vehicle }: { vehicle: Vehicle }) {
       <UnsavedChangesGuard when={isDirty} />
     </TaskPage>
   );
+}
+
+const SECTION_IDS = VEHICLE_SECTIONS.map((section) => section.id);
+
+/** Smooth scroll (unless reduced motion) and move focus there, like a native in-page link. */
+function scrollToSection(id: string) {
+  const section = document.getElementById(id);
+  if (!section) return;
+  const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  section.scrollIntoView({ behavior: reduceMotion ? "auto" : "smooth", block: "start" });
+  section.focus({ preventScroll: true });
+}
+
+/** The section taking up most of the screen below the sticky header: the one being read. */
+function useActiveSection() {
+  const [active, setActive] = useState<string>(SECTION_IDS[0]!);
+  useEffect(() => {
+    const update = () => {
+      const visible = (id: string) => {
+        const box = document.getElementById(id)?.getBoundingClientRect();
+        return box ? Math.min(box.bottom, window.innerHeight) - Math.max(box.top, 64) : 0;
+      };
+      setActive(SECTION_IDS.reduce((best, id) => (visible(id) > visible(best) ? id : best)));
+    };
+    update();
+    window.addEventListener("scroll", update, { passive: true });
+    window.addEventListener("resize", update);
+    return () => {
+      window.removeEventListener("scroll", update);
+      window.removeEventListener("resize", update);
+    };
+  }, []);
+  return active;
 }

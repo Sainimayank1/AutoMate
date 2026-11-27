@@ -9,3 +9,5 @@ coverage/
 *.log
 # Prisma generated client
 apps/api/src/generated/
+# graphify knowledge graph: rebuilt locally by its git hooks (graphify hook install)
+graphify-out/

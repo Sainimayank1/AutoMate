@@ -7,6 +7,8 @@ import {
   type VehicleCategory,
 } from "@automate/shared";
 
+import { formatRegistration } from "@/utils/format";
+
 /**
  * Form state for the add wizard and the edit page: inputs hold strings, `createVehicleSchema`
  * (@automate/shared) turns them into the API payload ("" → null, "11,45,000" → "1145000").
@@ -84,6 +86,8 @@ export function toFormValues(vehicle: Vehicle): VehicleFormValues {
     fuelType: vehicle.fuelType,
     transmission: vehicle.transmission,
     ownershipType: vehicle.ownershipType,
+    // Shown as on the RC (HR-26-EV-4821); the schema normalizes it back on save.
+    registrationNumber: formatRegistration(vehicle.registrationNumber),
     purchasePrice: vehicle.purchasePrice?.replace(/\.00$/, "") ?? "",
   };
 }

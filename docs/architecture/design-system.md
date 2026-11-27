@@ -88,7 +88,7 @@ Use `tabular-nums` wherever figures line up or update.
 
 - **Base unit:** Tailwind's 4px scale. Common gaps: `gap-2` (inline), `gap-3`/`gap-4` (stacks), `gap-6` (page sections).
 - **Page frame:** `PageContainer`, with `max-w-7xl`, gutters `px-4` → `md:px-6` → `lg:px-8`, `py-6` and `gap-6`.
-- **Header:** `h-14` on phones and `md:h-16` (Stitch's 64px), sticky, translucent.
+- **Header:** `h-14` on phones and `md:h-16` (Stitch's 64px), sticky, translucent. `html` has `scroll-padding-top: 5rem`, so anchors and focused fields land below it.
 - **Sidebar:** shadcn `Sidebar`, `collapsible="icon"`, grouped as Overview / My vehicles / Management / Intelligence / Personal. The active item gets the raised fill and `primary` text. On phones it's an off-canvas drawer; a bottom navigation bar is planned (see the skill's backlog).
 - **Auth pages:** a 5/7 split (brand panel with `hero-glow` + form column) on `lg+`, form only on phones (`features/auth/components/auth-layout.tsx`).
 

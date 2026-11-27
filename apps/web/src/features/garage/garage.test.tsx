@@ -196,6 +196,10 @@ describe("vehicle details", () => {
     await user.click(screen.getByRole("tab", { name: "Specifications" }));
     const engineOil = await screen.findByText("Engine oil");
     expect(engineOil.nextElementSibling).toHaveTextContent("Not added · Add");
+
+    // "Add" opens the edit page on that exact field, focused.
+    await user.click(screen.getByRole("link", { name: "Add engine oil" }));
+    expect(await screen.findByLabelText("Engine oil (optional)")).toHaveFocus();
   });
 
   it("deletes only after the registration is typed, then returns to the garage", async () => {
@@ -223,6 +227,13 @@ describe("vehicle details", () => {
 });
 
 describe("edit vehicle", () => {
+  it("focuses the field named in the link, including date pickers", async () => {
+    api({ ...garage([victoris]), [`GET /vehicles/${victoris.id}`]: () => ok(victoris) });
+    renderApp(`/garage/${victoris.id}/edit#warrantyExpiryDate`);
+
+    expect(await screen.findByLabelText("Warranty expires (optional)")).toHaveFocus();
+  });
+
   it("warns when the odometer goes down and saves the changes", async () => {
     const calls = api({
       ...garage([victoris]),
@@ -234,6 +245,7 @@ describe("edit vehicle", () => {
 
     const odometer = await screen.findByLabelText("Current odometer");
     expect(odometer).toHaveValue("8,450");
+    expect(screen.getByLabelText("Registration number")).toHaveValue("HR-26-EV-4821");
     await user.clear(odometer);
     await user.type(odometer, "8200");
     expect(screen.getByRole("status")).toHaveTextContent(
@@ -244,6 +256,7 @@ describe("edit vehicle", () => {
     await waitFor(() => expect(router.state.location.pathname).toBe(`/garage/${victoris.id}`));
     expect(bodyOf(calls.find((call) => call.method === "patch"))).toMatchObject({
       odometerKm: 8200,
+      registrationNumber: "HR26EV4821",
     });
   });
 });

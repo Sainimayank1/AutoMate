@@ -122,7 +122,7 @@ features/fuel/
 - **Lazy routes.** Each `features/<id>/route.tsx` exports `Component` (React Router's lazy-route convention); later it can also export `loader`, `ErrorBoundary`, etc. Each module ships as its own JS chunk.
 - **Titles and breadcrumbs.** Give a route `handle: { title } satisfies RouteHandle`. The header builds breadcrumbs from every matched handle and sets `document.title` to `"<title> · AutoMate"`. Nested pages (e.g. `/garage/:vehicleId`) just add a handle.
 - **Guards** (`app/router/guards.tsx`):
-  - `SessionGate` shows a full-screen loader until the start-up refresh has decided whether the visitor is signed in.
+  - `SessionGate` shows a full-screen loader until the start-up refresh has decided whether the visitor is signed in. It also renders `<ScrollRestoration />`: new pages start at the top (or at their `#hash`), and back/forward restores the position.
   - `RequireAuth` sends signed-out visitors to `/login`, remembering the requested URL in `state.from`.
   - `RequireGuest` moves a signed-in user off the auth pages, to `state.from` or `/dashboard`. That's how a successful sign-in navigates: the form only stores the session.
 

@@ -282,7 +282,7 @@ function VehicleDetails({ vehicle }: { vehicle: Vehicle }) {
             </CardHeader>
             <CardContent>
               <DetailList
-                addHref={`${editHref}#info`}
+                addHref={editHref}
                 items={[
                   {
                     label: "Registration no.",
@@ -292,9 +292,15 @@ function VehicleDetails({ vehicle }: { vehicle: Vehicle }) {
                   {
                     label: "Registration date",
                     value: vehicle.registrationDate && formatDate(vehicle.registrationDate),
+                    field: "registrationDate",
                   },
-                  { label: "VIN / chassis", value: vehicle.vin, mono: true },
-                  { label: "Engine number", value: vehicle.engineNumber, mono: true },
+                  { label: "VIN / chassis", value: vehicle.vin, mono: true, field: "vin" },
+                  {
+                    label: "Engine number",
+                    value: vehicle.engineNumber,
+                    mono: true,
+                    field: "engineNumber",
+                  },
                 ]}
               />
             </CardContent>
@@ -305,7 +311,7 @@ function VehicleDetails({ vehicle }: { vehicle: Vehicle }) {
             </CardHeader>
             <CardContent>
               <DetailList
-                addHref={`${editHref}#specifications`}
+                addHref={editHref}
                 items={[
                   ...(isElectric
                     ? []
@@ -320,16 +326,18 @@ function VehicleDetails({ vehicle }: { vehicle: Vehicle }) {
                             ]
                               .filter(Boolean)
                               .join(" · "),
+                          field: "engineCapacityCc",
                         },
                         {
                           label: "Fuel tank",
                           value:
                             vehicle.fuelTankCapacityL &&
                             `${formatNumber(vehicle.fuelTankCapacityL)} L`,
+                          field: "fuelTankCapacityL",
                         },
                       ]),
                   { label: "Transmission", value: TRANSMISSION_LABELS[vehicle.transmission] },
-                  { label: "Tyre size", value: vehicle.tyreSize, mono: true },
+                  { label: "Tyre size", value: vehicle.tyreSize, mono: true, field: "tyreSize" },
                 ]}
               />
             </CardContent>
@@ -375,14 +383,13 @@ function SpecificationsCard({ vehicle, editHref }: { vehicle: Vehicle; editHref:
   const groups = [
     {
       title: "Identity",
-      anchor: "basic",
       items: [
         { label: "Make", value: vehicle.make },
         { label: "Model", value: vehicle.model },
-        { label: "Variant", value: vehicle.variant },
+        { label: "Variant", value: vehicle.variant, field: "variant" },
         { label: "Manufacturing year", value: String(vehicle.manufacturingYear) },
         { label: "Category", value: CATEGORY_LABELS[vehicle.category] },
-        { label: "Colour", value: vehicle.colour },
+        { label: "Colour", value: vehicle.colour, field: "colour" },
         {
           label: "Registration no.",
           value: formatRegistration(vehicle.registrationNumber),
@@ -391,14 +398,14 @@ function SpecificationsCard({ vehicle, editHref }: { vehicle: Vehicle; editHref:
         {
           label: "Registration date",
           value: vehicle.registrationDate && formatDate(vehicle.registrationDate),
+          field: "registrationDate",
         },
-        { label: "VIN / chassis", value: vehicle.vin, mono: true },
-        { label: "Engine number", value: vehicle.engineNumber, mono: true },
+        { label: "VIN / chassis", value: vehicle.vin, mono: true, field: "vin" },
+        { label: "Engine number", value: vehicle.engineNumber, mono: true, field: "engineNumber" },
       ],
     },
     {
       title: "Engine & fuel",
-      anchor: "specifications",
       items: [
         { label: "Fuel type", value: FUEL_TYPE_LABELS[vehicle.fuelType] },
         { label: "Transmission", value: TRANSMISSION_LABELS[vehicle.transmission] },
@@ -408,42 +415,65 @@ function SpecificationsCard({ vehicle, editHref }: { vehicle: Vehicle; editHref:
               {
                 label: "Displacement",
                 value: vehicle.engineCapacityCc && `${formatNumber(vehicle.engineCapacityCc)} cc`,
+                field: "engineCapacityCc",
               },
-              { label: "Configuration", value: vehicle.engineConfiguration },
+              {
+                label: "Configuration",
+                value: vehicle.engineConfiguration,
+                field: "engineConfiguration",
+              },
               {
                 label: "Fuel tank",
                 value: vehicle.fuelTankCapacityL && `${formatNumber(vehicle.fuelTankCapacityL)} L`,
+                field: "fuelTankCapacityL",
               },
             ]),
-        { label: "Fuel specification", value: vehicle.fuelSpecification },
-        ...(isElectric ? [] : [{ label: "Engine oil", value: vehicle.engineOilSpecification }]),
+        {
+          label: "Fuel specification",
+          value: vehicle.fuelSpecification,
+          field: "fuelSpecification",
+        },
+        ...(isElectric
+          ? []
+          : [
+              {
+                label: "Engine oil",
+                value: vehicle.engineOilSpecification,
+                field: "engineOilSpecification",
+              },
+            ]),
       ],
     },
     {
       title: "Tyres & battery",
-      anchor: "info",
       items: [
-        { label: "Tyre size", value: vehicle.tyreSize, mono: true },
-        { label: "Battery", value: vehicle.batteryType },
+        { label: "Tyre size", value: vehicle.tyreSize, mono: true, field: "tyreSize" },
+        { label: "Battery", value: vehicle.batteryType, field: "batteryType" },
       ],
     },
     {
       title: "Ownership & warranty",
-      anchor: "ownership",
       items: [
         { label: "Ownership", value: OWNERSHIP_LABELS[vehicle.ownershipType] },
-        { label: "Purchase date", value: vehicle.purchaseDate && formatDate(vehicle.purchaseDate) },
+        {
+          label: "Purchase date",
+          value: vehicle.purchaseDate && formatDate(vehicle.purchaseDate),
+          field: "purchaseDate",
+        },
         {
           label: "Purchase price",
           value: vehicle.purchasePrice && formatRupees(vehicle.purchasePrice),
+          field: "purchasePrice",
         },
         {
           label: "Warranty expires",
           value: vehicle.warrantyExpiryDate && formatDate(vehicle.warrantyExpiryDate),
+          field: "warrantyExpiryDate",
         },
         {
           label: "Warranty limit",
           value: vehicle.warrantyKmLimit !== null ? formatDistance(vehicle.warrantyKmLimit) : null,
+          field: "warrantyKmLimit",
         },
       ],
     },
@@ -457,7 +487,7 @@ function SpecificationsCard({ vehicle, editHref }: { vehicle: Vehicle; editHref:
             <h3 className="text-xs font-semibold tracking-wider text-muted-foreground uppercase">
               {group.title}
             </h3>
-            <DetailList items={group.items} addHref={`${editHref}#${group.anchor}`} />
+            <DetailList items={group.items} addHref={editHref} />
           </section>
         ))}
         <section className="flex flex-col gap-3 pt-5">
@@ -465,8 +495,8 @@ function SpecificationsCard({ vehicle, editHref }: { vehicle: Vehicle; editHref:
             Notes
           </h3>
           <DetailList
-            items={[{ label: "Notes", value: vehicle.notes }]}
-            addHref={`${editHref}#info`}
+            items={[{ label: "Notes", value: vehicle.notes, field: "notes" }]}
+            addHref={editHref}
             className="sm:grid-cols-1 [&_dd]:whitespace-pre-line [&_dt]:sr-only"
           />
         </section>

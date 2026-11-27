@@ -173,6 +173,8 @@
   }
   html {
     @apply font-sans;
+    /* Anchors and focused fields land below the sticky header (64px), never under it. */
+    scroll-padding-top: 5rem;
   }
   body {
     @apply bg-background text-foreground antialiased;

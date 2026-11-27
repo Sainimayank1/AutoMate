@@ -11,6 +11,8 @@ type DatePickerProps = {
   onChange: (date: Date | undefined) => void;
   placeholder?: string;
   id?: string;
+  /** The trigger button, so a form can focus the field (react-hook-form `setFocus`). */
+  ref?: React.Ref<HTMLButtonElement>;
   disabled?: boolean;
   /** Dates that can't be picked, e.g. future dates for a fuel entry. */
   disabledDates?: React.ComponentProps<typeof Calendar>["disabled"];
@@ -23,6 +25,7 @@ export function DatePicker({
   onChange,
   placeholder = "Pick a date",
   id,
+  ref,
   disabled,
   disabledDates,
   "aria-invalid": ariaInvalid,
@@ -33,6 +36,7 @@ export function DatePicker({
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
         <Button
+          ref={ref}
           id={id}
           variant="outline"
           disabled={disabled}

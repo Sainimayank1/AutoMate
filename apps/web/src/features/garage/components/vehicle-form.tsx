@@ -180,7 +180,12 @@ export function SpecificationsFields({ compact }: SectionProps) {
         label="Transmission"
         render={(field) => (
           <Select value={field.value} onValueChange={field.onChange}>
-            <SelectTrigger id={field.id} className="h-10 w-full" onBlur={field.onBlur}>
+            <SelectTrigger
+              ref={field.ref}
+              id={field.id}
+              className="h-10 w-full"
+              onBlur={field.onBlur}
+            >
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -419,6 +424,7 @@ function ChoiceField({
             }}
           >
             <SelectTrigger
+              ref={field.ref}
               id={field.id}
               aria-invalid={field["aria-invalid"]}
               className="h-10 w-full"
@@ -479,7 +485,9 @@ function ChoiceField({
                   <RadioGroupItem
                     value={option.value}
                     id={id}
-                    className={variant === "cards" ? undefined : "sr-only"}
+                    // `absolute` replaces the item's own `relative`, which otherwise beats sr-only
+                    // and leaves an invisible 16px dot (plus gap) in every tile and segment.
+                    className={variant === "cards" ? undefined : "absolute sr-only"}
                   />
                   <FieldContent className={segmented ? "items-center" : undefined}>
                     <FieldTitle
@@ -607,6 +615,7 @@ function DateField({
       optional={optional}
       render={(field) => (
         <DatePicker
+          ref={field.ref}
           id={field.id}
           aria-invalid={field["aria-invalid"]}
           value={field.value ? parseISO(field.value) : undefined}

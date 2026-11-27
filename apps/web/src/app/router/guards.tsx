@@ -1,5 +1,5 @@
 import { useEffect } from "react";
-import { Navigate, Outlet, useLocation } from "react-router";
+import { Navigate, Outlet, ScrollRestoration, useLocation } from "react-router";
 
 import { LoadingState } from "@/components/feedback/loading-state";
 import { refreshSession } from "@/lib/api-client";
@@ -14,7 +14,13 @@ export function SessionGate() {
   }, [status]);
 
   if (status === "unknown") return <LoadingState fullScreen label="Loading AutoMate…" />;
-  return <Outlet />;
+  return (
+    <>
+      {/* New pages start at the top (or at their #hash); back/forward restores the position. */}
+      <ScrollRestoration />
+      <Outlet />
+    </>
+  );
 }
 
 /** Authenticated routes. Remembers where the user was headed so sign-in can return there. */
