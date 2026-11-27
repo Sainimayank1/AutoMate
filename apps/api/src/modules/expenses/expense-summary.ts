@@ -24,6 +24,8 @@ export type YearReadings = {
   maxInYear: number | null;
   /** The highest reading before 1 January. */
   before: number | null;
+  /** Running cost (net) dated after the first reading this year: used when `before` is unknown. */
+  costAfterFirst: Decimal;
 };
 
 const IST_OFFSET_MS = 330 * 60 * 1000;
@@ -63,7 +65,8 @@ function distanceOf(reading: YearReadings): number | null {
 
 /**
  * The Overview figures (docs/architecture/expenses.md §1). Everything is net of refunds;
- * operating cost is the `OPERATING` class only; cost per km counts only vehicles whose km are known.
+ * operating cost is the `OPERATING` class only; cost per km counts only vehicles whose km are known,
+ * and without a reading before 1 January only the cost after the year's first reading.
  */
 export function summarizeExpenses(
   totals: MonthTotal[],
@@ -84,14 +87,18 @@ export function summarizeExpenses(
     ? Number(period.month.slice(5)) - Number(firstMonth.slice(5)) + 1
     : 0;
 
-  const distances = readings.flatMap((reading) => {
+  const measured = readings.flatMap((reading) => {
     const distance = distanceOf(reading);
-    return distance === null ? [] : [{ vehicleId: reading.vehicleId, distance }];
+    if (distance === null) return [];
+    // km counted from the first reading this year: only cost after it paid for them.
+    const cost =
+      reading.before === null
+        ? reading.costAfterFirst
+        : sum(opYearRows.filter((row) => row.vehicleId === reading.vehicleId));
+    return [{ distance, cost }];
   });
-  const distanceKm = distances.reduce((total, item) => total + item.distance, 0);
-  const costForMeasured = sum(
-    opYearRows.filter((row) => distances.some((item) => item.vehicleId === row.vehicleId)),
-  );
+  const distanceKm = measured.reduce((total, item) => total + item.distance, 0);
+  const costForMeasured = measured.reduce((total, item) => total.plus(item.cost), zero());
 
   const byCategory = new Map<string, Decimal>();
   for (const row of operating.filter((item) => item.month === period.month)) {

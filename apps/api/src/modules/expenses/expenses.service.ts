@@ -126,17 +126,29 @@ export class ExpensesService {
           min_in_year: number | null;
           max_in_year: number | null;
           before: number | null;
+          cost_after_first: Prisma.Decimal;
         }[]
       >`
-        SELECT e.vehicle_id,
-               count(*) FILTER (WHERE e.date >= ${period.yearStart}::date)::int AS readings,
-               min(e.odometer_km) FILTER (WHERE e.date >= ${period.yearStart}::date) AS min_in_year,
-               max(e.odometer_km) FILTER (WHERE e.date >= ${period.yearStart}::date) AS max_in_year,
-               max(e.odometer_km) FILTER (WHERE e.date < ${period.yearStart}::date) AS before
-        FROM expenses e
-        WHERE e.user_id = ${userId}::uuid AND e.odometer_km IS NOT NULL AND e.date <= ${period.to}::date
-        ${vehicle}
-        GROUP BY e.vehicle_id`,
+        WITH r AS (
+          SELECT e.vehicle_id,
+                 count(*) FILTER (WHERE e.date >= ${period.yearStart}::date)::int AS readings,
+                 min(e.odometer_km) FILTER (WHERE e.date >= ${period.yearStart}::date) AS min_in_year,
+                 max(e.odometer_km) FILTER (WHERE e.date >= ${period.yearStart}::date) AS max_in_year,
+                 max(e.odometer_km) FILTER (WHERE e.date < ${period.yearStart}::date) AS before,
+                 min(e.date) FILTER (WHERE e.date >= ${period.yearStart}::date) AS first_date
+          FROM expenses e
+          WHERE e.user_id = ${userId}::uuid AND e.odometer_km IS NOT NULL AND e.date <= ${period.to}::date
+          ${vehicle}
+          GROUP BY e.vehicle_id
+        )
+        SELECT r.vehicle_id, r.readings, r.min_in_year, r.max_in_year, r.before,
+               (SELECT coalesce(sum(CASE WHEN x.kind = 'REFUND' THEN -x.amount ELSE x.amount END), 0)
+                FROM expenses x
+                JOIN expense_categories c ON c.id = x.category_id
+                WHERE x.user_id = ${userId}::uuid AND x.vehicle_id = r.vehicle_id
+                  AND c.cost_class = 'OPERATING'
+                  AND x.date > r.first_date AND x.date <= ${period.to}::date) AS cost_after_first
+        FROM r`,
     ]);
     const summary = summarizeExpenses(
       totals.map((row) => ({
@@ -153,6 +165,7 @@ export class ExpensesService {
         minInYear: row.min_in_year,
         maxInYear: row.max_in_year,
         before: row.before,
+        costAfterFirst: new Prisma.Decimal(row.cost_after_first),
       })),
       new Date(),
     );

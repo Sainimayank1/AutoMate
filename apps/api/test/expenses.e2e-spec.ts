@@ -488,7 +488,7 @@ describe("Expenses (e2e)", () => {
         monthsCovered: sameYear ? 2 : 1,
       },
       distanceKm: 500,
-      costPerKm: sameYear ? "3.48" : "1.88",
+      costPerKm: "1.88", // 940 / 500: October's toll is at the first reading, not after it
       loanOutflowThisMonth: "16684.00",
       cashOutflowThisMonth: "17624.00",
     });

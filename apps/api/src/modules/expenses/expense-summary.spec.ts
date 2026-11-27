@@ -12,6 +12,7 @@ import {
 const NOW = new Date("2026-11-27T06:00:00.000Z"); // 27 Nov 2026, 11:30 IST
 const A = "vehicle-a";
 const B = "vehicle-b";
+const D = (value: string) => new Prisma.Decimal(value);
 
 const row = (
   month: string,
@@ -79,8 +80,22 @@ describe("summarizeExpenses", () => {
 
   it("prices running cost per km only over km it knows", () => {
     const readings: YearReadings[] = [
-      { vehicleId: A, readings: 3, minInYear: 5600, maxInYear: 8412, before: 5000 }, // 3,412 km
-      { vehicleId: B, readings: 1, minInYear: 42180, maxInYear: 42180, before: null }, // unknown
+      {
+        vehicleId: A,
+        readings: 3,
+        minInYear: 5600,
+        maxInYear: 8412,
+        before: 5000,
+        costAfterFirst: D("1"),
+      }, // 3,412 km
+      {
+        vehicleId: B,
+        readings: 1,
+        minInYear: 42180,
+        maxInYear: 42180,
+        before: null,
+        costAfterFirst: D("9000"),
+      }, // unknown
     ];
     const summary = summarizeExpenses(
       [
@@ -94,10 +109,39 @@ describe("summarizeExpenses", () => {
     expect(summary.costPerKm).toBe("5.00"); // B's cost has no km: left out
   });
 
+  it("starts at the first reading this year when there's none before it", () => {
+    // Fill-ups at 5,600 km (₹3,129.60) and 8,412 km: the first one's fuel isn't in those 2,812 km.
+    const summary = summarizeExpenses(
+      [row("2026-08", "OPERATING", "3129.60"), row("2026-11", "OPERATING", "14718.08")],
+      [
+        {
+          vehicleId: A,
+          readings: 2,
+          minInYear: 5600,
+          maxInYear: 8412,
+          before: null,
+          costAfterFirst: D("14718.08"),
+        },
+      ],
+      NOW,
+    );
+    expect(summary.distanceKm).toBe(2812);
+    expect(summary.costPerKm).toBe("5.23"); // 14,718.08 / 2,812, not 17,847.68 / 2,812
+  });
+
   it("reports nothing it can't support", () => {
     const summary = summarizeExpenses(
       [],
-      [{ vehicleId: A, readings: 1, minInYear: 8000, maxInYear: 8000, before: null }],
+      [
+        {
+          vehicleId: A,
+          readings: 1,
+          minInYear: 8000,
+          maxInYear: 8000,
+          before: null,
+          costAfterFirst: D("0"),
+        },
+      ],
       NOW,
     );
     expect(summary).toMatchObject({

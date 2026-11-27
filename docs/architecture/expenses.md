@@ -15,7 +15,7 @@ Every top-level category has a **cost class**; subcategories inherit it. The cla
 | `FINANCING` | EMI and other loan payments                                | no             | the whole EMI | interest and charges only |
 | `CAPITAL`   | Accessories and upgrades                                   | no             | yes           | yes                       |
 
-- **Operating cost** (running cost): what using the vehicle costs. **Cost per km** = operating cost ÷ km driven in the period (from odometer readings; not shown with fewer than two readings).
+- **Operating cost** (running cost): what using the vehicle costs. **Cost per km** = operating cost ÷ km driven in the period (from odometer readings; not shown with fewer than two readings). The km run from the last reading before the period, or else from its first reading, and then only cost dated after that first reading counts (it didn't pay for those km).
 - **Cash outflow**: everything actually paid, including the full EMI. Excludes the purchase / down payment (shown separately) and unpaid scheduled payments.
 - **Economic ownership cost**: operating + ownership + financing charges (interest, processing and prepayment fees) + capital + **depreciation**, always labelled as an estimate (standard Indian motor-insurance depreciation schedule on the purchase price).
 - **Loan principal** is cash outflow only: it reduces the loan, it isn't a cost.
