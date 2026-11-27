@@ -38,7 +38,7 @@ export function vehicleStatus({
 }: {
   vehicle: Vehicle;
   insurance: InsuranceOnRecord | null;
-  /** From MaintenanceService.statusFor: due and overdue schedules; tracked = has an active one. */
+  /** From MaintenanceService.snapshot().status: due and overdue schedules; tracked = has an active one. */
   maintenance: { items: StatusItem[]; tracked: boolean };
   today: string;
 }): VehicleStatus {

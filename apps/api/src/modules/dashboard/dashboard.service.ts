@@ -32,6 +32,8 @@ import { buildMetrics, type WindowFigures } from "./metrics";
 import { drivingOverview, fuelOverview, spendingOverview, trendMonths } from "./spending";
 import { expiryDates, type InsuranceOnRecord, vehicleStatus } from "./vehicle-status";
 
+type Snapshot = Awaited<ReturnType<MaintenanceService["snapshot"]>>;
+
 const SECTION_ERRORS = {
   status: "Couldn't work out the vehicle status.",
   metrics: "Couldn't load this period's figures.",
@@ -72,11 +74,13 @@ export class DashboardService {
     // policy, both windows' figures (the fuel engine runs once) and spending by category.
     const since = this.figures.firstDate(userId, vehicle.id);
     const insurance = this.figures.latestInsurance(userId, vehicle.id);
+    // Maintenance works out its schedules once for both the status panel and its card.
+    const upkeep = this.maintenance.snapshot(userId, vehicle.id);
     const figures = this.windowFigures(userId, vehicle, window, since);
     const spent = this.spendingRows(userId, vehicle, window, since);
     const [status, metrics, spending, fuel, maintenance, expiries, driving, insights] =
       await Promise.all([
-        this.section("status", () => this.status(userId, vehicle, insurance, today)),
+        this.section("status", () => this.status(vehicle, insurance, upkeep, today)),
         this.section("metrics", async () => {
           const both = await figures;
           // Compared only once records cover the whole earlier window (dashboard.md §1).
@@ -87,7 +91,7 @@ export class DashboardService {
           return rows && spendingOverview(rows.inPeriod, rows.monthly, rows.months);
         }),
         this.section("fuel", () => this.fuelSection(userId, vehicle, figures)),
-        this.section("maintenance", () => this.maintenanceSection(userId, vehicle, window)),
+        this.section("maintenance", () => this.maintenanceSection(upkeep)),
         this.section("expiries", async () =>
           expiryDates({ vehicle, insurance: await insurance, today }),
         ),
@@ -162,37 +166,28 @@ export class DashboardService {
   }
 
   private async status(
-    userId: string,
     vehicle: Vehicle,
     insurance: Promise<InsuranceOnRecord | null>,
+    upkeep: Promise<Snapshot>,
     today: string,
   ): Promise<VehicleStatus> {
-    const [policy, maintenance] = await Promise.all([
-      insurance,
-      this.maintenance.statusFor(userId, vehicle.id),
-    ]);
-    return vehicleStatus({ vehicle, insurance: policy, maintenance, today });
+    const [policy, maintenance] = await Promise.all([insurance, upkeep]);
+    return vehicleStatus({ vehicle, insurance: policy, maintenance: maintenance.status, today });
   }
 
   /** From the Maintenance module; empty until the vehicle has a schedule or a service record. */
   private async maintenanceSection(
-    userId: string,
-    vehicle: Vehicle,
-    window: PeriodWindow,
+    upkeep: Promise<Snapshot>,
   ): Promise<DashboardMaintenance | null> {
-    const overview = await this.maintenance.overview(userId, vehicle.id, {
-      period: window.period,
-      from: window.from,
-      to: window.to,
-    });
-    const schedules = Object.values(overview.counts).reduce((sum, count) => sum + count, 0);
-    if (!schedules && !overview.recordCount) return null;
+    const snapshot = await upkeep;
+    const schedules = Object.values(snapshot.counts).reduce((sum, count) => sum + count, 0);
+    if (!schedules && !snapshot.recordCount) return null;
     return {
-      state: overview.state,
-      overdue: overview.counts.OVERDUE,
-      dueSoon: overview.counts.DUE + overview.counts.DUE_SOON,
-      schedules: [...overview.overdue, ...overview.upcoming].slice(0, 4),
-      lastService: overview.recent[0] ?? null,
+      state: snapshot.state,
+      overdue: snapshot.counts.OVERDUE,
+      dueSoon: snapshot.counts.DUE + snapshot.counts.DUE_SOON,
+      schedules: [...snapshot.overdue, ...snapshot.upcoming].slice(0, 4),
+      lastService: snapshot.lastService,
     };
   }
 

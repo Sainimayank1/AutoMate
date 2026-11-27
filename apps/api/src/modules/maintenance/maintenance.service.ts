@@ -254,12 +254,6 @@ export class MaintenanceService {
     return this.computed(vehicle);
   }
 
-  /** The dashboard's maintenance status items (docs/architecture/dashboard.md §6). */
-  async statusFor(userId: string, vehicleId: string) {
-    const vehicle = await this.vehicles.findOwned(userId, vehicleId);
-    return maintenanceStatus(await this.computed(vehicle));
-  }
-
   /** Overdue and due items whatever the period; spending for the period, from Expenses. */
   async overview(
     userId: string,
@@ -276,28 +270,31 @@ export class MaintenanceService {
       this.expenses.spendByMonth(userId, vehicleId, period.previous, SPEND_CATEGORY_KEYS),
       this.records.recent(userId, vehicleId, 5),
     ]);
-    const counts = Object.fromEntries(
-      Object.values(ScheduleStatus).map((status) => [status, 0]),
-    ) as Record<ScheduleStatus, number>;
-    for (const schedule of schedules) counts[schedule.due.status] += 1;
     return {
       odometerKm: vehicle.odometerKm,
       period,
-      state: overviewState(schedules.map((schedule) => schedule.due.status)),
-      counts,
-      overdue: schedules.filter((schedule) => schedule.due.status === ScheduleStatus.OVERDUE),
-      upcoming: schedules
-        .filter((schedule) => ACTIVE_DUE.includes(schedule.due.status))
-        .slice(0, 5),
-      next:
-        schedules.find(
-          (schedule) =>
-            ACTIVE_DUE.includes(schedule.due.status) ||
-            schedule.due.status === ScheduleStatus.UP_TO_DATE,
-        ) ?? null,
+      ...summarize(schedules),
       recordCount: records.count,
       recent: records.recent,
       spend: summarizeSpend(current, previous, period),
+    };
+  }
+
+  /**
+   * The dashboard's one read (dashboard.md §6): its status items and the maintenance card, from a
+   * single computation of the schedules and without the spending queries.
+   */
+  async snapshot(userId: string, vehicleId: string) {
+    const vehicle = await this.vehicles.findOwned(userId, vehicleId);
+    const [schedules, records] = await Promise.all([
+      this.computed(vehicle),
+      this.records.recent(userId, vehicleId, 1),
+    ]);
+    return {
+      status: maintenanceStatus(schedules),
+      ...summarize(schedules),
+      recordCount: records.count,
+      lastService: records.recent[0] ?? null,
     };
   }
 
@@ -314,4 +311,24 @@ export class MaintenanceService {
     if (!row) throw new NotFoundException(NOT_FOUND);
     return { vehicle, row };
   }
+}
+
+/** State, counts by status, every overdue schedule and the next five due (most urgent first). */
+function summarize(schedules: MaintenanceSchedule[]) {
+  const counts = Object.fromEntries(
+    Object.values(ScheduleStatus).map((status) => [status, 0]),
+  ) as Record<ScheduleStatus, number>;
+  for (const schedule of schedules) counts[schedule.due.status] += 1;
+  return {
+    state: overviewState(schedules.map((schedule) => schedule.due.status)),
+    counts,
+    overdue: schedules.filter((schedule) => schedule.due.status === ScheduleStatus.OVERDUE),
+    upcoming: schedules.filter((schedule) => ACTIVE_DUE.includes(schedule.due.status)).slice(0, 5),
+    next:
+      schedules.find(
+        (schedule) =>
+          ACTIVE_DUE.includes(schedule.due.status) ||
+          schedule.due.status === ScheduleStatus.UP_TO_DATE,
+      ) ?? null,
+  };
 }

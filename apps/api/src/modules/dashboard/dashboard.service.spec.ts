@@ -17,10 +17,11 @@ function sources() {
     },
     fuel: { hasFills: vi.fn().mockResolvedValue(false) },
     maintenance: {
-      statusFor: vi.fn().mockResolvedValue({ items: [], tracked: false }),
-      overview: vi.fn().mockResolvedValue({
-        counts: { OVERDUE: 0, DUE: 0, DUE_SOON: 0, OK: 0 },
+      snapshot: vi.fn().mockResolvedValue({
+        status: { items: [], tracked: false },
+        counts: { OVERDUE: 0, DUE: 0, DUE_SOON: 0, UP_TO_DATE: 0 },
         recordCount: 0,
+        lastService: null,
       }),
     },
     records: {},
@@ -54,12 +55,13 @@ describe("DashboardService.overview", () => {
 
   it("keeps a failing source to the sections that read it", async () => {
     const deps = sources();
-    deps.maintenance.overview.mockRejectedValue(new Error("maintenance is down"));
+    deps.maintenance.snapshot.mockRejectedValue(new Error("maintenance is down"));
     deps.figures.latestInsurance.mockRejectedValue(new Error("expenses is down"));
     const overview = await service(deps).overview("u1", QUERY);
 
     expect(overview.maintenance).toEqual({ state: "error", message: "Couldn't load maintenance." });
-    // The insurance policy feeds both the status and the expiry dates.
+    // Maintenance's snapshot and the insurance policy both feed the status; the policy also feeds
+    // the expiry dates.
     expect(overview.status).toEqual({
       state: "error",
       message: "Couldn't work out the vehicle status.",
