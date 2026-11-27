@@ -48,8 +48,10 @@ export function useHistoryFilters() {
   };
 
   const [from, to] = ordered(valid("from", DATE), valid("to", DATE), (a, b) => a > b);
-  const [minAmount, maxAmount] = ordered(valid("min", AMOUNT), valid("max", AMOUNT), (a, b) =>
-    toPaise(a) > toPaise(b),
+  const [minAmount, maxAmount] = ordered(
+    valid("min", AMOUNT),
+    valid("max", AMOUNT),
+    (a, b) => toPaise(a) > toPaise(b),
   );
   const km = (key: HistoryFilterKey) => {
     const value = valid(key, KM);
@@ -86,7 +88,12 @@ export function useHistoryFilters() {
       { replace: true },
     );
   const clear = () =>
-    set(Object.fromEntries(HISTORY_FILTER_KEYS.map((key) => [key, null])) as Record<HistoryFilterKey, null>);
+    set(
+      Object.fromEntries(HISTORY_FILTER_KEYS.map((key) => [key, null])) as Record<
+        HistoryFilterKey,
+        null
+      >,
+    );
 
   return { params, filters, page, view, active, set, clear };
 }

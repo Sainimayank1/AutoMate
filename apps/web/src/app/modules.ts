@@ -152,6 +152,11 @@ export const appModules = [
         ],
       },
       {
+        path: "history",
+        lazy: () => import("@/features/maintenance/history-route"),
+        handle: { title: "History" },
+      },
+      {
         path: "records/:vehicleId/:recordId",
         lazy: () => import("@/features/maintenance/record-details-route"),
         handle: { title: "Service record" },

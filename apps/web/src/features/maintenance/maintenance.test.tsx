@@ -237,40 +237,46 @@ describe("maintenance schedules", () => {
     );
   });
 
-  it("adds a repeating schedule, refusing one without an interval", { timeout: 15_000 }, async () => {
-    const calls = api({
-      "GET /vehicles": () => okPage([victoris]),
-      [`GET ${OVERVIEW}`]: () => ok(overview()),
-      [`GET ${SCHEDULES}`]: () => okPage([oil]),
-      [`POST ${SCHEDULES}`]: () => ok(oil, 201),
-    });
-    renderApp("/maintenance/schedules/new");
-    const user = userEvent.setup();
+  it(
+    "adds a repeating schedule, refusing one without an interval",
+    { timeout: 15_000 },
+    async () => {
+      const calls = api({
+        "GET /vehicles": () => okPage([victoris]),
+        [`GET ${OVERVIEW}`]: () => ok(overview()),
+        [`GET ${SCHEDULES}`]: () => okPage([oil]),
+        [`POST ${SCHEDULES}`]: () => ok(oil, 201),
+      });
+      renderApp("/maintenance/schedules/new");
+      const user = userEvent.setup();
 
-    await user.type(await screen.findByLabelText("Name"), "Engine oil & filter");
-    await user.click(screen.getByRole("combobox", { name: "What it's for" }));
-    await user.click(await screen.findByRole("option", { name: "Engine oil" }));
-    await user.click(screen.getByRole("button", { name: "Save schedule" }));
-    expect(await screen.findByText("Set an interval in km or months")).toBeInTheDocument();
-    expect(calls.some((call) => call.method === "post")).toBe(false);
+      await user.type(await screen.findByLabelText("Name"), "Engine oil & filter");
+      await user.click(screen.getByRole("combobox", { name: "What it's for" }));
+      await user.click(await screen.findByRole("option", { name: "Engine oil" }));
+      await user.click(screen.getByRole("button", { name: "Save schedule" }));
+      expect(await screen.findByText("Set an interval in km or months")).toBeInTheDocument();
+      expect(calls.some((call) => call.method === "post")).toBe(false);
 
-    await user.type(screen.getByLabelText("Every"), "10000");
-    await user.click(screen.getByRole("button", { name: "Save schedule" }));
-    await waitFor(() => expect(calls.some((call) => call.method === "post")).toBe(true));
-    const body = bodyOf(calls.find((call) => call.method === "post"));
-    expect(body).toMatchObject({
-      name: "Engine oil & filter",
-      categoryKey: "ENGINE.ENGINE_OIL",
-      intervalKm: 10_000,
-      intervalMonths: null,
-      dueDate: null,
-      dueKm: null,
-      priority: "NORMAL",
-      remindersEnabled: true,
-    });
-    expect(body.id).toEqual(expect.any(String));
-    expect(await screen.findByRole("button", { name: "Engine oil & filter" })).toBeInTheDocument();
-  });
+      await user.type(screen.getByLabelText("Every"), "10000");
+      await user.click(screen.getByRole("button", { name: "Save schedule" }));
+      await waitFor(() => expect(calls.some((call) => call.method === "post")).toBe(true));
+      const body = bodyOf(calls.find((call) => call.method === "post"));
+      expect(body).toMatchObject({
+        name: "Engine oil & filter",
+        categoryKey: "ENGINE.ENGINE_OIL",
+        intervalKm: 10_000,
+        intervalMonths: null,
+        dueDate: null,
+        dueKm: null,
+        priority: "NORMAL",
+        remindersEnabled: true,
+      });
+      expect(body.id).toEqual(expect.any(String));
+      expect(
+        await screen.findByRole("button", { name: "Engine oil & filter" }),
+      ).toBeInTheDocument();
+    },
+  );
 });
 
 const serviced: ServiceRecord = {
@@ -321,43 +327,47 @@ describe("service records", () => {
     expect(screen.getByText("Last service 18/05/2026")).toBeInTheDocument();
   });
 
-  it("marks a schedule completed by logging a service with a cost breakdown", { timeout: 15_000 }, async () => {
-    const calls = api({
-      "GET /vehicles": () => okPage([victoris]),
-      [`GET ${SCHEDULES}`]: () => okPage([oil]),
-      "GET /maintenance-providers": () =>
-        okPage([{ id: "p1", name: "Maruti Arena Service, Gurugram" }]),
-      [`POST ${RECORDS}`]: () => ok(serviced, 201),
-      [`GET ${SCHEDULES}/${oil.id}`]: () => ok(oil),
-      [`GET ${OVERVIEW}`]: () => ok(overview()),
-    });
-    renderApp(`/maintenance/records/new?schedule=${oil.id}`);
-    const user = userEvent.setup();
+  it(
+    "marks a schedule completed by logging a service with a cost breakdown",
+    { timeout: 15_000 },
+    async () => {
+      const calls = api({
+        "GET /vehicles": () => okPage([victoris]),
+        [`GET ${SCHEDULES}`]: () => okPage([oil]),
+        "GET /maintenance-providers": () =>
+          okPage([{ id: "p1", name: "Maruti Arena Service, Gurugram" }]),
+        [`POST ${RECORDS}`]: () => ok(serviced, 201),
+        [`GET ${SCHEDULES}/${oil.id}`]: () => ok(oil),
+        [`GET ${OVERVIEW}`]: () => ok(overview()),
+      });
+      renderApp(`/maintenance/records/new?schedule=${oil.id}`);
+      const user = userEvent.setup();
 
-    expect(await screen.findByText("Completing Engine oil & filter")).toBeInTheDocument();
-    expect(screen.getByLabelText("Title")).toHaveValue("Engine oil & filter");
-    await user.type(screen.getByLabelText("Odometer"), "8450");
-    await user.type(screen.getByLabelText("Labour"), "1200");
-    await user.type(screen.getByLabelText("Parts"), "4800");
-    await user.type(screen.getByLabelText("Discount"), "500");
-    expect(screen.getAllByText("₹5,500.00").length).toBeGreaterThan(0);
-    await user.click(screen.getByRole("button", { name: "Save record" }));
+      expect(await screen.findByText("Completing Engine oil & filter")).toBeInTheDocument();
+      expect(screen.getByLabelText("Title")).toHaveValue("Engine oil & filter");
+      await user.type(screen.getByLabelText("Odometer"), "8450");
+      await user.type(screen.getByLabelText("Labour"), "1200");
+      await user.type(screen.getByLabelText("Parts"), "4800");
+      await user.type(screen.getByLabelText("Discount"), "500");
+      expect(screen.getAllByText("₹5,500.00").length).toBeGreaterThan(0);
+      await user.click(screen.getByRole("button", { name: "Save record" }));
 
-    await waitFor(() => expect(calls.some((call) => call.method === "post")).toBe(true));
-    const body = bodyOf(calls.find((call) => call.method === "post"));
-    expect(body).toMatchObject({
-      type: "ROUTINE_SERVICE",
-      title: "Engine oil & filter",
-      categoryKey: "ENGINE.ENGINE_OIL",
-      odometerKm: 8450,
-      labourAmount: "1200",
-      partsAmount: "4800",
-      discountAmount: "500",
-      totalAmount: null,
-      items: [{ name: "Engine oil & filter", scheduleId: oil.id }],
-    });
-    expect(body.id).toEqual(expect.any(String));
-  });
+      await waitFor(() => expect(calls.some((call) => call.method === "post")).toBe(true));
+      const body = bodyOf(calls.find((call) => call.method === "post"));
+      expect(body).toMatchObject({
+        type: "ROUTINE_SERVICE",
+        title: "Engine oil & filter",
+        categoryKey: "ENGINE.ENGINE_OIL",
+        odometerKm: 8450,
+        labourAmount: "1200",
+        partsAmount: "4800",
+        discountAmount: "500",
+        totalAmount: null,
+        items: [{ name: "Engine oil & filter", scheduleId: oil.id }],
+      });
+      expect(body.id).toEqual(expect.any(String));
+    },
+  );
 
   it("shows a record's breakdown, completions and linked expense, and deletes it", async () => {
     const calls = api({
@@ -388,5 +398,84 @@ describe("service records", () => {
     expect(dialog).toHaveTextContent("Its expense of ₹6,850.00 is deleted too");
     await user.click(within(dialog).getByRole("button", { name: "Delete" }));
     await waitFor(() => expect(calls.some((call) => call.method === "delete")).toBe(true));
+  });
+});
+
+describe("service history", () => {
+  const brakeRepair: ServiceRecord = {
+    ...serviced,
+    id: "0190d4a2-0000-7000-8000-00000000d002",
+    type: "REPAIR",
+    title: "Front brakes",
+    serviceDate: "2024-11-14",
+    odometerKm: 1040,
+    totalAmount: "3200.00",
+    items: [],
+    notes: "Squeal fixed",
+  };
+
+  it("shows a timeline grouped by month, filters through the API and switches to a list", async () => {
+    const calls = api({
+      "GET /vehicles": () => okPage([victoris]),
+      [`GET ${RECORDS}`]: (config) => {
+        const params = config.params as { group?: string; search?: string };
+        if (params.group === "BRAKES" || params.search) return okPage([brakeRepair]);
+        return okPage([serviced, brakeRepair]);
+      },
+      [`GET ${RECORDS}/summary`]: () => ok({ count: 2, totalAmount: "10050.00" }),
+      "GET /maintenance-providers": () =>
+        okPage([{ id: "p1", name: "Maruti Arena Service, Gurugram" }]),
+    });
+    renderApp("/maintenance/history");
+    const user = userEvent.setup();
+
+    expect(await screen.findByRole("heading", { name: "2026 · May" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "2024 · November" })).toBeInTheDocument();
+    expect(screen.getByText("2 records · ₹10,050.00")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /Front brakes/ })).toHaveAttribute(
+      "href",
+      `/maintenance/records/${victoris.id}/${brakeRepair.id}`,
+    );
+
+    await user.click(screen.getByRole("button", { name: /Filters/ }));
+    await user.click(await screen.findByRole("combobox", { name: "Category" }));
+    await user.click(await screen.findByRole("option", { name: "Brakes" }));
+    await user.click(screen.getByRole("button", { name: "Apply" }));
+    await waitFor(() =>
+      expect(calls.filter((call) => call.url === RECORDS).at(-1)?.params).toMatchObject({
+        group: "BRAKES",
+        page: 1,
+      }),
+    );
+    expect(await screen.findByText("Category: Brakes")).toBeInTheDocument();
+    await waitFor(() =>
+      expect(
+        screen.queryByRole("link", { name: /2nd free periodic service/ }),
+      ).not.toBeInTheDocument(),
+    );
+
+    await user.click(screen.getByRole("radio", { name: "List" }));
+    expect(await screen.findByRole("columnheader", { name: "Odometer" })).toBeInTheDocument();
+  });
+
+  it("separates a filtered empty result from an empty history", async () => {
+    api({
+      "GET /vehicles": () => okPage([victoris]),
+      [`GET ${RECORDS}`]: () => okPage([]),
+      [`GET ${RECORDS}/summary`]: () => ok({ count: 0, totalAmount: "0.00" }),
+    });
+    renderApp("/maintenance/history?q=turbo");
+    expect(await screen.findByText("No records match")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Clear filters" })).toBeInTheDocument();
+  });
+
+  it("invites the first record when there is no history", async () => {
+    api({
+      "GET /vehicles": () => okPage([victoris]),
+      [`GET ${RECORDS}`]: () => okPage([]),
+      [`GET ${RECORDS}/summary`]: () => ok({ count: 0, totalAmount: "0.00" }),
+    });
+    renderApp("/maintenance/history");
+    expect(await screen.findByText("No service history")).toBeInTheDocument();
   });
 });

@@ -1,4 +1,5 @@
 import type {
+  ActionItem,
   ExpiryItem,
   StatusItem,
   StatusSeverity,
@@ -51,9 +52,9 @@ export function vehicleStatus({
   const items = [
     insuranceItem(insurance, today),
     warrantyItem(vehicle, today),
-    ...maintenance.items,
+    ...maintenance.items.map(maintenanceItem),
   ]
-    .filter((item): item is StatusItem => item !== null)
+    .filter((item): item is ActionItem => item !== null)
     .sort((a, b) => RANK[a.severity] - RANK[b.severity]);
   const untracked: UntrackedArea[] = maintenance.tracked
     ? ["documents"]
@@ -124,20 +125,46 @@ function warrantyExpiry(vehicle: Vehicle, today: string): Expiry | null {
   );
 }
 
-function insuranceItem(insurance: InsuranceOnRecord | null, today: string): StatusItem | null {
+/** Insurance: renewing is the action while it's expiring or expired. */
+function insuranceItem(insurance: InsuranceOnRecord | null, today: string): ActionItem | null {
   if (!insurance) return null;
   const expiry = insuranceExpiry(insurance, today);
+  const left = daysUntil(today, insurance.policyEnd);
   return {
     id: "insurance",
     severity: SEVERITY[expiry.state as keyof typeof SEVERITY],
     title: `Insurance ${lowerFirst(expiry.summary)}`,
     detail: expiry.detail,
     href: expiry.href,
+    source: "insurance",
+    state:
+      expiry.state === "expired"
+        ? "overdue"
+        : expiry.state === "expiring"
+          ? left === 0
+            ? "due_today"
+            : "due_soon"
+          : "info",
+    action: expiry.state === "valid" ? null : { label: "Add renewal", href: "/expenses/new" },
+  };
+}
+
+/**
+ * A Maintenance status item in the action centre: overdue or due (soon); logging the service is
+ * the action, and the row opens the schedule.
+ */
+function maintenanceItem(item: StatusItem): ActionItem {
+  return {
+    ...item,
+    source: "maintenance",
+    state:
+      item.severity === "critical" ? "overdue" : item.severity === "warning" ? "due_soon" : "info",
+    action: { label: "Log service", href: "/maintenance/records/new" },
   };
 }
 
 /** An ended warranty is worth knowing, not an alarm: it's information. */
-function warrantyItem(vehicle: Vehicle, today: string): StatusItem | null {
+function warrantyItem(vehicle: Vehicle, today: string): ActionItem | null {
   const expiry = warrantyExpiry(vehicle, today);
   if (!expiry) return null;
   return {
@@ -146,6 +173,10 @@ function warrantyItem(vehicle: Vehicle, today: string): StatusItem | null {
     title: `Warranty ${lowerFirst(expiry.summary)}`,
     detail: expiry.detail,
     href: expiry.href,
+    source: "warranty",
+    state: expiry.state === "expiring" ? "due_soon" : "info",
+    // Nothing to log: the warranty is on the vehicle record (the row opens it).
+    action: null,
   };
 }
 

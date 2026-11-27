@@ -1,5 +1,7 @@
 import { z } from "zod";
 
+import { paginationQuerySchema } from "../api/pagination.js";
+
 import { checkPeriodQuery, type PeriodWindow, periodQueryFields } from "../common/periods.js";
 import type { SpendGroup } from "../expenses/expense-categories.js";
 import type { ExpenseCategoryRef } from "../expenses/expense.schema.js";
@@ -39,6 +41,20 @@ export interface StatusItem {
   href: string | null;
 }
 
+/** Where an action-centre item comes from (Documents, EMI and reminders join later). */
+export type ItemSource = "maintenance" | "insurance" | "warranty";
+
+/** How soon: overdue (or expired), due today, due soon, or just worth knowing. */
+export type DueState = "overdue" | "due_today" | "due_soon" | "info";
+
+/** A status item in the action centre: its state, source and the one action that fits. */
+export interface ActionItem extends StatusItem {
+  source: ItemSource;
+  state: DueState;
+  /** "Log service", "Add renewal"; null when there's nothing to do. */
+  action: { label: string; href: string } | null;
+}
+
 /** What AutoMate can't see yet: while anything is untracked it never says the car is fine. */
 export type UntrackedArea = "maintenance" | "documents";
 
@@ -48,8 +64,8 @@ export interface VehicleStatus {
    * untracked, and only then `no_issues` ("No issues recorded", never "healthy").
    */
   level: "attention" | "incomplete" | "no_issues";
-  /** Most urgent first. */
-  items: StatusItem[];
+  /** The action centre: most urgent first, each opening its record. */
+  items: ActionItem[];
   untracked: UntrackedArea[];
 }
 
@@ -159,4 +175,35 @@ export interface DashboardOverview {
   maintenance: DashboardSection<DashboardMaintenance>;
   expiries: DashboardSection<ExpiryItem[]>;
   driving: DashboardSection<DrivingOverview>;
+}
+
+// ---- recent activity (`GET /dashboard/activity`)
+
+/** One vehicle's activity, a page at a time. */
+export const dashboardActivityQuerySchema = paginationQuerySchema.extend({
+  vehicleId: z.uuid("Choose a vehicle"),
+});
+export type DashboardActivityQuery = z.output<typeof dashboardActivityQuerySchema>;
+
+/** How far back the dashboard's feed goes; older records are in each module. */
+export const ACTIVITY_DEPTH = 96;
+
+/**
+ * Something that happened to the vehicle, from the module that owns it: fill-ups and expenses
+ * (Expenses) and service records (Maintenance). A service's own expense isn't listed twice.
+ */
+export interface ActivityItem {
+  /** "expense:<id>" or "service:<id>" */
+  id: string;
+  kind: "fuel" | "expense" | "refund" | "service";
+  /** YYYY-MM-DD */
+  date: string;
+  title: string;
+  /** "32.4 L at ₹104.32/L", "Daily usage · Toll", "Maruti Arena Service, Gurugram" */
+  detail: string | null;
+  /** Always positive; a refund brings money back. */
+  amount: string | null;
+  odometerKm: number | null;
+  /** The record it opens. */
+  href: string;
 }

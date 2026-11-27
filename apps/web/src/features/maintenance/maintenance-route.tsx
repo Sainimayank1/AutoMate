@@ -373,9 +373,16 @@ function RecentCard({ overview }: { overview: MaintenanceOverview }) {
     <Card>
       <CardHeader className="flex flex-row items-center justify-between gap-2">
         <CardTitle>Recent maintenance</CardTitle>
-        <span className="text-sm text-muted-foreground tabular-nums">
-          {formatNumber(recordCount)} {recordCount === 1 ? "record" : "records"}
-        </span>
+        {recordCount > 0 ? (
+          <Link
+            to="/maintenance/history"
+            className="text-sm font-medium text-primary hover:underline"
+          >
+            All {formatNumber(recordCount)} {recordCount === 1 ? "record" : "records"}
+          </Link>
+        ) : (
+          <span className="text-sm text-muted-foreground tabular-nums">No records yet</span>
+        )}
       </CardHeader>
       <CardContent>
         {recent.length === 0 ? (

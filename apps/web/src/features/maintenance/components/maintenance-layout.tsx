@@ -5,10 +5,11 @@ import { PageContainer } from "@/components/common/page-container";
 import { PageHeader } from "@/components/common/page-header";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
-/** Tabs that exist today; later phases add History, Components, Inspections, Workshops, Analytics. */
+/** Tabs that exist today; later phases add Components, Inspections, Workshops, Analytics. */
 const TABS = [
   { value: "overview", label: "Overview", path: "/maintenance" },
   { value: "schedules", label: "Schedules", path: "/maintenance/schedules" },
+  { value: "history", label: "History", path: "/maintenance/history" },
 ] as const;
 
 /**
