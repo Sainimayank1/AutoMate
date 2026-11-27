@@ -16,6 +16,7 @@ import { vehicleKeys } from "@/features/garage/hooks/use-vehicles";
 import { maintenanceKeys } from "@/features/maintenance/hooks/maintenance-keys";
 import type {
   OverviewParams,
+  RecordFilterParams,
   RecordListParams,
   ScheduleListParams,
 } from "@/features/maintenance/services/maintenance-service";
@@ -90,6 +91,22 @@ export function useServiceRecords(vehicleId: string | undefined, params: RecordL
     queryKey: maintenanceKeys.records(vehicleId ?? "", params),
     queryFn: () => maintenanceService.records(vehicleId!, params),
     enabled: !!vehicleId,
+    // Paging or filtering keeps the last page on screen, but never another vehicle's.
+    placeholderData: (previous, previousQuery) =>
+      previousQuery?.queryKey[1] === vehicleId ? previous : undefined,
+  });
+}
+
+export function useServiceRecordSummary(
+  vehicleId: string | undefined,
+  params: RecordFilterParams = {},
+) {
+  return useQuery({
+    queryKey: maintenanceKeys.recordSummary(vehicleId ?? "", params),
+    queryFn: () => maintenanceService.recordSummary(vehicleId!, params),
+    enabled: !!vehicleId,
+    placeholderData: (previous, previousQuery) =>
+      previousQuery?.queryKey[1] === vehicleId ? previous : undefined,
   });
 }
 

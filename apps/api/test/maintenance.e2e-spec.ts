@@ -605,6 +605,82 @@ describe("Maintenance (e2e)", () => {
       ).not.toBe("COMPLETED");
     });
 
+    it("filters the history on the server and sums what matches", async () => {
+      const car = await vehicle(arjun, 8000);
+      const periodic = dataOf<ServiceRecord>(
+        await as(arjun).post(records(car.id), service()).expect(201),
+      );
+      const brakes = dataOf<ServiceRecord>(
+        await as(arjun)
+          .post(
+            records(car.id),
+            service({
+              type: "REPAIR",
+              title: "Front brakes",
+              categoryKey: "BRAKES.BRAKE_PADS",
+              serviceDate: addDays(today, -30),
+              odometerKm: 7600,
+              providerName: "Speedy Brakes",
+              labourAmount: null,
+              partsAmount: null,
+              taxAmount: null,
+              discountAmount: null,
+              totalAmount: "3200",
+              notes: "Squeal fixed",
+              items: [{ name: "Ceramic pads", partNumber: "BP-1182" }],
+            }),
+          )
+          .expect(201),
+      );
+      const historical = dataOf<ServiceRecord>(
+        await as(arjun)
+          .post(
+            records(car.id),
+            service({
+              type: "INSPECTION",
+              title: "PDI and first inspection",
+              categoryKey: "GENERAL.INSPECTION",
+              serviceDate: "2024-03-02",
+              odometerKm: 1040,
+              labourAmount: null,
+              partsAmount: null,
+              taxAmount: null,
+              discountAmount: null,
+            }),
+          )
+          .expect(201),
+      );
+      const ids = async (query: string) =>
+        dataOf<ServiceRecord[]>(
+          await as(arjun)
+            .get(`${records(car.id)}?${query}`)
+            .expect(200),
+        ).map((record) => record.id);
+
+      expect(await ids("")).toEqual([periodic.id, brakes.id, historical.id]);
+      expect(await ids("search=bp-1182")).toEqual([brakes.id]); // part number
+      expect(await ids("search=speedy")).toEqual([brakes.id]); // workshop
+      expect(await ids("search=squeal")).toEqual([brakes.id]); // notes
+      expect(await ids("search=periodic")).toEqual([periodic.id]); // category name / title
+      expect(await ids("group=BRAKES")).toEqual([brakes.id]);
+      expect(await ids("type=INSPECTION")).toEqual([historical.id]);
+      expect(await ids(`providerId=${brakes.provider!.id}`)).toEqual([brakes.id]);
+      expect(await ids("minAmount=1000&maxAmount=5000")).toEqual([brakes.id]);
+      expect(await ids("maxKm=2000")).toEqual([historical.id]);
+      expect(await ids(`from=2025-01-01&to=${addDays(today, -1)}`)).toEqual([brakes.id]);
+
+      const summary = await as(arjun)
+        .get(`${records(car.id)}/summary?minAmount=1`)
+        .expect(200);
+      expect(dataOf(summary)).toEqual({ count: 2, totalAmount: "10050.00" });
+      const backwards = await as(arjun)
+        .get(`${records(car.id)}?minKm=5000&maxKm=100`)
+        .expect(400);
+      expect(errorOf(backwards).details).toContainEqual(
+        expect.objectContaining({ field: "maxKm" }),
+      );
+    });
+
     it("reuses a workshop by name and keeps records private", async () => {
       const car = await vehicle(arjun, 8000);
       const first = dataOf<ServiceRecord>(

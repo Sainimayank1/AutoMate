@@ -20,6 +20,7 @@ import { fromPaise, toPaise } from "../expenses/expense.schema.js";
 import { ODOMETER_MAX_KM } from "../vehicles/vehicle.schema.js";
 import {
   MAINTENANCE_CATEGORY_KEYS,
+  MAINTENANCE_GROUP_KEYS,
   type MaintenanceCategoryKey,
 } from "./maintenance-categories.js";
 
@@ -279,10 +280,45 @@ export const createServiceRecordSchema = serviceRecordFieldsSchema.superRefine(c
 /** PATCH: null clears a field; `items` replaces the list. The API merges and re-checks it whole. */
 export const updateServiceRecordSchema = serviceRecordFieldsSchema.omit({ id: true }).partial();
 
-export const serviceRecordListQuerySchema = paginationQuerySchema.extend({
+/** Service history filters (applied by the API before paging). */
+const serviceRecordFilterFields = {
   /** The records that completed this schedule (its history). */
   scheduleId: z.uuid().optional(),
-});
+  /** Title, workshop, items and part numbers, description, notes, category name. */
+  search: z.string().trim().max(80).optional(),
+  from: z.iso.date("Enter a valid date").optional(),
+  to: z.iso.date("Enter a valid date").optional(),
+  group: z.enum(MAINTENANCE_GROUP_KEYS).optional(),
+  type: z.enum(ServiceRecordType).optional(),
+  providerId: z.uuid().optional(),
+  minAmount: money("Enter an amount, e.g. 1000"),
+  maxAmount: money("Enter an amount, e.g. 10000"),
+  minKm: odometer("Enter a reading in km"),
+  maxKm: odometer("Enter a reading in km"),
+};
+
+type FilterRange = Partial<Record<"from" | "to" | "minAmount" | "maxAmount", string | null>> &
+  Partial<Record<"minKm" | "maxKm", number | null>>;
+
+function checkFilterRanges(value: FilterRange, ctx: z.RefinementCtx) {
+  const issue = (path: string, message: string) =>
+    ctx.addIssue({ code: "custom", path: [path], message });
+  if (value.from && value.to && value.from > value.to) issue("to", "Ends before it starts");
+  if (value.minAmount && value.maxAmount && toPaise(value.minAmount) > toPaise(value.maxAmount)) {
+    issue("maxAmount", "Less than the minimum");
+  }
+  if (value.minKm != null && value.maxKm != null && value.minKm > value.maxKm) {
+    issue("maxKm", "Less than the minimum");
+  }
+}
+
+export const serviceRecordFiltersSchema = z
+  .object(serviceRecordFilterFields)
+  .superRefine(checkFilterRanges);
+
+export const serviceRecordListQuerySchema = paginationQuerySchema
+  .extend(serviceRecordFilterFields)
+  .superRefine(checkFilterRanges);
 
 export const providerListQuerySchema = paginationQuerySchema.extend({
   search: z.string().trim().max(80).optional(),
@@ -292,6 +328,7 @@ export type CreateServiceRecordInput = z.input<typeof createServiceRecordSchema>
 export type CreateServiceRecordValues = z.output<typeof createServiceRecordSchema>;
 export type UpdateServiceRecordValues = z.output<typeof updateServiceRecordSchema>;
 export type ServiceRecordListQuery = z.output<typeof serviceRecordListQuerySchema>;
+export type ServiceRecordFilters = z.output<typeof serviceRecordFiltersSchema>;
 export type ProviderListQuery = z.output<typeof providerListQuerySchema>;
 
 // ---- responses
@@ -389,6 +426,12 @@ export interface ServiceRecord {
   expenseId: string | null;
   createdAt: string;
   updatedAt: string;
+}
+
+/** The filtered history at a glance (all pages). */
+export interface ServiceRecordSummary {
+  count: number;
+  totalAmount: string;
 }
 
 export interface MaintenanceSpendMonth {

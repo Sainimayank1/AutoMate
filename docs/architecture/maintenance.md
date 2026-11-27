@@ -17,10 +17,10 @@ Keeps each vehicle's servicing on time: schedules, service and repair records, c
 
 A schedule either **repeats** (every `intervalKm` and/or `intervalMonths`) or happens **once** (at `dueDate` and/or `dueKm`). Each of its two tracks (date, distance) is computed on its own:
 
-| Track    | Counted from (first that exists)                                                                                        | Next due                                       |
-| -------- | ----------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------- |
-| Date     | latest completion (phase 2) → "last done" date the user entered → the day the schedule was added                        | + `intervalMonths` (IST, clamped to month end) |
-| Distance | latest completion's km (phase 2) → "last done" km the user entered → the vehicle's odometer when the schedule was added | + `intervalKm`                                 |
+| Track    | Counted from (first that exists)                                                                                                 | Next due                                       |
+| -------- | -------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------- |
+| Date     | the latest of: completions (service record items) and the "last done" date the user entered; else the day the schedule was added | + `intervalMonths` (IST, clamped to month end) |
+| Distance | the highest of: completions' readings and the "last done" km; else the vehicle's odometer when the schedule was added            | + `intervalKm`                                 |
 
 The response says which basis each track used, so the web can show how the next due was calculated ("Last done 18/05/2026 at 5,120 km + 10,000 km or 12 months").
 
@@ -29,7 +29,7 @@ The response says which basis each track used, so the web can show how the next 
 | Status         | When                                                                                      |
 | -------------- | ----------------------------------------------------------------------------------------- |
 | Paused         | paused by the user (figures still shown, not counted)                                     |
-| Completed      | a one-time schedule that has been done (phase 2)                                          |
+| Completed      | a one-time schedule that a service record completed                                       |
 | Overdue        | the due date has passed, or the odometer is past the due reading                          |
 | Due            | ≤ 7 days or ≤ 500 km left (`DUE_WINDOW`)                                                  |
 | Due soon       | inside the schedule's reminder lead (default 30 days / 1,000 km, `DEFAULT_REMINDER_LEAD`) |
@@ -43,19 +43,30 @@ The response says which basis each track used, so the web can show how the next 
 
 Nested under the vehicle (api-conventions.md §1). Every list is paginated.
 
-| Route                                                             | Notes                                                                                                                                                                                                                            |
-| ----------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `GET /vehicles/:vehicleId/maintenance-overview`                   | `period` / `from` / `to` (the shared periods). State and counts, overdue (all), the next 5 due, spending (from Expenses: the Maintenance & servicing and Repairs categories, net of refunds) with the previous window and months |
-| `GET /vehicles/:vehicleId/maintenance-schedules`                  | `status`, `search`; ordered by urgency                                                                                                                                                                                           |
-| `POST /vehicles/:vehicleId/maintenance-schedules`                 | Client-generated `id` makes a retry return the same schedule                                                                                                                                                                     |
-| `GET/PATCH/DELETE /vehicles/:vehicleId/maintenance-schedules/:id` | PATCH merges and re-checks the whole schedule                                                                                                                                                                                    |
-| `POST …/maintenance-schedules/:id/pause`, `…/resume`              | Idempotent                                                                                                                                                                                                                       |
+| Route                                                                 | Notes                                                                                                                                                                                                                            |
+| --------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `GET /vehicles/:vehicleId/maintenance-overview`                       | `period` / `from` / `to` (the shared periods). State and counts, overdue (all), the next 5 due, spending (from Expenses: the Maintenance & servicing and Repairs categories, net of refunds) with the previous window and months |
+| `GET /vehicles/:vehicleId/maintenance-schedules`                      | `status`, `search`; ordered by urgency                                                                                                                                                                                           |
+| `POST /vehicles/:vehicleId/maintenance-schedules`                     | Client-generated `id` makes a retry return the same schedule                                                                                                                                                                     |
+| `GET/PATCH/DELETE /vehicles/:vehicleId/maintenance-schedules/:id`     | PATCH merges and re-checks the whole schedule                                                                                                                                                                                    |
+| `POST …/maintenance-schedules/:id/pause`, `…/resume`                  | Idempotent                                                                                                                                                                                                                       |
+| `GET /vehicles/:vehicleId/service-records`                            | Newest first; `scheduleId` = the records that completed that schedule (its history)                                                                                                                                              |
+| `POST /vehicles/:vehicleId/service-records`, `GET/PATCH/DELETE …/:id` | Client-generated `id`; PATCH merges, re-checks and replaces `items`; DELETE removes its expense too                                                                                                                              |
+| `GET /maintenance-providers`                                          | The user's workshops by name (`search`), for the form's suggestions                                                                                                                                                              |
+
+## 3a. Service and repair records
+
+- **Any date:** historical records are welcome (never a future date). A record's reading joins the vehicle's **one odometer history**: Expenses' readings (fill-ups included) and service records (₹0 ones have no expense). A reading below one from an earlier day, or above one from a later day, is refused (409, on `odometerKm`). A new reading raises the vehicle's odometer; correcting one down follows the vehicle back to the highest remaining reading; deleting keeps it (as Fuel).
+- **Completing schedules:** an item with a `scheduleId` completes that schedule (this vehicle's only, once per record). A schedule due by distance needs the reading (400). The same schedule can't be completed twice on one day (409). Editing or deleting the record recalculates the schedule (nothing is stored).
+- **Money:** total = labour + parts + other + tax − discount (`serviceRecordTotal`, exact paise), or the total entered when there's no breakdown; a total that contradicts the breakdown is refused. A record with a cost has **one linked expense** (`source MAINTENANCE`, read-only in Expenses, "Edit in Maintenance"), written in the same transaction; a ₹0 record has none; deleting the record deletes its expense and that expense's refunds (the confirmation says so). Category (`maintenance-expense.ts`): repair types and repair work → Repairs; upgrades → Accessories · Modifications; cleaning → Daily usage · Washing & detailing; the rest → Maintenance & servicing by what was done. Parts and labour go to the expense only when they fit in what was paid (discounts).
+- **Workshops:** typed by name; a new name becomes one of the user's workshops (unique per user, ignoring case). Profiles, preferred and spending arrive in phase 6.
+- **Shortcut:** Expenses checks a manual expense's reading against expenses only, so it can't see a ₹0 service record's reading. Fix by moving the odometer history into one shared service when Trips adds readings too.
 
 ## 4. Phases
 
 1 · Foundation, schedule engine and overview → 2 · Service and repair records (basic workshops, completion, linked expense, odometer history, dashboard wiring) → 3 · Service history → 4 · Component lifecycle → 5 · Inspections → 6 · Workshops → 7 · Analytics and insights (deterministic) → 8 · Planning and templates → 9 · Integrations, polish and verification. Each phase is approved before the next.
 
-**Built:** phase 1 (schedules table and engine, the overview and schedule routes, the web Overview and Schedules tabs, the schedule form and details sheet; Stitch "Maintenance", "Maintenance Schedules", "Add Schedule", "Schedule Details").
+**Built:** phase 1 (schedules table and engine, the overview and schedule routes, the web Overview and Schedules tabs, the schedule form and details sheet; Stitch "Maintenance", "Maintenance Schedules", "Add Schedule", "Schedule Details") and phase 2 (service records with items, workshops by name, schedule completion, the linked expense, the odometer history, the dashboard status panel; Stitch "Add Service Record", "Service Record Details", "Delete Service Record Dialog").
 
 ## 5. Pending integrations (do these when the module they need is built)
 

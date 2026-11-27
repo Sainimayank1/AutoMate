@@ -4,6 +4,7 @@ import {
   maintenanceOverviewQuerySchema,
   providerListQuerySchema,
   scheduleListQuerySchema,
+  serviceRecordFiltersSchema,
   serviceRecordListQuerySchema,
   updateScheduleSchema,
   updateServiceRecordSchema,
@@ -18,4 +19,5 @@ export class MaintenanceOverviewQueryDto extends createZodDto(maintenanceOvervie
 export class CreateServiceRecordDto extends createZodDto(createServiceRecordSchema) {}
 export class UpdateServiceRecordDto extends createZodDto(updateServiceRecordSchema) {}
 export class ServiceRecordListQueryDto extends createZodDto(serviceRecordListQuerySchema) {}
+export class ServiceRecordFiltersDto extends createZodDto(serviceRecordFiltersSchema) {}
 export class ProviderListQueryDto extends createZodDto(providerListQuerySchema) {}

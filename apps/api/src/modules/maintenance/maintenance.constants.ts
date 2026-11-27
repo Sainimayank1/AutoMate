@@ -87,6 +87,11 @@ export const PROVIDER_SCHEMA: Schema = {
   },
 };
 
+export const RECORD_SUMMARY_SCHEMA: Schema = {
+  type: "object",
+  properties: { count: { type: "integer", example: 12 }, totalAmount: money("38450.00") },
+};
+
 /** OpenAPI shape of `ServiceRecord` (@automate/shared). */
 export const SERVICE_RECORD_SCHEMA: Schema = {
   type: "object",

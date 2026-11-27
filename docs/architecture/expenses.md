@@ -54,7 +54,7 @@ Built: **1 · Core** (categories, add / edit / delete / duplicate, transactions 
 
 Next, one at a time, each after approval: the rest of 3 (monthly trends, upcoming payments), 4 · Recurring payments and the Vehicle Loan (amortisation schedule, reducing balance by default, flat optional, prepayments and RBI-style rate changes), 5 · Budgets, 6 · Ownership cost, 7 · Insights, 8 · CSV import and the printable report. Receipt attachments and receipt scanning are out of scope (no file storage in this project).
 
-## 5. Linked records (Fuel today; Maintenance and Trips later)
+## 5. Linked records (Fuel and Maintenance today; Trips later)
 
 `LinkedExpensesService` (exported by `ExpensesModule`) is the only way another module writes money:
 
@@ -64,4 +64,5 @@ Next, one at a time, each after approval: the rest of 3 (monthly trends, upcomin
 - **Fuel:** `toFuelExpense` (`modules/fuel/fuel-expense.ts`) maps a fill-up: title = station (or "Fuel fill-up"), amount = total paid, date = the IST day of the fill-up, subcategory by fuel (Petrol, Diesel, CNG, EV charging; hybrids burn petrol), vendor = station, odometer, description "32.4 L at ₹104.32/L", payment and notes. Create, edit and delete of a fill-up do the same to its expense.
 - **Backfill:** migration `link_fuel_expenses` gave every fill-up logged before phase 2 its expense with the same fields (idempotent on the unique key; it also makes sure the Fuel categories exist, since migrations run before the seed).
 - **Web:** fuel writes refresh every expense view; expense rows from Fuel link to their fill-up ("Edit in Fuel").
-- **Next modules:** Maintenance (service records → maintenance/repair expenses) and Trips (tolls, parking) call the same service with their own `source`; nothing in Expenses changes.
+- **Maintenance:** `toMaintenanceExpense` (`modules/maintenance/maintenance-expense.ts`) maps a service record with a cost: title, total, service date, category by record type and work (Repairs, Accessories · Modifications, Washing & detailing, else Maintenance & servicing), workshop as vendor, odometer, and the service details (`service`: type, parts replaced, parts and labour when they fit, warranty, provider). A ₹0 record has no expense. Maintenance also reads the odometer history through `odometerAround` / `highestOdometer` and its links through `expenseIdsFor`; its spending figures come from `ExpensesService.spendByMonth`.
+- **Next modules:** Trips (tolls, parking) call the same service with their own `source`; nothing in Expenses changes.

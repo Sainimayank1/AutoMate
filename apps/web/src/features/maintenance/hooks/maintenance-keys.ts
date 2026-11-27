@@ -1,5 +1,6 @@
 import type {
   OverviewParams,
+  RecordFilterParams,
   RecordListParams,
   ScheduleListParams,
 } from "@/features/maintenance/services/maintenance-service";
@@ -15,6 +16,8 @@ export const maintenanceKeys = {
   list: (vehicleId: string, params: ScheduleListParams) =>
     ["maintenance", vehicleId, "list", params] as const,
   detail: (vehicleId: string, id: string) => ["maintenance", vehicleId, "detail", id] as const,
+  recordSummary: (vehicleId: string, params: RecordFilterParams) =>
+    ["maintenance", vehicleId, "records-summary", params] as const,
   records: (vehicleId: string, params: RecordListParams) =>
     ["maintenance", vehicleId, "records", params] as const,
   record: (vehicleId: string, id: string) => ["maintenance", vehicleId, "record", id] as const,

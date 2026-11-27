@@ -7,8 +7,9 @@ import { queryClient } from "@/lib/query-client";
 import { fail, mockApi } from "@/test/mock-api";
 
 // Routes are lazy chunks transformed on first import; in the parallel full run, a file's first
-// render can take over the 1 s default to appear. Waiting longer only matters when it's slow.
-configure({ asyncUtilTimeout: 3000 });
+// render (the dashboard pulls in the charts) can take over 3 s to appear. Waiting longer only
+// matters when it's slow.
+configure({ asyncUtilTimeout: 6000 });
 
 // No test talks to a real server: unmocked requests get a 404 (never a 401, which would sign out).
 beforeEach(() => {

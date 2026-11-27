@@ -39,7 +39,8 @@ export function FuelSection({ fuel, range }: { fuel: FuelOverview; range: string
           <CardTitle>Mileage</CardTitle>
           <p className="text-sm text-muted-foreground">Full-tank to full-tank cycles</p>
         </CardHeader>
-        <CardContent>
+        {/* Taller beside the fuel list on wide screens, so the card has no empty band. */}
+        <CardContent className="lg:[&_[data-slot=chart]]:h-64">
           {fuel.trend.length >= 2 ? (
             <MileageChart
               points={fuel.trend}

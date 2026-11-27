@@ -3,11 +3,15 @@ import { randomUUID } from "node:crypto";
 import {
   createServiceRecordSchema,
   type CreateServiceRecordValues,
+  MAINTENANCE_CATEGORY_KEYS,
+  maintenanceCategoryName,
   type MaintenanceProvider,
   pageMeta,
   type ProviderListQuery,
   type ServiceRecord,
+  type ServiceRecordFilters,
   type ServiceRecordListQuery,
+  type ServiceRecordSummary,
   serviceRecordTotal,
   type UpdateServiceRecordValues,
 } from "@automate/shared";
@@ -47,6 +51,51 @@ const ORDER: Prisma.ServiceRecordOrderByWithRelationInput[] = [
   { id: "desc" },
 ];
 
+/** The history filters as a query (docs/architecture/maintenance.md §3); always one vehicle's. */
+function recordWhere(
+  userId: string,
+  vehicleId: string,
+  filters: ServiceRecordFilters,
+): Prisma.ServiceRecordWhereInput {
+  const { scheduleId, search, from, to, group, type, providerId } = filters;
+  const { minAmount, maxAmount, minKm, maxKm } = filters;
+  const contains = search && { contains: search, mode: "insensitive" as const };
+  // Category names live in shared code, so a name search becomes the matching keys.
+  const categories =
+    search &&
+    MAINTENANCE_CATEGORY_KEYS.filter((key) =>
+      maintenanceCategoryName(key).toLowerCase().includes(search.toLowerCase()),
+    );
+  return {
+    userId,
+    vehicleId,
+    ...(scheduleId && { items: { some: { scheduleId } } }),
+    ...(contains && {
+      OR: [
+        { title: contains },
+        { description: contains },
+        { notes: contains },
+        { technician: contains },
+        { provider: { name: contains } },
+        { items: { some: { OR: [{ name: contains }, { partNumber: contains }] } } },
+        ...(categories && categories.length ? [{ categoryKey: { in: categories } }] : []),
+      ],
+    }),
+    ...((from || to) && {
+      serviceDate: { ...(from && { gte: toDbDate(from)! }), ...(to && { lte: toDbDate(to)! }) },
+    }),
+    ...(group && { categoryKey: { startsWith: `${group}.` } }),
+    ...(type && { type }),
+    ...(providerId && { providerId }),
+    ...((minAmount || maxAmount) && {
+      totalAmount: { ...(minAmount && { gte: minAmount }), ...(maxAmount && { lte: maxAmount }) },
+    }),
+    ...((minKm != null || maxKm != null) && {
+      odometerKm: { ...(minKm != null && { gte: minKm }), ...(maxKm != null && { lte: maxKm }) },
+    }),
+  };
+}
+
 function assertActive(vehicle: Vehicle) {
   if (vehicle.archivedAt) {
     throw new ConflictException(
@@ -76,11 +125,7 @@ export class ServiceRecordsService {
     query: ServiceRecordListQuery,
   ): Promise<Paginated<ServiceRecord>> {
     await this.vehicles.findOwned(userId, vehicleId);
-    const where: Prisma.ServiceRecordWhereInput = {
-      userId,
-      vehicleId,
-      ...(query.scheduleId && { items: { some: { scheduleId: query.scheduleId } } }),
-    };
+    const where = recordWhere(userId, vehicleId, query);
     const [rows, total] = await this.prisma.$transaction([
       this.prisma.serviceRecord.findMany({
         where,
@@ -91,6 +136,21 @@ export class ServiceRecordsService {
       this.prisma.serviceRecord.count({ where }),
     ]);
     return new Paginated(await this.present(rows), pageMeta(query, total));
+  }
+
+  /** How many records match the filters and what they cost (every page). */
+  async summary(
+    userId: string,
+    vehicleId: string,
+    filters: ServiceRecordFilters,
+  ): Promise<ServiceRecordSummary> {
+    await this.vehicles.findOwned(userId, vehicleId);
+    const { _count, _sum } = await this.prisma.serviceRecord.aggregate({
+      where: recordWhere(userId, vehicleId, filters),
+      _count: true,
+      _sum: { totalAmount: true },
+    });
+    return { count: _count, totalAmount: (_sum.totalAmount ?? new Prisma.Decimal(0)).toFixed(2) };
   }
 
   /** The latest records and how many there are (the overview's "recent maintenance"). */

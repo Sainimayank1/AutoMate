@@ -14,7 +14,13 @@ import {
   DashboardControls,
   DashboardGreeting,
 } from "@/features/dashboard/components/dashboard-header";
+import { DrivingCard } from "@/features/dashboard/components/driving-card";
+import { ExpiryCard } from "@/features/dashboard/components/expiry-card";
 import { FuelSection } from "@/features/dashboard/components/fuel-section";
+import {
+  MaintenanceCard,
+  MaintenanceSetup,
+} from "@/features/dashboard/components/maintenance-card";
 import { MetricStrip } from "@/features/dashboard/components/metric-strip";
 import { SectionState } from "@/features/dashboard/components/section-state";
 import { SpendingSection } from "@/features/dashboard/components/spending-section";
@@ -123,6 +129,25 @@ export function Component() {
           >
             {(fuel) => <FuelSection fuel={fuel} range={formatDateRange(overview.data.period)} />}
           </SectionState>
+          <div className="grid gap-6 lg:grid-cols-3">
+            <SectionState
+              section={overview.data.maintenance}
+              onRetry={retry}
+              empty={<MaintenanceSetup />}
+            >
+              {(maintenance) => (
+                <MaintenanceCard maintenance={maintenance} vehicleId={overview.data.vehicle.id} />
+              )}
+            </SectionState>
+            <SectionState section={overview.data.expiries} onRetry={retry}>
+              {(items) => <ExpiryCard items={items} />}
+            </SectionState>
+            <SectionState section={overview.data.driving} onRetry={retry}>
+              {(driving) => (
+                <DrivingCard driving={driving} range={formatDateRange(overview.data.period)} />
+              )}
+            </SectionState>
+          </div>
         </div>
       )}
     </PageContainer>

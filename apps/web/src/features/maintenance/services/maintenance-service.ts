@@ -7,7 +7,9 @@ import type {
   MaintenanceSchedule,
   ScheduleListQuery,
   ServiceRecord,
+  ServiceRecordFilters,
   ServiceRecordListQuery,
+  ServiceRecordSummary,
   UpdateScheduleValues,
   UpdateServiceRecordValues,
 } from "@automate/shared";
@@ -20,6 +22,7 @@ const records = (vehicleId: string) => `/vehicles/${vehicleId}/service-records`;
 
 export type ScheduleListParams = Partial<ScheduleListQuery>;
 export type RecordListParams = Partial<ServiceRecordListQuery>;
+export type RecordFilterParams = Partial<ServiceRecordFilters>;
 export type OverviewParams = Partial<MaintenanceOverviewQuery>;
 
 /** Maintenance endpoints, nested under the vehicle. Every call is scoped to the signed-in user. */
@@ -48,6 +51,8 @@ export const maintenanceService = {
     request<void>({ method: "DELETE", url: `${schedules(vehicleId)}/${id}` }),
   records: (vehicleId: string, params: RecordListParams = {}) =>
     requestPage<ServiceRecord>({ url: records(vehicleId), params }),
+  recordSummary: (vehicleId: string, params: RecordFilterParams = {}) =>
+    request<ServiceRecordSummary>({ url: `${records(vehicleId)}/summary`, params }),
   record: (vehicleId: string, id: string) =>
     request<ServiceRecord>({ url: `${records(vehicleId)}/${id}` }),
   createRecord: (vehicleId: string, values: CreateServiceRecordValues) =>

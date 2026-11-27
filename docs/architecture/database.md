@@ -4,15 +4,15 @@ Related: [backend.md](backend.md) · [MODULES.md §13](../MODULES.md) (cross-mod
 
 ## 1. Setup
 
-| Piece          | Location                                                                                                                                                     |
-| -------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| Schema         | `apps/api/prisma/schema.prisma`: `User`, `Session` (auth), `Vehicle` (Garage), `FuelEntry` (Fuel), `ExpenseCategory` + `Expense` (Expenses); more per module |
-| CLI config     | `apps/api/prisma.config.ts`: schema path, migrations path, seed command, `DATABASE_URL`                                                                      |
-| Migrations     | `apps/api/prisma/migrations/` (created with the first model)                                                                                                 |
-| Client         | generated to `apps/api/src/generated/prisma` (gitignored); import `@/generated/prisma/client`                                                                |
-| Runtime access | `PrismaService` (`src/database/`), global, uses the `@prisma/adapter-pg` driver adapter                                                                      |
-| Local DB       | `docker compose up -d` → PostgreSQL 17 on `127.0.0.1:5432`, persistent volume `postgres-data`                                                                |
-| Production     | Neon (pooled connection string, `sslmode=require`)                                                                                                           |
+| Piece          | Location                                                                                                                                                                                                                                                    |
+| -------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Schema         | `apps/api/prisma/schema.prisma`: `User`, `Session` (auth), `Vehicle` (Garage), `FuelEntry` (Fuel), `ExpenseCategory` + `Expense` (Expenses), `MaintenanceSchedule`, `ServiceRecord` + `ServiceRecordItem`, `ServiceProvider` (Maintenance); more per module |
+| CLI config     | `apps/api/prisma.config.ts`: schema path, migrations path, seed command, `DATABASE_URL`                                                                                                                                                                     |
+| Migrations     | `apps/api/prisma/migrations/` (created with the first model)                                                                                                                                                                                                |
+| Client         | generated to `apps/api/src/generated/prisma` (gitignored); import `@/generated/prisma/client`                                                                                                                                                               |
+| Runtime access | `PrismaService` (`src/database/`), global, uses the `@prisma/adapter-pg` driver adapter                                                                                                                                                                     |
+| Local DB       | `docker compose up -d` → PostgreSQL 17 on `127.0.0.1:5432`, persistent volume `postgres-data`                                                                                                                                                               |
+| Production     | Neon (pooled connection string, `sslmode=require`)                                                                                                                                                                                                          |
 
 How Prisma 7 differs from older guides:
 

@@ -17,6 +17,8 @@ export default defineConfig({
   test: {
     environment: "jsdom",
     setupFiles: ["./src/test/setup.ts"],
+    // Above the 6 s async wait in setup.ts, so a slow first render can still finish.
+    testTimeout: 15_000,
     css: false,
     env: { VITE_API_BASE_URL: "http://localhost:3000/api/v1" },
   },

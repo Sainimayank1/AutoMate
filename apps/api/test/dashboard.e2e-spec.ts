@@ -249,6 +249,52 @@ describe("Dashboard (e2e)", () => {
     expect(
       (overview.fuel as { data: FuelOverview }).data.trend.map((point) => point.mileage),
     ).toEqual(["16.00", "20.00"]);
+
+    // Expiry dates: the insurance policy from its payment, the warranty from the vehicle.
+    expect(overview.expiries).toMatchObject({
+      state: "ok",
+      data: [
+        { id: "insurance", state: "expiring", summary: "Expires in 24 days" },
+        { id: "warranty", state: "valid", summary: "Valid until 14 Mar 2028 or 1,00,000 km" },
+      ],
+    });
+    // Driving from odometer readings: 5,000 before the period, 5,800 today.
+    expect(overview.driving).toMatchObject({
+      state: "ok",
+      data: { distanceKm: 800, readings: 2, lastReading: { km: 5800 } },
+    });
+    // No schedule and no service record yet.
+    expect(overview.maintenance).toEqual({ state: "empty" });
+  });
+
+  it("shows maintenance from the Maintenance module, and counts it as tracked", async () => {
+    const car = await vehicle(arjun, { odometerKm: 8450 });
+    const schedule = dataOf<{ id: string }>(
+      await post(arjun, `/api/v1/vehicles/${car.id}/maintenance-schedules`, {
+        name: "Engine oil & filter",
+        categoryKey: "ENGINE.ENGINE_OIL",
+        intervalKm: "1,000",
+        intervalMonths: 12,
+        lastDoneDate: addDays(istToday(new Date()), -30),
+        lastDoneKm: 7000,
+      }).expect(201),
+    );
+    const overview = dataOf<DashboardOverview>(
+      await get(arjun, `${OVERVIEW}?vehicleId=${car.id}`).expect(200),
+    );
+    // Due at 8,000 km; the odometer reads 8,450.
+    expect(overview.maintenance).toMatchObject({
+      state: "ok",
+      data: { overdue: 1, dueSoon: 0, schedules: [{ id: schedule.id }], lastService: null },
+    });
+    expect(overview.status).toMatchObject({
+      state: "ok",
+      data: {
+        level: "attention",
+        items: [{ id: `maintenance:${schedule.id}`, severity: "critical" }],
+        untracked: ["documents"],
+      },
+    });
   });
 
   it("has no figures for a vehicle with nothing recorded, but still a status", async () => {

@@ -138,6 +138,11 @@ export type MaintenanceCategoryKey = {
   [G in Group as G["key"]]: `${G["key"]}.${G["items"][number][0]}`;
 }[MaintenanceGroupKey];
 
+export const MAINTENANCE_GROUP_KEYS = MAINTENANCE_GROUPS.map((group) => group.key) as [
+  MaintenanceGroupKey,
+  ...MaintenanceGroupKey[],
+];
+
 export const MAINTENANCE_CATEGORY_KEYS = MAINTENANCE_GROUPS.flatMap((group) =>
   group.items.map(([item]) => `${group.key}.${item}`),
 ) as [MaintenanceCategoryKey, ...MaintenanceCategoryKey[]];

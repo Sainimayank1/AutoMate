@@ -1,8 +1,13 @@
 import {
   customWindow,
+  type DashboardMaintenance,
   type DashboardMetrics,
   type DashboardOverview,
+  type DrivingOverview,
+  type ExpiryItem,
   type FuelOverview,
+  type MaintenanceSchedule,
+  type ServiceRecord,
   type SpendingOverview,
   type Vehicle,
 } from "@automate/shared";
@@ -92,6 +97,68 @@ const fuel: FuelOverview = {
   ],
 };
 
+const brakes = {
+  id: "0190d4a2-0000-7000-8000-00000000c002",
+  vehicleId: victoris.id,
+  name: "Brake inspection",
+  categoryKey: "BRAKES.INSPECTION",
+  intervalKm: null,
+  intervalMonths: null,
+  dueDate: null,
+  dueKm: 7250,
+  lastDoneDate: null,
+  lastDoneKm: null,
+  addedOdometerKm: 8450,
+  remindersEnabled: true,
+  leadDays: null,
+  leadKm: null,
+  priority: "HIGH",
+  notes: null,
+  pausedAt: null,
+  createdAt: "2026-11-27T05:00:00.000Z",
+  updatedAt: "2026-11-27T05:00:00.000Z",
+  due: {
+    status: "OVERDUE",
+    decidedBy: "DISTANCE",
+    date: null,
+    distance: {
+      fromKm: null,
+      basis: "FIXED",
+      nextDueKm: 7250,
+      kmRemaining: -1200,
+      status: "OVERDUE",
+    },
+  },
+} as MaintenanceSchedule;
+const maintenance: DashboardMaintenance = {
+  state: "OVERDUE",
+  overdue: 1,
+  dueSoon: 2,
+  schedules: [brakes],
+  lastService: {
+    id: "0190d4a2-0000-7000-8000-00000000d001",
+    title: "Periodic service",
+    serviceDate: "2026-08-20",
+    odometerKm: 5240,
+  } as ServiceRecord,
+};
+const expiries: ExpiryItem[] = [
+  {
+    id: "insurance",
+    label: "Insurance",
+    state: "expiring",
+    summary: "Expires in 24 days",
+    detail: "From your insurance payment of 18 Aug 2026",
+    href: "/expenses/transactions/0190d4a2-0000-7000-8000-0000000e0001",
+  },
+];
+const driving: DrivingOverview = {
+  distanceKm: 1092,
+  readings: 4,
+  perDay: "40.4",
+  lastReading: { km: 8412, date: "2026-11-24" },
+};
+
 const overview = (
   vehicle: Vehicle = victoris,
   overrides: Partial<DashboardOverview> = {},
@@ -130,6 +197,9 @@ const overview = (
   metrics: { state: "ok", data: metrics },
   spending: { state: "ok", data: spending },
   fuel: { state: "ok", data: fuel },
+  maintenance: { state: "ok", data: maintenance },
+  expiries: { state: "ok", data: expiries },
+  driving: { state: "ok", data: driving },
   ...overrides,
 });
 
@@ -320,6 +390,52 @@ describe("dashboard", () => {
     expect(screen.getByRole("link", { name: "View fuel history" })).toHaveAttribute(
       "href",
       "/fuel",
+    );
+  });
+
+  it("shows maintenance, expiry dates and driving, each opening its source", async () => {
+    api({
+      "GET /vehicles": () => okPage([victoris]),
+      "GET /dashboard/overview": () => ok(overview()),
+    });
+    renderApp("/dashboard");
+
+    expect(await screen.findByText("1 overdue")).toHaveClass("text-destructive");
+    expect(screen.getByText("2 due soon")).toHaveClass("text-warning");
+    expect(screen.getByRole("link", { name: /Brake inspection/ })).toHaveAttribute(
+      "href",
+      `/maintenance/schedules/${brakes.id}`,
+    );
+    expect(screen.getByRole("link", { name: "Periodic service" })).toHaveAttribute(
+      "href",
+      `/maintenance/records/${victoris.id}/0190d4a2-0000-7000-8000-00000000d001`,
+    );
+    expect(screen.getByRole("link", { name: "Add service record" })).toHaveAttribute(
+      "href",
+      "/maintenance/records/new",
+    );
+
+    expect(
+      screen.getByRole("link", { name: /Insurance.*Expiring.*Expires in 24 days/ }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText("PUC, registration and licence arrive with Documents."),
+    ).toBeInTheDocument();
+
+    expect(screen.getByText("~40.4 km")).toBeInTheDocument();
+    expect(screen.getByText(/^8,412 km on 24 Nov/)).toBeInTheDocument();
+    expect(screen.getByText("Trips aren't tracked yet.")).toBeInTheDocument();
+  });
+
+  it("invites a first maintenance schedule", async () => {
+    api({
+      "GET /vehicles": () => okPage([victoris]),
+      "GET /dashboard/overview": () => ok(overview(victoris, { maintenance: { state: "empty" } })),
+    });
+    renderApp("/dashboard");
+    expect(await screen.findByRole("link", { name: "Add a schedule" })).toHaveAttribute(
+      "href",
+      "/maintenance/schedules/new",
     );
   });
 
