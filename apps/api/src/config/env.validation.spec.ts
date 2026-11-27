@@ -33,7 +33,7 @@ describe("validateEnv", () => {
   });
 
   it("treats blank values as unset", () => {
-    expect(validateEnv({ ...base, PORT: "", JWT_REFRESH_SECRET: "" }).PORT).toBe(3000);
+    expect(validateEnv({ ...base, PORT: "", REFRESH_COOKIE_SAMESITE: "" }).PORT).toBe(3000);
   });
 
   it("splits comma-separated origins", () => {

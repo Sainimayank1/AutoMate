@@ -11,57 +11,58 @@ AutoMate is a premium vehicle-ownership platform, not an expense tracker. The br
 - Always write **AutoMate**: capital A, capital M, one word. Never "Automate", "Auto Mate", "AUTOMATE" or "Auto-Mate".
 - The AI feature is "AutoMate Assistant" in marketing contexts and "AI Assistant" in navigation.
 
-## Logo mark: the gauge
+## Logo mark (from the Stitch design)
 
-An open speedometer arc with a single needle and hub. It reads as automotive (a gauge) and as technology (a precise instrument), and doubles as a stylised "A" silhouette. It is never a car silhouette.
+A chevron "A" in brand cyan with a teal crossbar, on a rounded graphite tile. It reads as the "A" of AutoMate and as a road vanishing to a point. It is never a car silhouette.
 
-Canonical SVG (32×32 grid). The arc and hub use `currentColor`; the needle uses the brand accent:
+Canonical SVG (28×28 grid, as in the Stitch auth and dashboard screens):
 
 ```svg
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" fill="none" role="img" aria-label="AutoMate">
-  <path d="M8.22 23.78A11 11 0 1 1 23.78 23.78" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/>
-  <path d="M16 16 21.14 9.87" stroke="var(--primary)" stroke-width="2.5" stroke-linecap="round"/>
-  <circle cx="16" cy="16" r="2.25" fill="currentColor"/>
+<svg viewBox="0 0 28 28" fill="none" aria-hidden="true">
+  <rect width="28" height="28" rx="6" class="fill-secondary" />
+  <path d="M14 5L22 21H18.4L14 11.8L9.6 21H6L14 5Z" class="fill-brand" />
+  <path d="M10.8 17.5H17.2" class="stroke-insight" stroke-width="2" stroke-linecap="round" />
 </svg>
 ```
 
-Construction: the arc is centred at (16,16) with r = 11, spans 270° and is open at the bottom. The needle runs 8 units at −50° (pointing up and to the right, "performing well"). The stroke is 2.5 on a 32 grid. Keep these proportions at every size.
+**Logo component:** `components/layout/brand-logo.tsx` exports `<BrandMark className />` (the tile) and `<BrandLogo size="md" | "lg" />` (mark plus wordmark). Never paste the SVG into pages.
 
-**Logo component.** Create it once as `components/layout/brand-logo.tsx`, exporting `<BrandMark className />` and `<BrandLogo collapsed? />` (mark plus wordmark). Never paste the SVG into pages.
-
-| Rule | Spec |
-| --- | --- |
-| Clear space | At least 25% of the mark's height on all sides |
-| Minimum size | 16 px (favicon), 20 px in UI, 24 px in the sidebar header |
-| Colours | Arc and hub `text-foreground`, needle `primary`. Monochrome version: all `currentColor` (for embossed or print use). |
-| Don't | Recolour the arc cyan, add gradients, glow, shadows or outlines, rotate the needle per context, place it on a busy photo, or animate it beyond a single needle sweep on the splash screen |
+| Rule         | Spec                                                                                                    |
+| ------------ | ------------------------------------------------------------------------------------------------------- |
+| Clear space  | At least 25% of the mark's height on all sides                                                          |
+| Minimum size | 16 px (favicon), 20 px in UI, 28 px in the sidebar header                                               |
+| Colours      | Tile `secondary`, chevron `brand` (#0EA5E9 in both themes), crossbar `insight`                          |
+| Don't        | Recolour the chevron, add gradients, glow, shadows or outlines, place it on a busy photo, or animate it |
 
 ## Wordmark
 
-- "AutoMate" in Geist, weight 600, `tracking-tight`, `text-foreground`, all one colour. Don't two-tone it.
-- **Lockup:** the mark to the left of the wordmark, gap `gap-2`, mark height about 1.4× the wordmark cap height. Sidebar: mark `size-6` + wordmark `text-base font-semibold`.
-- When the sidebar is icon-collapsed, show the mark only. On auth pages, use the lockup at mark `size-8` + `text-xl`.
+- "AutoMate" in Manrope (`font-heading`), weight 600, `tracking-tight`, `text-foreground`, all one colour. Don't two-tone it.
+- **Lockup:** the mark to the left of the wordmark, gap `gap-2.5`. Sidebar: mark `size-8` + wordmark `text-lg`. Auth pages: `<BrandLogo size="lg" />`.
+- When the sidebar is icon-collapsed, show the mark only.
 
 ## App icon and favicon
 
-- **App icon** (PWA/OS, 512 px master): a full-bleed `#0b0d10` square (the OS applies its own mask), a subtle top radial glow (the hero-glow recipe), and the mark centred at 56% width with the arc in `#f2f3f5` and the needle in `#50d9ef`. This is the one place literal colours are allowed, because icons are static assets.
-- **Favicon** (`apps/web/public/favicon.svg`): the same mark on a `rx="8"` rounded square:
+Static assets, so literal colours are allowed here (and only here).
+
+- **Favicon** (`apps/web/public/favicon.svg`): the mark with the dark-theme tile:
 
 ```svg
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32"><rect width="32" height="32" rx="8" fill="#0b0d10"/><path d="M8.22 23.78A11 11 0 1 1 23.78 23.78" fill="none" stroke="#f2f3f5" stroke-width="2.5" stroke-linecap="round"/><path d="M16 16 21.14 9.87" stroke="#50d9ef" stroke-width="2.5" stroke-linecap="round"/><circle cx="16" cy="16" r="2.25" fill="#f2f3f5"/></svg>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 28 28" fill="none"><rect width="28" height="28" rx="6" fill="#262A30"/><path d="M14 5L22 21H18.4L14 11.8L9.6 21H6L14 5Z" fill="#0EA5E9"/><path d="M10.8 17.5H17.2" stroke="#4FDBC8" stroke-width="2" stroke-linecap="round"/></svg>
 ```
+
+- **App icon** (PWA/OS, 512 px master, when needed): full-bleed `#101419`, a subtle top radial glow (the hero-glow recipe) and the mark centred at 56% width.
 
 ## Brand colours
 
-The full system is in `color-system.md`. The brand-level summary:
+The full system is in `color-system.md`. The brand-level summary (dark theme, Stitch values):
 
-| Name | Role | Dark value |
-| --- | --- | --- |
-| Midnight | Canvas | `#0b0d10` |
-| Graphite | Surfaces | `#121519` → `#22262b` |
-| Electric cyan | Signal and brand accent | `#50d9ef` |
-| Muted teal | Intelligence and AI | `#66ccba` |
-| Silver | Metallic neutral (chart "Other", subtle hardware details) | `#b9bec6` |
+| Name            | Role                                        | Value                                         |
+| --------------- | ------------------------------------------- | --------------------------------------------- |
+| Graphite        | Canvas → raised surfaces                    | `#101419` → `#181C22` → `#1C2026` → `#262A30` |
+| Ice blue        | Primary accent (buttons, active nav, links) | `#89CEFF`                                     |
+| Brand cyan      | Logo and focus ring                         | `#0EA5E9`                                     |
+| Teal            | Intelligence and AI                         | `#4FDBC8`                                     |
+| Metallic silver | Neutral details, chart "Other"              | `#94A3B8`                                     |
 
 ## Iconography
 
@@ -71,20 +72,20 @@ The full system is in `color-system.md`. The brand-level summary:
 - Icon-only buttons always have an `aria-label` and a `Tooltip` on desktop. Decorative icons get `aria-hidden`.
 - **Canonical icons.** Never use two different icons for the same concept.
 
-| Concept | Icon | Concept | Icon |
-| --- | --- | --- | --- |
-| Dashboard | `LayoutDashboard` | Garage / vehicle | `Car` (`CarFront` in the brand-adjacent empty state) |
-| Fuel | `Fuel` | Expenses | `ReceiptIndianRupee` |
-| Maintenance / service | `Wrench` | Documents | `FileText` |
-| Trips | `Map` (`Route` for a single trip) | Analytics | `ChartNoAxesCombined` |
-| AI Assistant | `Bot`; AI-generated content uses `Sparkles` | Notifications | `Bell` |
-| Settings | `Settings` | Backup & Export | `DatabaseBackup` |
-| Odometer / health | `Gauge` | Money (generic) | `IndianRupee` |
-| Add | `Plus` | More / overflow | `Ellipsis` |
-| Search | `Search` | Filters | `ListFilter` |
-| Upload / download | `Upload` / `Download` | Edit / delete / archive | `Pencil` / `Trash2` / `Archive` |
-| Date | `Calendar` | Location / station | `MapPin` |
-| Secure vault | `Lock`, `ShieldCheck` | Loan / EMI | `Landmark` |
+| Concept               | Icon                                        | Concept                 | Icon                                                 |
+| --------------------- | ------------------------------------------- | ----------------------- | ---------------------------------------------------- |
+| Dashboard             | `LayoutDashboard`                           | Garage / vehicle        | `Car` (`CarFront` in the brand-adjacent empty state) |
+| Fuel                  | `Fuel`                                      | Expenses                | `ReceiptIndianRupee`                                 |
+| Maintenance / service | `Wrench`                                    | Documents               | `FileText`                                           |
+| Trips                 | `Map` (`Route` for a single trip)           | Analytics               | `ChartNoAxesCombined`                                |
+| AI Assistant          | `Bot`; AI-generated content uses `Sparkles` | Notifications           | `Bell`                                               |
+| Settings              | `Settings`                                  | Backup & Export         | `DatabaseBackup`                                     |
+| Odometer / health     | `Gauge`                                     | Money (generic)         | `IndianRupee`                                        |
+| Add                   | `Plus`                                      | More / overflow         | `Ellipsis`                                           |
+| Search                | `Search`                                    | Filters                 | `ListFilter`                                         |
+| Upload / download     | `Upload` / `Download`                       | Edit / delete / archive | `Pencil` / `Trash2` / `Archive`                      |
+| Date                  | `Calendar`                                  | Location / station      | `MapPin`                                             |
+| Secure vault          | `Lock`, `ShieldCheck`                       | Loan / EMI              | `Landmark`                                           |
 
 The module icons are defined in `apps/web/src/app/modules.ts`. That file is the single source; import them from there for nav-like uses.
 

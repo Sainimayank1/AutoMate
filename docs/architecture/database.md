@@ -6,7 +6,7 @@ Related: [backend.md](backend.md) · [MODULES.md §13](../MODULES.md) (cross-mod
 
 | Piece          | Location                                                                                      |
 | -------------- | --------------------------------------------------------------------------------------------- |
-| Schema         | `apps/api/prisma/schema.prisma` (no models yet; auth adds `User` first)                       |
+| Schema         | `apps/api/prisma/schema.prisma`: `User`, `Session` (auth); product models follow              |
 | CLI config     | `apps/api/prisma.config.ts`: schema path, migrations path, seed command, `DATABASE_URL`       |
 | Migrations     | `apps/api/prisma/migrations/` (created with the first model)                                  |
 | Client         | generated to `apps/api/src/generated/prisma` (gitignored); import `@/generated/prisma/client` |

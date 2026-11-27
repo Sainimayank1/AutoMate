@@ -3,6 +3,7 @@ import { ConfigService } from "@nestjs/config";
 import { JwtModule } from "@nestjs/jwt";
 
 import type { Env } from "@/config/env.validation";
+import { UsersModule } from "@/modules/users/users.module";
 
 import {
   ACCESS_TOKEN_TTL_SECONDS,
@@ -10,16 +11,21 @@ import {
   JWT_AUDIENCE,
   JWT_ISSUER,
 } from "./auth.constants";
+import { AuthController } from "./auth.controller";
+import { AuthService } from "./auth.service";
+import { TrustedOriginGuard } from "./guards/trusted-origin.guard";
 import { PasswordService } from "./password.service";
+import { RefreshCookieService } from "./refresh-cookie.service";
 import { JwtStrategy } from "./strategies/jwt.strategy";
 
 /**
- * Auth infrastructure only: token verification, the global guard (registered in AppModule)
- * and password hashing. Login, registration and refresh flows belong to the auth phase.
+ * Email + password authentication: register, login, refresh (rotating httpOnly cookie) and logout,
+ * plus the access-token verification behind the global guard (registered in AppModule).
  */
 @Module({
   imports: [
-    // Exported so the auth phase can sign access tokens with the same settings JwtStrategy verifies.
+    UsersModule,
+    // Signs access tokens with exactly the settings JwtStrategy verifies.
     JwtModule.registerAsync({
       inject: [ConfigService],
       useFactory: (config: ConfigService<Env, true>) => ({
@@ -34,7 +40,8 @@ import { JwtStrategy } from "./strategies/jwt.strategy";
       }),
     }),
   ],
-  providers: [JwtStrategy, PasswordService],
+  controllers: [AuthController],
+  providers: [JwtStrategy, PasswordService, AuthService, RefreshCookieService, TrustedOriginGuard],
   exports: [JwtModule, PasswordService],
 })
 export class AuthModule {}

@@ -1,46 +1,15 @@
-import type { ApiErrorResponse, ApiSuccessResponse } from "@automate/shared";
-import { AxiosError, type AxiosResponse, type InternalAxiosRequestConfig } from "axios";
 import { afterEach, describe, expect, it } from "vitest";
 
-import { apiClient, request } from "@/lib/api-client";
+import { refreshSession, request } from "@/lib/api-client";
 import { ApiError, isRetryableError, normalizeApiError } from "@/lib/api-error";
 import { useSessionStore } from "@/stores/session-store";
+import { fail, mockApi, ok, testSession, testUser } from "@/test/mock-api";
 
-type Reply = { status: number; data?: unknown; headers?: Record<string, string> };
+const signIn = (accessToken: string) =>
+  useSessionStore.getState().setSession({ user: testUser, accessToken });
 
-/** Swap axios's network layer so interceptors run for real against a canned reply. */
-function mockServer(reply: Reply | "offline" | "timeout") {
-  let seen: InternalAxiosRequestConfig | undefined;
-  apiClient.defaults.adapter = async (config) => {
-    seen = config;
-    if (reply === "offline") throw new AxiosError("Network Error", "ERR_NETWORK", config);
-    if (reply === "timeout") throw new AxiosError("timeout", "ECONNABORTED", config);
-    const response: AxiosResponse = {
-      data: reply.data ?? "",
-      status: reply.status,
-      statusText: "",
-      headers: reply.headers ?? {},
-      config,
-    };
-    if (reply.status >= 400) {
-      throw new AxiosError("Request failed", "ERR_BAD_RESPONSE", config, null, response);
-    }
-    return response;
-  };
-  return () => seen;
-}
-
-function errorBody(overrides: Partial<ApiErrorResponse["error"]> & { message?: string }) {
-  const { message = "Request failed", ...error } = overrides;
-  return {
-    success: false,
-    message,
-    error: { code: "BAD_REQUEST", details: [], requestId: "req-1", ...error },
-  } satisfies ApiErrorResponse;
-}
-
-async function failure(reply: Parameters<typeof mockServer>[0]) {
-  mockServer(reply);
+async function failure(...args: Parameters<typeof mockApi>) {
+  mockApi(...args);
   return request({ url: "/x" }).then(
     () => {
       throw new Error("expected the request to fail");
@@ -54,50 +23,40 @@ afterEach(() => {
 });
 
 describe("request", () => {
-  it("returns the envelope's data and sends the bearer token", async () => {
-    useSessionStore.getState().setSession({
-      user: { id: "u1", name: "A", email: "a@example.com" },
-      accessToken: "token-123",
-    });
-    const body: ApiSuccessResponse<{ id: string }> = {
-      success: true,
-      message: "OK",
-      data: { id: "v1" },
-      meta: null,
-    };
-    const seen = mockServer({ status: 200, data: body });
+  it("returns the envelope's data and sends the bearer token and cookies", async () => {
+    signIn("token-123");
+    const calls = mockApi(ok({ id: "v1" }));
 
     await expect(request<{ id: string }>({ url: "/vehicles/v1" })).resolves.toEqual({ id: "v1" });
-    expect(seen()?.headers.Authorization).toBe("Bearer token-123");
+    expect(calls[0]?.headers.Authorization).toBe("Bearer token-123");
+    expect(calls[0]?.withCredentials).toBe(true);
   });
 
-  it("maps validation errors onto fields", async () => {
-    const error = await failure({
-      status: 400,
-      data: errorBody({
-        message: "Please fix the highlighted fields.",
-        code: "VALIDATION_ERROR",
-        details: [
-          { field: "odometer", message: "Must be higher than the last reading." },
-          { field: "odometer", message: "second message is ignored" },
-          { nonsense: true },
-        ],
-      }),
-    });
+  it("maps field errors from the details, whatever the code", async () => {
+    const validation = await failure(
+      fail(400, "VALIDATION_ERROR", "Validation failed", [
+        { field: "odometer", message: "Must be higher than the last reading." },
+        { field: "odometer", message: "second message is ignored" },
+        { nonsense: true },
+      ]),
+    );
+    expect(validation).toBeInstanceOf(ApiError);
+    expect(validation.status).toBe(400);
+    expect(validation.code).toBe("VALIDATION_ERROR");
+    expect(validation.message).toBe("Validation failed");
+    expect(validation.fieldErrors).toEqual({ odometer: "Must be higher than the last reading." });
+    expect(validation.requestId).toBe("req-1");
 
-    expect(error).toBeInstanceOf(ApiError);
-    expect(error.status).toBe(400);
-    expect(error.code).toBe("VALIDATION_ERROR");
-    expect(error.message).toBe("Please fix the highlighted fields.");
-    expect(error.fieldErrors).toEqual({ odometer: "Must be higher than the last reading." });
-    expect(error.requestId).toBe("req-1");
+    const conflict = await failure(
+      fail(409, "CONFLICT", "An account with this email already exists.", [
+        { field: "email", message: "Already registered" },
+      ]),
+    );
+    expect(conflict.fieldErrors).toEqual({ email: "Already registered" });
   });
 
   it("never shows server text for 5xx", async () => {
-    const error = await failure({
-      status: 500,
-      data: errorBody({ message: 'relation "vehicles" does not exist', code: "INTERNAL_ERROR" }),
-    });
+    const error = await failure(fail(500, "INTERNAL_ERROR", 'relation "vehicles" does not exist'));
     expect(error.message).toBe("Something went wrong. Please try again.");
     expect(isRetryableError(error)).toBe(true);
   });
@@ -115,17 +74,74 @@ describe("request", () => {
     expect(html.requestId).toBe("h-9");
     expect(isRetryableError(html)).toBe(false);
   });
+});
 
-  it("clears the session on 401", async () => {
-    useSessionStore.getState().setSession({
-      user: { id: "u1", name: "A", email: "a@example.com" },
-      accessToken: "expired",
+describe("expired access tokens", () => {
+  it("refreshes once and replays the request with the new token", async () => {
+    signIn("expired");
+    const calls = mockApi((config) => {
+      if (config.url === "/auth/refresh") return ok(testSession("fresh"));
+      return config.headers.Authorization === "Bearer fresh"
+        ? ok({ id: "v1" })
+        : fail(401, "UNAUTHORIZED", "Token expired");
     });
-    await failure({
-      status: 401,
-      data: errorBody({ code: "UNAUTHORIZED", message: "Session expired." }),
+
+    await expect(request({ url: "/vehicles/v1" })).resolves.toEqual({ id: "v1" });
+    expect(calls.map((call) => call.url)).toEqual([
+      "/vehicles/v1",
+      "/auth/refresh",
+      "/vehicles/v1",
+    ]);
+    expect(useSessionStore.getState().session?.accessToken).toBe("fresh");
+  });
+
+  it("signs out when the refresh cookie is no longer valid", async () => {
+    signIn("expired");
+    mockApi((config) =>
+      config.url === "/auth/refresh"
+        ? fail(401, "UNAUTHORIZED", "Your session has expired.")
+        : fail(401, "UNAUTHORIZED", "Token expired"),
+    );
+
+    const error = await request<never>({ url: "/vehicles" }).catch(
+      (caught: unknown) => caught as ApiError,
+    );
+    expect(error.status).toBe(401);
+    expect(useSessionStore.getState()).toMatchObject({ status: "anonymous", session: null });
+  });
+
+  it("shares one refresh between concurrent 401s (the server rotates the cookie)", async () => {
+    signIn("expired");
+    const calls = mockApi((config) => {
+      if (config.url === "/auth/refresh") return ok(testSession("fresh"));
+      return config.headers.Authorization === "Bearer fresh"
+        ? ok(config.url)
+        : fail(401, "UNAUTHORIZED", "Token expired");
     });
-    expect(useSessionStore.getState().session).toBeNull();
+
+    await expect(Promise.all([request({ url: "/a" }), request({ url: "/b" })])).resolves.toEqual([
+      "/a",
+      "/b",
+    ]);
+    expect(calls.filter((call) => call.url === "/auth/refresh")).toHaveLength(1);
+  });
+
+  it("never refreshes for the auth routes themselves", async () => {
+    const calls = mockApi(fail(401, "UNAUTHORIZED", "Incorrect email or password."));
+    const error = await request<never>({ method: "POST", url: "/auth/login" }).catch(
+      (caught: unknown) => caught as ApiError,
+    );
+    expect(error.message).toBe("Incorrect email or password.");
+    expect(calls).toHaveLength(1);
+  });
+
+  it("refreshSession restores a session from the cookie", async () => {
+    mockApi(ok(testSession("from-cookie")));
+    await expect(refreshSession()).resolves.toBe(true);
+    expect(useSessionStore.getState()).toMatchObject({
+      status: "authenticated",
+      session: { user: testUser, accessToken: "from-cookie" },
+    });
   });
 });
 

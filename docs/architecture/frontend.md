@@ -21,7 +21,7 @@ apps/web/src/
 │   ├── providers/app-providers.tsx
 │   └── router/
 │       ├── routes.tsx          # the route tree
-│       ├── require-auth.tsx    # protected-route guard
+│       ├── guards.tsx          # SessionGate, RequireAuth, RequireGuest
 │       └── route-handle.ts     # `handle` type (title → breadcrumbs + <title>)
 ├── components/
 │   ├── ui/                     # shadcn/ui primitives (generated, owned by us)
@@ -32,7 +32,8 @@ apps/web/src/
 │   │                           # RouteError/NotFoundState, AppErrorFallback
 │   └── layout/                 # AppShell, AppSidebar, AppHeader, ThemeToggle, UserMenu
 ├── features/
-│   ├── auth/route.tsx          # login placeholder
+│   ├── auth/                   # sign-in + registration (login-route, register-route,
+│   │                           #   components/, hooks/, services/)
 │   └── <module>/route.tsx      # 12 module entries (placeholders in Phase 0)
 ├── hooks/                      # use-mobile, use-breadcrumbs
 ├── lib/
@@ -79,7 +80,7 @@ features/fuel/
 | Tables             | @tanstack/react-table 8                                                                 | `components/common/data-table.tsx`                     |
 | Dates              | date-fns 4, react-day-picker (via shadcn calendar)                                      | `utils/format.ts`, `components/common/date-picker.tsx` |
 | Error boundaries   | react-error-boundary + router `errorElement`                                            | `app/App.tsx`, `app/router/routes.tsx`                 |
-| Font               | @fontsource-variable/geist (self-hosted)                                                | `styles/index.css`                                     |
+| Fonts              | @fontsource-variable/manrope, inter, geist-mono (self-hosted, Stitch)                   | `styles/index.css`                                     |
 | Tests              | vitest, @testing-library/react, user-event, jest-dom, jsdom                             | `vite.config.ts`, `test/setup.ts`                      |
 | Lint/format        | eslint 10 (typescript-eslint, react-hooks, react-refresh, simple-import-sort), prettier | `eslint.config.js`, root `.prettierrc`                 |
 
@@ -96,7 +97,7 @@ features/fuel/
 **Deviations from TECH_STACK.md:**
 
 - `clsx` + `tailwind-merge` are replaced by `cn`, shadcn's own drop-in that their generated components import.
-- **Geist** is the font (shadcn's Nova preset).
+- **Manrope + Inter + Geist Mono** are the fonts, from the Stitch design (replacing shadcn Nova's Geist).
 - **TypeScript 6.0**, not 7: typescript-eslint supports TypeScript below 6.1 only.
 - **TanStack Table 8**, not 9: shadcn's data-table pattern targets v8.
 
@@ -107,9 +108,11 @@ features/fuel/
 - **One registry.** `app/modules.ts` lists every module (id, title, path, icon, nav group, lazy entry). `routes.tsx` maps it to routes, and `AppSidebar` maps it to navigation. Nothing else hardcodes module paths.
 - **Route tree:**
   ```
-  (root: errorElement, hydrateFallback)
-  ├── /login                         → features/auth (public)
-  └── RequireAuth
+  SessionGate                        (root: restores the session once; errorElement, hydrateFallback)
+  ├── RequireGuest                   (signed-in users are sent on to state.from or /dashboard)
+  │   ├── /login                     → features/auth/login-route.tsx
+  │   └── /register                  → features/auth/register-route.tsx
+  └── RequireAuth                    (signed-out users go to /login with state.from)
       └── AppShell                   (sidebar + header)
           └── (errorElement: page errors render inside the shell)
               ├── /             → redirect /dashboard
@@ -118,20 +121,37 @@ features/fuel/
   ```
 - **Lazy routes.** Each `features/<id>/route.tsx` exports `Component` (React Router's lazy-route convention); later it can also export `loader`, `ErrorBoundary`, etc. Each module ships as its own JS chunk.
 - **Titles and breadcrumbs.** Give a route `handle: { title } satisfies RouteHandle`. The header builds breadcrumbs from every matched handle and sets `document.title` to `"<title> · AutoMate"`. Nested pages (e.g. `/garage/:vehicleId`) just add a handle.
-- **Protected routes.** `RequireAuth` redirects to `/login` when there's no session and remembers the requested URL in `state.from`. Login sends the user back there.
-- **Phase 0 session.** The session is in-memory only, because access tokens must not go into localStorage. In development, "Continue to app" creates a stand-in session; that code is marked `shortcut:` and goes away with real auth.
+- **Guards** (`app/router/guards.tsx`):
+  - `SessionGate` shows a full-screen loader until the start-up refresh has decided whether the visitor is signed in.
+  - `RequireAuth` sends signed-out visitors to `/login`, remembering the requested URL in `state.from`.
+  - `RequireGuest` moves a signed-in user off the auth pages, to `state.from` or `/dashboard`. That's how a successful sign-in navigates: the form only stores the session.
+
+## 4a. Authentication
+
+Email and password only (no Google or OTP). The API side is described in [backend.md §6](backend.md#6-authentication) and [security.md](security.md).
+
+| Piece                         | Where                                                              | What it does                                                                                                                                                      |
+| ----------------------------- | ------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Access token                  | `stores/session-store.ts` (memory only)                            | 15-minute JWT, sent as `Authorization: Bearer` by the request interceptor                                                                                         |
+| Refresh token                 | httpOnly cookie `automate_rt`, path `/api/v1/auth`                 | JavaScript never sees it; `apiClient` sends it because of `withCredentials: true`                                                                                 |
+| Session restore               | `refreshSession()` in `lib/api-client.ts`, called by `SessionGate` | One `POST /auth/refresh` per page load; success stores the user and token, failure marks the visitor signed out                                                   |
+| Expired access token          | Response interceptor                                               | On a 401 from a non-auth route: refresh once, then replay the request. Concurrent 401s share one refresh, because the server rotates the cookie                   |
+| Sign in / register / sign out | `features/auth/hooks/use-auth.ts` → `services/auth-service.ts`     | Sign-in and registration store the session and clear the query cache; sign-out calls `/auth/logout`, then clears the session and cache, even if the request fails |
+| Forms                         | `login-route.tsx`, `register-route.tsx`                            | Shared zod schemas (`loginSchema`, `registerSchema` from `@automate/shared`); API errors are mapped onto the form by `applyServerErrors`                          |
+
+The session store has a `status` of `unknown`, `authenticated` or `anonymous`. Never treat `unknown` as signed out; wait for the gate.
 
 ## 5. State management
 
-| State                         | Home                      | Notes                                                                                               |
-| ----------------------------- | ------------------------- | --------------------------------------------------------------------------------------------------- |
-| Anything from the API         | TanStack Query            | Query keys per feature, e.g. `["fuel", vehicleId, filters]`                                         |
-| Session (user + access token) | `stores/session-store.ts` | Memory only; cleared on 401 and on sign-out (which also clears the query cache)                     |
-| Active vehicle id             | `stores/vehicle-store.ts` | Persisted to localStorage (`automate.active-vehicle`); the vehicle record itself comes from a query |
-| Theme                         | next-themes               | localStorage `automate.theme`, applied pre-paint by `index.html`                                    |
-| Sidebar open/collapsed        | shadcn `SidebarProvider`  | Cookie `sidebar_state`, restored by `AppShell`                                                      |
-| Form state                    | react-hook-form           | Per form                                                                                            |
-| Local UI state                | `useState`                | Dialogs, tabs, etc.                                                                                 |
+| State                                | Home                      | Notes                                                                                               |
+| ------------------------------------ | ------------------------- | --------------------------------------------------------------------------------------------------- |
+| Anything from the API                | TanStack Query            | Query keys per feature, e.g. `["fuel", vehicleId, filters]`                                         |
+| Session (status, user, access token) | `stores/session-store.ts` | Memory only; restored from the refresh cookie on load; cleared when a refresh fails and on sign-out |
+| Active vehicle id                    | `stores/vehicle-store.ts` | Persisted to localStorage (`automate.active-vehicle`); the vehicle record itself comes from a query |
+| Theme                                | next-themes               | localStorage `automate.theme`, applied pre-paint by `index.html`                                    |
+| Sidebar open/collapsed               | shadcn `SidebarProvider`  | Cookie `sidebar_state`, restored by `AppShell`                                                      |
+| Form state                           | react-hook-form           | Per form                                                                                            |
+| Local UI state                       | `useState`                | Dialogs, tabs, etc.                                                                                 |
 
 React Context is used only by libraries (theme, query client, sidebar, tooltip). Don't add app contexts for global state; use a Zustand store.
 
@@ -160,15 +180,15 @@ The contract is in `@automate/shared` (see `docs/architecture/api-conventions.md
 component → feature hook (useQuery/useMutation) → feature service → request<T>() → apiClient (axios)
 ```
 
-- `apiClient` holds the base URL from env and a 15 s timeout.
+- `apiClient` holds the base URL from env, a 15 s timeout and `withCredentials: true` (for the refresh cookie).
   - **Request interceptor:** adds `Authorization: Bearer <token>`.
-  - **Response interceptor:** converts every failure to `ApiError` and clears the session on 401. Refresh-token retry comes with the auth phase.
+  - **Response interceptor:** converts every failure to `ApiError`. On a 401 from a non-auth route it refreshes once and replays the request (§4a).
 - `request<T>(config)` returns the envelope's `data`. For a 204 response use `T = void`. When you need `meta` (pagination) or a raw file download, use `apiClient` directly.
 - `ApiError` has:
   - `message`: always safe to show. 5xx and unparseable responses get a generic message.
   - `status`: null when there was no response.
   - `code`: an `ErrorCode`; branch on this, never on `message`.
-  - `fieldErrors`: filled from `VALIDATION_ERROR` details.
+  - `fieldErrors`: filled from `error.details` whenever they're field errors (`VALIDATION_ERROR`, or e.g. a 409 on `email`).
   - `requestId`: for support and logs.
 
 **Pattern** (for when modules are built; no endpoints exist yet):
@@ -259,13 +279,19 @@ The route, sidebar link, breadcrumb and page title follow from the registry. To 
 
 ## 11. Testing
 
-Vitest with jsdom (`pnpm test`). The setup file adds jest-dom matchers, cleans up after each test and stubs `matchMedia`. Current coverage:
+Vitest with jsdom (`pnpm test`). The setup file adds jest-dom matchers, cleans up after each test and stubs `matchMedia` and `ResizeObserver`. Helpers:
+
+- `test/mock-api.ts`: `mockApi()` swaps axios's network layer, so the real interceptors run against canned replies (one reply, or a function per URL). It also has `ok()`/`fail()` envelope builders and a `testUser`.
+- `test/render-app.tsx`: `renderApp(path)` renders the real providers and route tree in a memory router.
+
+Current coverage:
 
 - Indian formatters.
 - Env validation.
-- API client: envelope unwrapping, auth header, validation/5xx/offline/timeout/401 handling.
+- API client: envelope unwrapping, auth header and cookies, field errors, 5xx/offline/timeout handling, refresh-and-replay on 401, a single shared refresh, signing out when the refresh fails.
 - The form pattern.
-- App shell: auth redirect, all 12 nav links, redirect from `/`, not-found page.
+- App shell: session restore on load (valid and invalid cookie), all 12 nav links, redirect from `/`, not-found page, signed-in users kept off `/login`.
+- Auth pages: sign-in (normalised email, remember-me, return to the requested page), wrong credentials, password reveal, registration validation, duplicate email on its field, successful registration.
 
 Every calculation or formatting rule added later gets a test next to it.
 

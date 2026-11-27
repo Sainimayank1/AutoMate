@@ -2,7 +2,7 @@
 
 AutoMate's frontend: React 19 + Vite 8 + TypeScript (strict), shadcn/ui + Tailwind CSS v4.
 
-Phase 0 status: the infrastructure is in place (app shell, routing, theme, design system, API/query/form layers, Indian formatters). All 12 module pages are placeholders.
+Status: infrastructure, the Stitch "Cockpit" theme and email/password sign-in and registration are built. All 12 module pages are placeholders. Screens are built from the Stitch project (see the `automate-design` skill).
 
 ## Run it
 
@@ -16,7 +16,7 @@ cp apps/web/.env.example apps/web/.env
 pnpm dev                               # http://localhost:5173
 ```
 
-There's no sign-in yet. In development the login page shows **Continue to app**, which creates a temporary local session. That button is never rendered in production builds.
+Sign-in needs the API running too (`docker compose up -d`, then `pnpm dev:api`). Open http://localhost:5173 and create an account on `/register`; the session survives reloads through an httpOnly refresh cookie.
 
 ## Scripts (run in `apps/web`, or via `pnpm --filter @automate/web <script>`)
 

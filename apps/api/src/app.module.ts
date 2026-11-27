@@ -14,6 +14,7 @@ import { DatabaseModule } from "./database/database.module";
 import { HealthModule } from "./health/health.module";
 import { AuthModule } from "./modules/auth/auth.module";
 import { JwtAuthGuard } from "./modules/auth/guards/jwt-auth.guard";
+import { UsersModule } from "./modules/users/users.module";
 
 @Module({
   imports: [
@@ -30,6 +31,7 @@ import { JwtAuthGuard } from "./modules/auth/guards/jwt-auth.guard";
     ThrottlerModule.forRoot([DEFAULT_RATE_LIMIT]),
     DatabaseModule,
     AuthModule,
+    UsersModule,
     HealthModule,
     // Product modules (vehicles, fuel, expenses, ...) are added here as they are built.
   ],

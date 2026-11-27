@@ -1,28 +1,28 @@
+import type { UserProfile } from "@automate/shared";
 import { create } from "zustand";
 
-export type SessionUser = {
-  id: string;
-  name: string;
-  email: string;
+export type Session = {
+  user: UserProfile;
+  accessToken: string;
 };
 
-export type Session = {
-  user: SessionUser;
-  accessToken: string | null;
-};
+/** `unknown` until the start-up refresh has run; routes wait for it before deciding. */
+export type SessionStatus = "unknown" | "authenticated" | "anonymous";
 
 type SessionState = {
+  status: SessionStatus;
   session: Session | null;
   setSession: (session: Session) => void;
   clearSession: () => void;
 };
 
 /**
- * In memory only: access tokens must not live in localStorage.
- * The auth phase will restore the session on load via the refresh-token cookie.
+ * In memory only: access tokens must not live in localStorage. A page load restores the
+ * session through the httpOnly refresh cookie (see `refreshSession` in lib/api-client).
  */
 export const useSessionStore = create<SessionState>()((set) => ({
+  status: "unknown",
   session: null,
-  setSession: (session) => set({ session }),
-  clearSession: () => set({ session: null }),
+  setSession: (session) => set({ session, status: "authenticated" }),
+  clearSession: () => set({ session: null, status: "anonymous" }),
 }));

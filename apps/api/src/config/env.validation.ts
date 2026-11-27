@@ -42,8 +42,11 @@ const envSchema = z
 
     // The global auth guard verifies access tokens on every non-public route, so this is always required.
     JWT_ACCESS_SECRET: z.string().min(32, "must be at least 32 characters"),
-    // Required once refresh tokens ship with the auth phase.
-    JWT_REFRESH_SECRET: z.string().min(32, "must be at least 32 characters").optional(),
+    /**
+     * SameSite for the refresh-token cookie. Keep "lax" when web and API share a site
+     * (localhost, or app.example.in + api.example.in); "none" (always Secure) only if they don't.
+     */
+    REFRESH_COOKIE_SAMESITE: z.enum(["lax", "strict", "none"]).default("lax"),
 
     LOG_LEVEL: z.enum(["fatal", "error", "warn", "info", "debug", "trace", "silent"]).optional(),
 

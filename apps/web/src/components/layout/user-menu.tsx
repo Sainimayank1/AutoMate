@@ -1,6 +1,5 @@
-import { useQueryClient } from "@tanstack/react-query";
 import { LogOut, Settings } from "lucide-react";
-import { Link, useNavigate } from "react-router";
+import { Link } from "react-router";
 
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
@@ -12,6 +11,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { useLogout } from "@/features/auth/hooks/use-auth";
 import { useSessionStore } from "@/stores/session-store";
 
 function initials(name: string) {
@@ -25,17 +25,9 @@ function initials(name: string) {
 
 export function UserMenu() {
   const user = useSessionStore((state) => state.session?.user);
-  const clearSession = useSessionStore((state) => state.clearSession);
-  const navigate = useNavigate();
-  const queryClient = useQueryClient();
+  const logout = useLogout();
 
   if (!user) return null;
-
-  function signOut() {
-    clearSession();
-    queryClient.clear(); // never show one user's cached data to the next
-    navigate("/login", { replace: true });
-  }
 
   return (
     <DropdownMenu>
@@ -63,7 +55,7 @@ export function UserMenu() {
             Settings
           </Link>
         </DropdownMenuItem>
-        <DropdownMenuItem onSelect={signOut}>
+        <DropdownMenuItem onSelect={() => logout.mutate()} disabled={logout.isPending}>
           <LogOut />
           Sign out
         </DropdownMenuItem>

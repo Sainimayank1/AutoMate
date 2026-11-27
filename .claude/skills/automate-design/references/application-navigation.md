@@ -6,13 +6,13 @@ There is one shell for the whole product: `components/layout/AppShell` (shadcn `
 
 The navigation is driven by `apps/web/src/app/modules.ts`, the single registry for routes and the sidebar. The target grouping is below; update `NavGroup`, `NAV_GROUP_LABELS` and each module's `navGroup` when the shell is next touched.
 
-| Group (overline label) | Items (icon) |
-| --- | --- |
-| **Overview** | Dashboard (`LayoutDashboard`) |
-| **My vehicles** | Garage (`Car`) |
-| **Management** | Fuel (`Fuel`), Expenses (`ReceiptIndianRupee`), Maintenance (`Wrench`), Documents (`FileText`), Trips (`Map`) |
-| **Intelligence** | Analytics (`ChartNoAxesCombined`), AI Assistant (`Bot`) |
-| **Personal** | Notifications (`Bell`, with unread count), Settings (`Settings`), Backup & Export (`DatabaseBackup`) |
+| Group (overline label) | Items (icon)                                                                                                  |
+| ---------------------- | ------------------------------------------------------------------------------------------------------------- |
+| **Overview**           | Dashboard (`LayoutDashboard`)                                                                                 |
+| **My vehicles**        | Garage (`Car`)                                                                                                |
+| **Management**         | Fuel (`Fuel`), Expenses (`ReceiptIndianRupee`), Maintenance (`Wrench`), Documents (`FileText`), Trips (`Map`) |
+| **Intelligence**       | Analytics (`ChartNoAxesCombined`), AI Assistant (`Bot`)                                                       |
+| **Personal**           | Notifications (`Bell`, with unread count), Settings (`Settings`), Backup & Export (`DatabaseBackup`)          |
 
 The order is fixed. Keep it compact: no nested sub-menus in the sidebar. Sub-views are tabs inside the module.
 
@@ -20,7 +20,7 @@ The order is fixed. Keep it compact: no nested sub-menus in the sidebar. Sub-vie
 
 ```
 ┌──────────────┬────────────────────────────────────────────────────────┐
-│ ◔ AutoMate   │ ☰ │ Garage › Victoris › Fuel   [⌕ Search… ⌘K]  ＋  🔔 ◐ (A) │  ← header h-14, sticky, translucent
+│ ◔ AutoMate   │ ☰ │ Garage › Victoris › Fuel   [⌕ Search… ⌘K]  ＋  🔔 ◐ (A) │  ← header h-14 (md:h-16), sticky, translucent
 │ ┌──────────┐ ├────────────────────────────────────────────────────────┤
 │ │▣ Victoris│ │ PageHeader: title · description          [Secondary][Primary] │
 │ │HR 26 AB..│ │                                                        │
@@ -34,6 +34,7 @@ The order is fixed. Keep it compact: no nested sub-menus in the sidebar. Sub-vie
 ```
 
 **Sidebar** (`collapsible="icon"`, `SidebarRail`):
+
 - **Header:** `BrandLogo`, then `VehicleSelector` below it. When collapsed, it shows the mark and the vehicle thumb.
 - **Content:** the five groups with `SidebarGroupLabel` styled as overlines.
 - **Footer:** nothing, or a compact plan/storage note later. The user menu lives in the header.
@@ -41,6 +42,7 @@ The order is fixed. Keep it compact: no nested sub-menus in the sidebar. Sub-vie
 - **Collapsed:** icons only, with tooltips (the primitive handles this). The collapse state persists in the cookie (already implemented).
 
 **Header** (left → right):
+
 1. `SidebarTrigger`.
 2. `Breadcrumbs`.
 3. Global search trigger: a `SearchInput`-looking button "Search records…" with a `⌘K` / `Ctrl K` hint, `max-w-sm`, hidden below `lg` (icon button there).
@@ -69,11 +71,13 @@ The order is fixed. Keep it compact: no nested sub-menus in the sidebar. Sub-vie
 └──────────────────────────────┘
 ```
 
-**Header** (`h-14`):
+**Header** (`h-14`, `md:h-16` as in Stitch):
+
 - On top-level routes, the left side shows the `VehicleSelector` trigger (thumb + model + chevron). On detail and sub-routes, it shows a back button (`ChevronLeft`, `aria-label="Back"`) and a truncated title.
 - The right side has a search icon, the notifications bell and the avatar (`UserMenu`). `ThemeToggle` moves into the user menu on mobile.
 
 **Bottom navigation** (new `components/layout/bottom-nav.tsx`, `md:hidden`, `z-20`):
+
 - Five slots: **Dashboard** · **Fuel** · **Add** (centre, `bg-primary text-primary-foreground` circle `size-12`, opens `QuickAddSheet`) · **Expenses** · **More** (opens the sidebar drawer with the full grouped nav).
 - Each slot is ≥ 48 px tall. The icon is `size-5` and the label is `text-xs`.
 - The active slot has the icon and label in `text-primary`. The others are `text-muted-foreground`.
@@ -110,6 +114,7 @@ The order is fixed. Keep it compact: no nested sub-menus in the sidebar. Sub-vie
 ## Profile menu
 
 `UserMenu` contains:
+
 - the name, email and avatar;
 - Profile, Preferences, Appearance (Theme radio on mobile), Backup & Export;
 - keyboard shortcuts (desktop);

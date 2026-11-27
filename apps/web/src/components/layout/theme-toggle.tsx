@@ -1,3 +1,4 @@
+import { cn } from "cn";
 import { Monitor, Moon, Sun } from "lucide-react";
 import { useTheme } from "next-themes";
 
@@ -17,13 +18,18 @@ const THEMES = [
   { value: "system", label: "System", icon: Monitor },
 ] as const;
 
-export function ThemeToggle() {
-  const { theme = "system", setTheme } = useTheme();
+export function ThemeToggle({ className }: { className?: string }) {
+  const { theme = "dark", setTheme } = useTheme();
 
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button variant="ghost" size="icon" className="size-10 md:size-8" aria-label="Change theme">
+        <Button
+          variant="ghost"
+          size="icon"
+          className={cn("size-10 md:size-8", className)}
+          aria-label="Change theme"
+        >
           <Sun className="dark:hidden" />
           <Moon className="hidden dark:block" />
         </Button>

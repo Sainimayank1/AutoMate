@@ -32,7 +32,8 @@ src/
 ├── database/                   PrismaService + global DatabaseModule
 ├── health/                     health module (Terminus)
 ├── modules/
-│   └── auth/                   JWT strategy, global guard, @Public, @CurrentUser, PasswordService
+│   ├── auth/                   register/login/refresh/logout, JWT strategy, global guard, @Public, @CurrentUser
+│   └── users/                  UsersService (owns `users`), GET /users/me
 ├── storage/                    StorageProvider contract
 └── generated/prisma/           Prisma client (generated, gitignored)
 ```
@@ -89,17 +90,44 @@ A module imports another module's exported service rather than querying another 
 - To add a variable, add it to the schema in `env.validation.ts`, to `.env.example`, and to the README table. A secret should be required only when its feature is enabled (see the `STORAGE_*` rule).
 - Development and production differ only through `NODE_ENV`-dependent defaults and rules in the same schema (Swagger, log level, the wildcard CORS ban). There are no per-environment config files.
 
-## 6. Authentication infrastructure
+## 6. Authentication
 
-Present now:
+Email + password. There is no Google or OTP sign-in.
 
-- `JwtStrategy` verifies `Authorization: Bearer <token>` (HS256, issuer `automate-api`, audience `automate-web`, expiry) and attaches `{ id }` to `request.user`.
-- `JwtAuthGuard` is registered globally. `@Public()` opts a route or controller out.
+**Verification** (every request):
+
+- `JwtStrategy` verifies `Authorization: Bearer <token>`: HS256, issuer `automate-api`, audience `automate-web`, expiry. It attaches `{ id }` to `request.user`.
+- `JwtAuthGuard` is registered globally; `@Public()` opts a route or controller out.
 - `@CurrentUser()` injects the `AuthUser`.
-- `PasswordService` handles argon2id hashing and verification.
-- `JwtModule` is configured (same secret, algorithm, issuer, audience; 15-minute access TTL) and exported for signing tokens later.
 
-Added by the auth phase: the `User` model, register/login/logout, refresh tokens (`JWT_REFRESH_SECRET`, httpOnly cookie, rotation), password reset and email verification, plus stricter `@Throttle()` limits on those routes.
+**Flow** (`modules/auth`, `modules/users`):
+
+| Route                 | Does                                                                                                                                                                                       |
+| --------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `POST /auth/register` | Validates `registerSchema`, rejects a taken email (409, field `email`), hashes the password with argon2id (`PasswordService`), creates the user, then signs in                             |
+| `POST /auth/login`    | Validates `loginSchema`. Unknown email and wrong password give the same 401 and take the same time (a dummy hash is verified). `rememberMe` picks a persistent or a browser-session cookie |
+| `POST /auth/refresh`  | Exchanges the refresh cookie for a new access token and **rotates** the cookie. The old token stops working; a dead token is cleared                                                       |
+| `POST /auth/logout`   | Deletes this device's session and clears the cookie. Idempotent                                                                                                                            |
+| `GET /users/me`       | The signed-in user's profile (bearer token)                                                                                                                                                |
+
+Register, login and refresh return `AuthSession` (`{ user, accessToken, expiresIn }`, from `@automate/shared`).
+
+**Tokens and sessions:**
+
+- **Access token:** a 15-minute JWT, signed by the same `JwtModule` settings the strategy verifies.
+- **Refresh token:** 256 random bits, sent only as the httpOnly cookie `automate_rt` (path `/api/v1/auth`). The database stores only its SHA-256 hash, in `Session` (one row per signed-in device).
+- **Rotation:** a conditional update on the old hash, so two concurrent refreshes with one token can't both succeed.
+- **Lifetime:** sliding, renewed on each refresh. 30 days with "Keep me signed in" (and registration); 1 day without it, with a browser-session cookie.
+- **Housekeeping:** a user's expired sessions are deleted when they next sign in.
+
+**Supporting pieces:**
+
+- `RefreshCookieService` sets, reads and clears the cookie (Secure in production, `SameSite` from `REFRESH_COOKIE_SAMESITE`).
+- `TrustedOriginGuard` refuses cookie routes called from origins outside `FRONTEND_URL` (CSRF).
+- Rate limits: `@Throttle()` allows 10/min per IP for login and register, 30/min for refresh.
+- `UsersService` owns the `users` table; `toUserProfile()` is the only way a user leaves the API, so the password hash never does.
+
+Not built yet: password reset and email verification (both need an email provider).
 
 Roles and permissions are not built. The product has no roles: every record belongs to exactly one user, and authorization means "is this the owner?", enforced by scoping queries (§4.5). Add a `@Roles()` decorator and guard only when a real role (e.g. admin) appears.
 

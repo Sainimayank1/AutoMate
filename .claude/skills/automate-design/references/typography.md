@@ -1,32 +1,39 @@
 # Typography
 
-## Typeface
+## Typefaces (Stitch)
 
-**Geist Variable** for everything. It is already self-hosted through `@fontsource-variable/geist` and exposed as `font-sans` and `font-heading`. It has a technical, precise feel with good tabular figures.
+Three families, self-hosted through Fontsource (no third-party font requests):
 
-- Don't add Inter, Manrope or a second family. One family with disciplined weights looks more premium than two.
-- Weights: **400** body, **500** labels, buttons and emphasis, **600** headings and metric values. Never use 700+ (it reads as shouting) or below 400 (it disappears on graphite).
-- `font-heading` stays mapped to the same family. Use it on headings and metric values so a future display face would be a one-line change.
+| Family                  | Tailwind              | Use                                                                                             |
+| ----------------------- | --------------------- | ----------------------------------------------------------------------------------------------- |
+| **Manrope Variable**    | `font-heading`        | Headings, the wordmark and metric values (geometric, automotive)                                |
+| **Inter Variable**      | `font-sans` (default) | All interface copy: body, labels, buttons, tables                                               |
+| **Geist Mono Variable** | `font-mono`           | Registration plates, VINs, engine numbers, odometer readouts and other machine-like identifiers |
+
+- Don't add a fourth family or use a family outside its role (no Manrope paragraphs, no mono for prices).
+- Weights: **400** body, **500** labels and buttons, **600** headings and metric values. **700** only for the display title on auth, onboarding and the empty Garage welcome.
+- Every financial figure, distance and mileage uses `tabular-nums` so columns and live updates never jitter.
 
 ## Type scale
 
-| Role | Classes | Size / line | Where |
-| --- | --- | --- | --- |
-| Hero metric | `font-heading text-4xl font-semibold tracking-tight tabular-nums md:text-5xl` | 36→48 px | One per screen at most: dashboard odometer or headline cost, analytics TCO |
-| Display title | `font-heading text-3xl font-semibold tracking-tight md:text-4xl` | 30→36 px | Auth, onboarding and the empty Garage welcome only |
-| Page title (h1) | `font-heading text-2xl font-semibold tracking-tight` | 24 px | `PageHeader`, once per page |
-| Section title (h2) | `font-heading text-base font-semibold` | 16 px | `SectionHeader` |
-| Card title (h3) | `text-sm font-medium` | 14 px | `CardTitle`, `ChartCard` titles |
-| Metric value | `font-heading text-2xl font-semibold tracking-tight tabular-nums` | 24 px | `StatCard` |
-| Metric value, compact | `text-lg font-semibold tabular-nums` | 18 px | Nested tiles inside a hero, mobile stat rows |
-| Body | `text-sm` | 14 px | Default UI text |
-| Body, reading | `text-base leading-7` | 16 px | AI responses, long descriptions, help text blocks |
-| Secondary | `text-sm text-muted-foreground` | 14 px | Descriptions, meta |
-| Label | `text-sm font-medium` | 14 px | Form labels (the `FieldLabel` primitive) |
-| Overline | `text-xs font-medium uppercase tracking-wider text-muted-foreground` | 12 px | Instrument labels on metrics, sidebar group labels, hero eyebrow |
-| Caption | `text-xs text-muted-foreground` | 12 px | Hints, timestamps, chart axes, helper text |
+| Role                  | Classes                                                                       | Size / line | Where                                                                      |
+| --------------------- | ----------------------------------------------------------------------------- | ----------- | -------------------------------------------------------------------------- |
+| Hero metric           | `font-heading text-4xl font-semibold tracking-tight tabular-nums md:text-5xl` | 36→48 px    | One per screen at most: dashboard odometer or headline cost, analytics TCO |
+| Display title         | `font-heading text-3xl font-semibold tracking-tight md:text-4xl`              | 30→36 px    | Auth, onboarding and the empty Garage welcome only                         |
+| Page title (h1)       | `font-heading text-2xl font-semibold tracking-tight`                          | 24 px       | `PageHeader`, once per page                                                |
+| Section title (h2)    | `font-heading text-base font-semibold`                                        | 16 px       | `SectionHeader`                                                            |
+| Card title (h3)       | `text-sm font-medium`                                                         | 14 px       | `CardTitle`, `ChartCard` titles                                            |
+| Metric value          | `font-heading text-2xl font-semibold tracking-tight tabular-nums`             | 24 px       | `StatCard`                                                                 |
+| Metric value, compact | `text-lg font-semibold tabular-nums`                                          | 18 px       | Nested tiles inside a hero, mobile stat rows                               |
+| Body                  | `text-sm`                                                                     | 14 px       | Default UI text                                                            |
+| Body, reading         | `text-base leading-7`                                                         | 16 px       | AI responses, long descriptions, help text blocks                          |
+| Secondary             | `text-sm text-muted-foreground`                                               | 14 px       | Descriptions, meta                                                         |
+| Label                 | `text-sm font-medium`                                                         | 14 px       | Form labels (the `FieldLabel` primitive)                                   |
+| Overline              | `text-xs font-medium uppercase tracking-wider text-muted-foreground`          | 12 px       | Instrument labels on metrics, sidebar group labels, hero eyebrow           |
+| Caption               | `text-xs text-muted-foreground`                                               | 12 px       | Hints, timestamps, chart axes, helper text                                 |
 
 Rules:
+
 - Use at most **three sizes inside one card**: overline or label, value, caption.
 - Hierarchy comes from size and weight plus `foreground`/`muted-foreground`. Never colour a heading cyan.
 - Use Tailwind's scale. Don't introduce arbitrary sizes (`text-[13px]`).

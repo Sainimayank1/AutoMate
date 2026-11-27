@@ -15,7 +15,7 @@ import {
 } from "lucide-react";
 import type { ComponentType } from "react";
 
-export type NavGroup = "overview" | "vehicle" | "insights" | "account";
+export type NavGroup = "overview" | "vehicles" | "management" | "intelligence" | "personal";
 
 export type AppModule = {
   id: string;
@@ -28,11 +28,13 @@ export type AppModule = {
   lazy: () => Promise<{ Component: ComponentType }>;
 };
 
+/** Sidebar groups, in display order (Stitch dashboard). */
 export const NAV_GROUP_LABELS: Record<NavGroup, string> = {
   overview: "Overview",
-  vehicle: "Vehicle",
-  insights: "Insights",
-  account: "Account",
+  vehicles: "My vehicles",
+  management: "Management",
+  intelligence: "Intelligence",
+  personal: "Personal",
 };
 
 /**
@@ -55,7 +57,7 @@ export const appModules = [
     description: "Your vehicles, their profiles and configuration.",
     path: "/garage",
     icon: Car,
-    navGroup: "vehicle",
+    navGroup: "vehicles",
     lazy: () => import("@/features/garage/route"),
   },
   {
@@ -64,7 +66,7 @@ export const appModules = [
     description: "Refills, mileage and fuel spending.",
     path: "/fuel",
     icon: Fuel,
-    navGroup: "vehicle",
+    navGroup: "management",
     lazy: () => import("@/features/fuel/route"),
   },
   {
@@ -73,7 +75,7 @@ export const appModules = [
     description: "Every rupee spent on your vehicle.",
     path: "/expenses",
     icon: ReceiptIndianRupee,
-    navGroup: "vehicle",
+    navGroup: "management",
     lazy: () => import("@/features/expenses/route"),
   },
   {
@@ -82,7 +84,7 @@ export const appModules = [
     description: "Service schedules, components and service history.",
     path: "/maintenance",
     icon: Wrench,
-    navGroup: "vehicle",
+    navGroup: "management",
     lazy: () => import("@/features/maintenance/route"),
   },
   {
@@ -91,7 +93,7 @@ export const appModules = [
     description: "RC, insurance, PUC and other documents with expiry reminders.",
     path: "/documents",
     icon: FileText,
-    navGroup: "vehicle",
+    navGroup: "management",
     lazy: () => import("@/features/documents/route"),
   },
   {
@@ -100,7 +102,7 @@ export const appModules = [
     description: "Journeys, distances and travel costs.",
     path: "/trips",
     icon: Map,
-    navGroup: "vehicle",
+    navGroup: "management",
     lazy: () => import("@/features/trips/route"),
   },
   {
@@ -109,7 +111,7 @@ export const appModules = [
     description: "Usage trends and total cost of ownership.",
     path: "/analytics",
     icon: ChartNoAxesCombined,
-    navGroup: "insights",
+    navGroup: "intelligence",
     lazy: () => import("@/features/analytics/route"),
   },
   {
@@ -118,7 +120,7 @@ export const appModules = [
     description: "Ask questions about your vehicle and its records.",
     path: "/assistant",
     icon: Bot,
-    navGroup: "insights",
+    navGroup: "intelligence",
     lazy: () => import("@/features/assistant/route"),
   },
   {
@@ -127,7 +129,7 @@ export const appModules = [
     description: "Reminders and alerts across all modules.",
     path: "/notifications",
     icon: Bell,
-    navGroup: "account",
+    navGroup: "personal",
     lazy: () => import("@/features/notifications/route"),
   },
   {
@@ -136,7 +138,7 @@ export const appModules = [
     description: "Profile, preferences and security.",
     path: "/settings",
     icon: Settings,
-    navGroup: "account",
+    navGroup: "personal",
     lazy: () => import("@/features/settings/route"),
   },
   {
@@ -145,7 +147,7 @@ export const appModules = [
     description: "Export, back up and restore your data.",
     path: "/backup",
     icon: DatabaseBackup,
-    navGroup: "account",
+    navGroup: "personal",
     lazy: () => import("@/features/backup/route"),
   },
 ] as const satisfies readonly AppModule[];

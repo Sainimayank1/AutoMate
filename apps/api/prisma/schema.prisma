@@ -1,5 +1,4 @@
 // Conventions: docs/architecture/database.md
-// No models yet: entities arrive with their modules (auth adds User first).
 
 generator client {
   provider            = "prisma-client"
@@ -10,4 +9,39 @@ generator client {
 
 datasource db {
   provider = "postgresql"
+}
+
+model User {
+  id              String   @id @default(uuid(7)) @db.Uuid
+  /// Stored trimmed and lower-cased (the shared schema normalises it), so uniqueness is case-insensitive.
+  email           String   @unique
+  /// argon2id hash. The plain password is never stored or logged.
+  passwordHash    String   @map("password_hash")
+  name            String
+  termsAcceptedAt DateTime @map("terms_accepted_at") @db.Timestamptz(3)
+  createdAt       DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt       DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  sessions Session[]
+
+  @@map("users")
+}
+
+/// One signed-in device. Holds only the SHA-256 hash of its refresh token, which rotates on every refresh.
+model Session {
+  id         String   @id @default(uuid(7)) @db.Uuid
+  userId     String   @map("user_id") @db.Uuid
+  tokenHash  String   @unique @map("token_hash")
+  /// "Keep me signed in": a 30-day persistent cookie instead of a browser-session cookie.
+  persistent Boolean
+  expiresAt  DateTime @map("expires_at") @db.Timestamptz(3)
+  lastUsedAt DateTime @default(now()) @map("last_used_at") @db.Timestamptz(3)
+  userAgent  String?  @map("user_agent")
+  createdAt  DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt  DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("sessions")
 }

@@ -1,5 +1,9 @@
-import type { ApiSuccessResponse } from "@automate/shared";
-import axios, { type AxiosRequestConfig } from "axios";
+import type { ApiSuccessResponse, AuthSession } from "@automate/shared";
+import axios, {
+  type AxiosRequestConfig,
+  type InternalAxiosRequestConfig,
+  isAxiosError,
+} from "axios";
 
 import { normalizeApiError } from "@/lib/api-error";
 import { env } from "@/lib/env";
@@ -14,7 +18,14 @@ export const apiClient = axios.create({
   baseURL: env.VITE_API_BASE_URL,
   timeout: 15_000,
   headers: { Accept: "application/json" },
+  // Sends the httpOnly refresh cookie, which is cross-origin in development (:5173 → :3000).
+  withCredentials: true,
 });
+
+type RetryableConfig = InternalAxiosRequestConfig & { _retried?: boolean };
+
+/** Auth routes report their own 401s (wrong password, dead cookie); they must never trigger a refresh. */
+const isAuthRoute = (url: string | undefined) => url?.startsWith("/auth/") ?? false;
 
 apiClient.interceptors.request.use((config) => {
   const token = useSessionStore.getState().session?.accessToken;
@@ -24,10 +35,15 @@ apiClient.interceptors.request.use((config) => {
 
 apiClient.interceptors.response.use(
   (response) => response,
-  (error: unknown) => {
+  async (error: unknown) => {
     const apiError = normalizeApiError(error);
-    // shortcut: drop the session on 401; refresh-token retry arrives with the auth phase.
-    if (apiError.status === 401) useSessionStore.getState().clearSession();
+    const config = isAxiosError(error) ? (error.config as RetryableConfig | undefined) : undefined;
+
+    // Expired access token: refresh once, then replay the request with the new token.
+    if (apiError.status === 401 && config && !config._retried && !isAuthRoute(config.url)) {
+      config._retried = true;
+      if (await refreshSession()) return apiClient.request(config);
+    }
     return Promise.reject(apiError);
   },
 );
@@ -39,4 +55,27 @@ apiClient.interceptors.response.use(
 export async function request<TData>(config: AxiosRequestConfig): Promise<TData> {
   const response = await apiClient.request<ApiSuccessResponse<TData>>(config);
   return response.data.data; // a 204 has no body: TData should be void
+}
+
+let refreshing: Promise<boolean> | null = null;
+
+/**
+ * Trades the refresh cookie for a new session, or marks the user signed out.
+ * Runs on page load and after a 401; concurrent callers share one request, because
+ * the server rotates the cookie and a second refresh with the old one would fail.
+ */
+export function refreshSession(): Promise<boolean> {
+  refreshing ??= request<AuthSession>({ method: "POST", url: "/auth/refresh" })
+    .then(({ user, accessToken }) => {
+      useSessionStore.getState().setSession({ user, accessToken });
+      return true;
+    })
+    .catch(() => {
+      useSessionStore.getState().clearSession();
+      return false;
+    })
+    .finally(() => {
+      refreshing = null;
+    });
+  return refreshing;
 }

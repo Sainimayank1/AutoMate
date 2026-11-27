@@ -1,42 +1,42 @@
-import { render, screen, within } from "@testing-library/react";
-import { createMemoryRouter } from "react-router";
-import { RouterProvider } from "react-router/dom";
-import { afterEach, describe, expect, it } from "vitest";
+import { screen, within } from "@testing-library/react";
+import { beforeEach, describe, expect, it } from "vitest";
 
 import { appModules } from "@/app/modules";
-import { AppProviders } from "@/app/providers/app-providers";
-import { routes } from "@/app/router/routes";
 import { useSessionStore } from "@/stores/session-store";
+import { fail, mockApi, ok, testSession, testUser } from "@/test/mock-api";
+import { renderApp } from "@/test/render-app";
 
-function renderAt(path: string) {
-  const router = createMemoryRouter(routes, { initialEntries: [path] });
-  render(
-    <AppProviders>
-      <RouterProvider router={router} />
-    </AppProviders>,
-  );
-  return router;
-}
+const signIn = () => useSessionStore.getState().setSession({ user: testUser, accessToken: "t" });
 
-function signIn() {
-  useSessionStore.getState().setSession({
-    user: { id: "u1", name: "Test User", email: "test@example.com" },
-    accessToken: null,
+beforeEach(() => useSessionStore.getState().clearSession());
+
+describe("session restore on page load", () => {
+  it("restores a session from the refresh cookie and opens the requested page", async () => {
+    useSessionStore.setState({ status: "unknown", session: null });
+    const calls = mockApi((config) =>
+      config.url === "/auth/refresh" ? ok(testSession()) : fail(404, "NOT_FOUND", "Not found"),
+    );
+
+    const router = renderApp("/fuel");
+    expect(await screen.findByRole("heading", { level: 1, name: "Fuel" })).toBeInTheDocument();
+    expect(router.state.location.pathname).toBe("/fuel");
+    expect(calls.filter((call) => call.url === "/auth/refresh")).toHaveLength(1);
   });
-}
 
-afterEach(() => useSessionStore.getState().clearSession());
+  it("sends visitors without a valid cookie to sign in", async () => {
+    useSessionStore.setState({ status: "unknown", session: null });
+    mockApi(fail(401, "UNAUTHORIZED", "Your session has expired."));
 
-describe("app shell", () => {
-  it("sends signed-out users to the login page", async () => {
-    const router = renderAt("/fuel");
-    expect(await screen.findByText("Sign in to AutoMate")).toBeInTheDocument();
+    const router = renderApp("/fuel");
+    expect(await screen.findByRole("heading", { name: "Welcome back" })).toBeInTheDocument();
     expect(router.state.location.pathname).toBe("/login");
   });
+});
 
+describe("app shell", () => {
   it("lists all 12 modules in the navigation and opens the requested one", async () => {
     signIn();
-    renderAt("/fuel");
+    renderApp("/fuel");
 
     expect(await screen.findByRole("heading", { level: 1, name: "Fuel" })).toBeInTheDocument();
     const nav = screen.getByRole("navigation", { name: "Main" });
@@ -51,12 +51,19 @@ describe("app shell", () => {
 
   it("redirects / to the dashboard and shows a not-found page for unknown paths", async () => {
     signIn();
-    const router = renderAt("/");
+    const router = renderApp("/");
     expect(await screen.findByRole("heading", { level: 1, name: "Dashboard" })).toBeInTheDocument();
     expect(router.state.location.pathname).toBe("/dashboard");
 
     await router.navigate("/nope");
     const main = await screen.findByRole("main");
     expect(await within(main).findByText("Page not found")).toBeInTheDocument();
+  });
+
+  it("keeps signed-in users away from the sign-in page", async () => {
+    signIn();
+    const router = renderApp("/login");
+    expect(await screen.findByRole("heading", { level: 1, name: "Dashboard" })).toBeInTheDocument();
+    expect(router.state.location.pathname).toBe("/dashboard");
   });
 });

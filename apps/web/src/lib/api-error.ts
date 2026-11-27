@@ -1,4 +1,4 @@
-import { type ApiErrorResponse, ErrorCode, type FieldError } from "@automate/shared";
+import type { ApiErrorResponse, ErrorCode, FieldError } from "@automate/shared";
 import { isAxiosError } from "axios";
 
 const GENERIC_MESSAGE = "Something went wrong. Please try again.";
@@ -11,7 +11,7 @@ export class ApiError extends Error {
   readonly status: number | null;
   /** Machine-readable code from the API; branch on this, never on `message`. */
   readonly code: ErrorCode | null;
-  /** Field path → message, for VALIDATION_ERROR responses. */
+  /** Field path → message, from `error.details` when the API names fields. */
   readonly fieldErrors: Record<string, string>;
   /** Server correlation id, for support and logs. */
   readonly requestId: string | null;
@@ -56,8 +56,9 @@ export function normalizeApiError(error: unknown): ApiError {
   const requestId =
     body.error?.requestId ?? (headers["x-request-id"] as string | undefined) ?? null;
 
+  // VALIDATION_ERROR always carries FieldError[]; other codes may too (409 "email already registered").
   const fieldErrors: Record<string, string> = {};
-  if (code === ErrorCode.VALIDATION_ERROR && Array.isArray(body.error?.details)) {
+  if (Array.isArray(body.error?.details)) {
     for (const item of body.error.details) {
       if (isFieldError(item)) fieldErrors[item.field] ??= item.message;
     }

@@ -1,11 +1,10 @@
-import { CarFront } from "lucide-react";
 import { Link, NavLink, useLocation } from "react-router";
 
 import { type AppModule, appModules, NAV_GROUP_LABELS, type NavGroup } from "@/app/modules";
+import { BrandMark } from "@/components/layout/brand-logo";
 import {
   Sidebar,
   SidebarContent,
-  SidebarFooter,
   SidebarGroup,
   SidebarGroupContent,
   SidebarGroupLabel,
@@ -17,7 +16,7 @@ import {
   useSidebar,
 } from "@/components/ui/sidebar";
 
-const PRIMARY_GROUPS: NavGroup[] = ["overview", "vehicle", "insights"];
+const NAV_GROUPS = Object.keys(NAV_GROUP_LABELS) as NavGroup[];
 
 function NavItems({ modules }: { modules: readonly AppModule[] }) {
   const { pathname } = useLocation();
@@ -31,7 +30,8 @@ function NavItems({ modules }: { modules: readonly AppModule[] }) {
             asChild
             isActive={pathname === item.path || pathname.startsWith(`${item.path}/`)}
             tooltip={item.title}
-            className="h-10 md:h-8"
+            // Stitch: the active item gets the raised fill plus primary-coloured text and icon.
+            className="h-10 data-active:text-sidebar-primary md:h-8"
           >
             <NavLink to={item.path} onClick={() => isMobile && setOpenMobile(false)}>
               <item.icon />
@@ -50,17 +50,11 @@ export function AppSidebar() {
       <SidebarHeader>
         <SidebarMenu>
           <SidebarMenuItem>
-            <SidebarMenuButton size="lg" asChild>
+            <SidebarMenuButton size="lg" asChild tooltip="AutoMate">
               <Link to="/dashboard">
-                <div className="flex aspect-square size-8 items-center justify-center rounded-lg bg-primary text-primary-foreground">
-                  <CarFront className="size-4" />
-                </div>
-                <div className="grid flex-1 text-left leading-tight">
-                  <span className="truncate font-heading font-semibold">AutoMate</span>
-                  <span className="truncate text-xs text-muted-foreground">
-                    Car ownership assistant
-                  </span>
-                </div>
+                {/* size-8! beats the menu button's [&_svg]:size-4; the mark is its own tile. */}
+                <BrandMark className="size-8!" />
+                <span className="font-heading text-lg font-semibold tracking-tight">AutoMate</span>
               </Link>
             </SidebarMenuButton>
           </SidebarMenuItem>
@@ -69,19 +63,17 @@ export function AppSidebar() {
 
       <nav aria-label="Main" className="flex min-h-0 flex-1 flex-col">
         <SidebarContent>
-          {PRIMARY_GROUPS.map((group) => (
+          {NAV_GROUPS.map((group) => (
             <SidebarGroup key={group}>
-              <SidebarGroupLabel>{NAV_GROUP_LABELS[group]}</SidebarGroupLabel>
+              <SidebarGroupLabel className="uppercase tracking-wider">
+                {NAV_GROUP_LABELS[group]}
+              </SidebarGroupLabel>
               <SidebarGroupContent>
                 <NavItems modules={appModules.filter((item) => item.navGroup === group)} />
               </SidebarGroupContent>
             </SidebarGroup>
           ))}
         </SidebarContent>
-
-        <SidebarFooter>
-          <NavItems modules={appModules.filter((item) => item.navGroup === "account")} />
-        </SidebarFooter>
       </nav>
       <SidebarRail />
     </Sidebar>

@@ -86,7 +86,15 @@ Use `PATCH` for updates. Avoid `PUT` unless the client really replaces the whole
 
 ## 6. Authentication
 
-`Authorization: Bearer <accessToken>` on every request except `@Public()` routes (currently only `/health`). On 401 the web drops the session; the refresh flow arrives with the auth phase.
+`Authorization: Bearer <accessToken>` on every request except `@Public()` routes (`/health` and `/auth/*`).
+
+- Access tokens come from `POST /auth/register`, `/auth/login` and `/auth/refresh`, as `AuthSession` in the envelope's `data`.
+- The refresh token is never in a body. It lives in the httpOnly cookie `automate_rt` (path `/api/v1/auth`), so browser clients must send credentials (`withCredentials: true`).
+- On a 401 from any other route, call `POST /auth/refresh` once and retry. If that also returns 401, the user is signed out.
+- `POST /auth/register` returns **409 `CONFLICT`** for a taken email, with `details: [{ field: "email", message }]`. Clients read `details` as field errors whenever they have the `FieldError` shape, whatever the code.
+- Cookie routes called from an origin outside `FRONTEND_URL` get **403 `FORBIDDEN`**.
+
+Details: [backend.md §6](backend.md#6-authentication).
 
 ## 7. Swagger
 

@@ -1,29 +1,42 @@
 # Design system (`apps/web`)
 
-AutoMate should feel like a premium automotive SaaS product: minimal, calm and precise. It's built on **shadcn/ui (Radix base, Nova preset)** and **Tailwind CSS v4**. All tokens are CSS variables in `apps/web/src/styles/index.css`.
+What the code implements today. The design source is the Stitch project **"AutoMate Design System Platform"** (design system "AutoMate Cockpit"). The rules for designing new screens, including generating a missing screen in Stitch first, are in the `automate-design` skill (`.claude/skills/automate-design/`).
+
+AutoMate looks like a car's digital cockpit crossed with a fintech app: deep graphite surfaces, one ice-blue accent, hairline borders and tabular numbers. It's built on **shadcn/ui (Radix base, Nova preset)** and **Tailwind CSS v4**. All tokens are CSS variables in `apps/web/src/styles/index.css`, holding the Stitch hex values.
 
 ## Rules
 
-- **Never hardcode colours.** Use semantic tokens (`bg-background`, `text-muted-foreground`, `border`, `bg-primary`…). Light and dark mode then come for free.
+- **Build from Stitch.** Every screen starts from its Stitch design (desktop and mobile). If the screen doesn't exist, generate it in Stitch first. The `automate-design` skill has the workflow.
+- **Never hardcode colours.** Use semantic tokens (`bg-card`, `text-muted-foreground`, `border`, `bg-primary`…). Light and dark mode then come for free.
 - **Don't rebuild primitives.** Buttons, dialogs, menus, popovers, tooltips, tabs and so on come from `components/ui/`. If a primitive is missing, add it with `pnpm dlx shadcn@latest add <name>` (run in `apps/web`).
-- **Extend, don't fork.** Pass `className` or variants to a primitive. Edit a file in `components/ui/` only for an app-wide change, and note why in the file.
-- **Restraint.** No decorative gradients, no gratuitous animation, no oversized cards. Separate areas with whitespace and thin borders rather than heavy shadows.
+- **Extend, don't fork.** Pass `className` or variants to a primitive. Edit a file in `components/ui/` only for an app-wide change, and note why in the file. Current edits: `input.tsx` and `textarea.tsx` render placeholders at 60% so they never read as typed values, and `hooks/use-mobile.ts` was rewritten with `useSyncExternalStore`.
+- **Restraint.** No decorative gradients (except `hero-glow`), no gratuitous animation, no oversized cards. Separate areas with tonal surface steps and 1px borders rather than heavy shadows.
 
 ## Colour tokens
 
-Base palette: shadcn **neutral**, using OKLCH values.
+Dark is the default theme. Each value's Stitch role is commented in `index.css`.
 
-| Token                                          | Use                                                                                                        |
-| ---------------------------------------------- | ---------------------------------------------------------------------------------------------------------- |
-| `background` / `foreground`                    | Page surface and body text                                                                                 |
-| `card`, `popover` (+ `-foreground`)            | Raised surfaces                                                                                            |
-| `primary` (+ `-foreground`)                    | Main actions; near-black in light mode, near-white in dark                                                 |
-| `secondary`, `muted`, `accent`                 | Quiet surfaces, hovers, subdued text (`muted-foreground`)                                                  |
-| `destructive`                                  | Delete actions and errors                                                                                  |
-| `success`, `warning`, `info` (+ `-foreground`) | Status colours, added for AutoMate (see below)                                                             |
-| `border`, `input`, `ring`                      | Lines, field borders, focus ring                                                                           |
-| `sidebar-*`                                    | Sidebar surfaces                                                                                           |
-| `chart-1…5`                                    | Chart series. Still the neutral defaults: define a real palette with the first chart (Dashboard/Analytics) |
+| Token                            | Dark                   | Light                  | Use                                             |
+| -------------------------------- | ---------------------- | ---------------------- | ----------------------------------------------- |
+| `background`                     | `#101419`              | `#F8F9FF`              | Page canvas                                     |
+| `card` / `sidebar`               | `#181C22`              | `#F1F3FC`              | Cards, panels, sidebar                          |
+| `elevated`                       | `#1C2026`              | `#EBEEF6`              | Raised areas inside a card                      |
+| `popover`                        | `#262A30`              | `#E5E8F1`              | Menus, popovers, selects                        |
+| `muted` / `secondary` / `accent` | `#1C2026` / `#262A30`  | `#EBEEF6` / `#E5E8F1`  | Quiet fills, secondary buttons, hover           |
+| `foreground`                     | `#DFE2EB`              | `#181C22`              | Primary text                                    |
+| `muted-foreground`               | `#BEC8D2`              | `#3E4850`              | Secondary text, labels (placeholders at 60%)    |
+| `primary`                        | `#89CEFF`              | `#006591`              | Ice-blue accent: main action, active nav, links |
+| `brand`                          | `#0EA5E9`              | `#0EA5E9`              | Logo chevron                                    |
+| `insight`                        | `#4FDBC8`              | `#006B5F`              | Teal, for AI and insights only                  |
+| `success`                        | `#5EE2A6`              | `#0F6D45`              | Good, valid                                     |
+| `warning`                        | `#FFB86E`              | `#8A5100`              | Due, expiring soon                              |
+| `destructive`                    | `#FFB4AB`              | `#BA1A1A`              | Overdue, expired, errors, delete                |
+| `info`                           | `oklch(0.75 0.11 245)` | `oklch(0.53 0.13 245)` | Upcoming, notices (not in Stitch)               |
+| `border` / `input`               | `#2D343C`              | `#BEC8D2`              | Hairlines and field borders                     |
+| `ring`                           | `#0EA5E9`              | `#006591`              | Focus ring                                      |
+
+- **Light focus ring:** Stitch's cyan reaches only 2.6:1 on light surfaces, below the 3:1 a focus indicator needs, so the light theme uses `primary` instead.
+- **Contrast:** every text token passes WCAG AA on `background`, `card` and `muted` in both themes. The skill's `color-system.md` has the full table.
 
 **Status colours and where they apply:**
 
@@ -36,65 +49,78 @@ Base palette: shadcn **neutral**, using OKLCH values.
   - Expiring within 30 days → `warning`
   - Expired → `destructive`
 
-Use them as text, small badges or a 2px accent, not as large fills. For example: `<Badge className="bg-success/15 text-success">Good</Badge>`.
+Show them as text, small badges (`bg-success/15 text-success`) or a 2px accent, never as large fills, and always with an icon or label.
 
 ## Themes
 
-- Light, dark and system modes, chosen from the header theme menu.
-- `next-themes` saves the choice to localStorage (`automate.theme`) and sets the `light`/`dark` class on `<html>`.
+- Dark (default), light and system, chosen from the theme menu in the header and on the auth pages.
+- `next-themes` saves the choice to localStorage (`automate.theme`) and sets the `dark`/`light` class on `<html>`.
 - A small script in `index.html` applies the saved theme before first paint, so there's no flash.
-- Dark-mode styles use the `dark:` variant, which is tied to the `.dark` class.
+- Use the `dark:` variant only when a token can't express the difference.
 
 ## Typography
 
-- **Font:** Geist Variable, self-hosted via `@fontsource-variable/geist` so there are no third-party font requests. `font-heading` currently uses the same family.
-- **Numbers:** use `tabular-nums` wherever figures line up or update (stat cards, tables, odometer).
+Three self-hosted families (Fontsource), as in Stitch:
 
-| Role                           | Classes                                                                        |
-| ------------------------------ | ------------------------------------------------------------------------------ |
-| Page title (h1, once per page) | `font-heading text-2xl font-semibold tracking-tight` (`PageHeader`)            |
-| Section title (h2)             | `font-heading text-base font-semibold` (`SectionHeader`)                       |
-| Stat value                     | `font-heading text-2xl font-semibold tracking-tight tabular-nums` (`StatCard`) |
-| Body / UI text                 | `text-sm`                                                                      |
-| Secondary text                 | `text-sm text-muted-foreground`                                                |
-| Captions, hints                | `text-xs text-muted-foreground`                                                |
+| Family              | Class                 | Use                                    |
+| ------------------- | --------------------- | -------------------------------------- |
+| Manrope Variable    | `font-heading`        | Headings, wordmark, metric values      |
+| Inter Variable      | `font-sans` (default) | All interface copy                     |
+| Geist Mono Variable | `font-mono`           | Number plates, VINs, odometer readouts |
+
+| Role                             | Classes                                                                        |
+| -------------------------------- | ------------------------------------------------------------------------------ |
+| Display title (auth, onboarding) | `font-heading text-3xl font-semibold tracking-tight`                           |
+| Page title (h1, once per page)   | `font-heading text-2xl font-semibold tracking-tight` (`PageHeader`)            |
+| Section title (h2)               | `font-heading text-base font-semibold` (`SectionHeader`)                       |
+| Stat value                       | `font-heading text-2xl font-semibold tracking-tight tabular-nums` (`StatCard`) |
+| Body / UI text                   | `text-sm`                                                                      |
+| Secondary text                   | `text-sm text-muted-foreground`                                                |
+| Overline / group label           | `text-xs font-semibold uppercase tracking-wider`                               |
+| Captions, hints                  | `text-xs text-muted-foreground`                                                |
+
+Use `tabular-nums` wherever figures line up or update.
 
 ## Spacing and layout
 
-- **Base unit:** Tailwind's 4px scale. Common gaps: `gap-2` (8px, inline controls), `gap-3`/`gap-4` (stacks), `gap-6` (page sections).
-- **Page frame:** every page renders inside `PageContainer`:
-  - maximum width `max-w-7xl`;
-  - gutters `px-4` on phones, `md:px-6` on tablets, `lg:px-8` on desktop;
-  - `py-6` vertical padding and `gap-6` between sections.
-- **Header:** 56px (`h-14`), sticky, translucent `bg-background/80` with blur.
-- **Sidebar:** shadcn `Sidebar` with `collapsible="icon"`. On phones it becomes an off-canvas drawer.
+- **Base unit:** Tailwind's 4px scale. Common gaps: `gap-2` (inline), `gap-3`/`gap-4` (stacks), `gap-6` (page sections).
+- **Page frame:** `PageContainer`, with `max-w-7xl`, gutters `px-4` → `md:px-6` → `lg:px-8`, `py-6` and `gap-6`.
+- **Header:** `h-14` on phones and `md:h-16` (Stitch's 64px), sticky, translucent.
+- **Sidebar:** shadcn `Sidebar`, `collapsible="icon"`, grouped as Overview / My vehicles / Management / Intelligence / Personal. The active item gets the raised fill and `primary` text. On phones it's an off-canvas drawer; a bottom navigation bar is planned (see the skill's backlog).
+- **Auth pages:** a 5/7 split (brand panel with `hero-glow` + form column) on `lg+`, form only on phones (`features/auth/components/auth-layout.tsx`).
 
 ## Radius and shadows
 
-- `--radius: 0.625rem` (10px). The scale derives from it: `rounded-sm` 6px, `rounded-md` 8px, `rounded-lg` 10px, `rounded-xl` 14px.
-  - Cards use `rounded-xl`.
-  - Inputs and buttons use `rounded-lg`/`rounded-md`, as the primitives define.
-- **Shadows:** keep them minimal. Cards have no shadow, only a 1px hairline (`ring-1 ring-foreground/10`). Only floating layers (popovers, menus, dialogs, toasts) get real shadows, which the primitives already include.
+- **Radius:** `--radius: 0.5rem`. That gives:
+  - `rounded-sm` 4px for nested tiles;
+  - `rounded-lg` 8px for buttons, inputs and small controls;
+  - `rounded-xl` 12px for cards, popovers and dialogs;
+  - `rounded-2xl` 16px for the vehicle hero image only.
+- **Depth** comes from surface steps (`background → card → elevated → popover`) and 1px borders. Only floating layers carry the primitives' built-in shadows.
+
+## Brand
+
+- **Logo:** `components/layout/brand-logo.tsx`, from the Stitch screens. `BrandMark` is a cyan chevron "A" with a teal crossbar on a graphite tile; `BrandLogo` adds the Manrope wordmark. The favicon (`public/favicon.svg`) is the same mark.
+- **`hero-glow`:** the one ambient gradient (a cyan radial glow), allowed on hero panels such as the auth brand panel.
 
 ## Interaction states
 
-- **Focus:** every interactive primitive shows a visible `ring` focus outline (`focus-visible:ring-*`). Don't remove outlines. Custom clickable areas (e.g. a linked `StatCard`) must reproduce the ring.
-- **Disabled:** primitives use `disabled:opacity-50 disabled:pointer-events-none`. Don't hide disabled actions that explain why something can't be done; show them disabled.
-- **Invalid:** inputs show error styling from `aria-invalid`, which `FormField` sets for you.
-- **Hover:** subtle background shifts only (`hover:bg-muted`/`accent`).
+- **Focus:** a visible `ring` outline on every interactive primitive. Custom clickable areas (e.g. a linked `StatCard`) must reproduce it.
+- **Disabled:** `opacity-50` and no pointer events. Show the action disabled with a reason rather than hiding it.
+- **Invalid:** inputs style themselves from `aria-invalid`, which `FormField` sets.
+- **Hover:** subtle fills only (`hover:bg-accent`).
 
 ## Responsive
 
-| Breakpoint | Width   | Notes                                                                            |
-| ---------- | ------- | -------------------------------------------------------------------------------- |
-| (base)     | < 640px | Phones. Design here first                                                        |
-| `sm`       | 640px   |                                                                                  |
-| `md`       | 768px   | Sidebar switches from drawer to docked; `useIsMobile()` uses the same breakpoint |
-| `lg`       | 1024px  |                                                                                  |
-| `xl`       | 1280px  |                                                                                  |
+| Breakpoint | Width   | Notes                                                                     |
+| ---------- | ------- | ------------------------------------------------------------------------- |
+| (base)     | < 640px | Phones. Design here first (Stitch mobile screens are 390px)               |
+| `sm`       | 640px   |                                                                           |
+| `md`       | 768px   | Sidebar docks; header grows to 64px; `useIsMobile()` uses this breakpoint |
+| `lg`       | 1024px  | Auth pages split into two panels                                          |
+| `xl`       | 1280px  | Stitch desktop screens are 1280px                                         |
 
-- **Touch targets:** at least 40px on phones. Header icon buttons and sidebar items use `size-10 md:size-8` / `h-10 md:h-8`.
-- **No horizontal page scroll:** wide content (tables) scrolls inside its own container.
+Touch targets are at least 40px on phones, and there's no horizontal page scroll.
 
 ## Component inventory
 
@@ -115,14 +141,18 @@ Use them as text, small badges or a 2px accent, not as large fills. For example:
 | `FormField` / `FormError` | react-hook-form field wiring / form-level error                            |
 | `DatePicker`              | Popover + Calendar, shows DD/MM/YYYY                                       |
 
-**Feedback** (`components/feedback/`): `EmptyState`, `ErrorState` (safe message plus retry), `LoadingState` (spinner, `role=status`), `LoadingSkeleton`, `RouteError`/`NotFoundState`, `AppErrorFallback`.
+**Layout** (`components/layout/`): `AppShell`, `AppSidebar`, `AppHeader`, `ThemeToggle`, `UserMenu`, `BrandLogo`/`BrandMark`.
+
+**Feedback** (`components/feedback/`): `EmptyState`, `ErrorState` (safe message plus retry), `LoadingState`, `LoadingSkeleton`, `RouteError`/`NotFoundState`, `AppErrorFallback`.
+
+**Feature-level (auth):** `AuthLayout`, `PasswordInput` (show/hide toggle).
 
 ## Accessibility checklist
 
-- One `<h1>` per page (`PageHeader`).
+- One `<h1>` per page.
 - The sidebar is a `<nav aria-label="Main">`.
-- The page `<title>` updates on navigation.
-- Icon-only buttons have an `aria-label`.
-- Loading states use `role="status"`; errors use `role="alert"` (field errors, `FormError`).
+- The page `<title>` updates on navigation, including the auth pages.
+- Icon-only buttons have an `aria-label`; the password toggle also sets `aria-pressed`.
+- Loading states use `role="status"`; errors use `role="alert"`.
 - Sortable table headers set `aria-sort`.
-- Colour is never the only signal: status badges also carry text.
+- Colour is never the only signal.
