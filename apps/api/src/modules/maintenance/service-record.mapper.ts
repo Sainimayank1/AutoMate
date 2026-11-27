@@ -11,7 +11,7 @@ export const RECORD_INCLUDE = {
   provider: { select: { id: true, name: true } },
   items: {
     orderBy: { position: "asc" },
-    include: { schedule: { select: { name: true } } },
+    include: { schedule: { select: { name: true } }, component: { select: { name: true } } },
   },
 } as const satisfies Prisma.ServiceRecordInclude;
 
@@ -49,6 +49,8 @@ export function toServiceRecord(row: RecordRow, expenseId: string | null): Servi
       partNumber: item.partNumber,
       scheduleId: item.scheduleId,
       scheduleName: item.schedule?.name ?? null,
+      componentId: item.componentId,
+      componentName: item.component?.name ?? null,
     })),
     expenseId,
     createdAt: row.createdAt.toISOString(),
@@ -79,10 +81,11 @@ export function toServiceRecordInput(row: RecordRow): CreateServiceRecordValues 
     warrantyUntil: record.warrantyUntil,
     warrantyNotes: record.warrantyNotes,
     notes: record.notes,
-    items: record.items.map(({ name, partNumber, scheduleId }) => ({
+    items: record.items.map(({ name, partNumber, scheduleId, componentId }) => ({
       name,
       partNumber,
       scheduleId,
+      componentId,
     })),
   };
 }

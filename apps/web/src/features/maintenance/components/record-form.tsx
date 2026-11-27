@@ -6,6 +6,7 @@ import {
   PaymentMethod,
   ServiceRecordType,
   type Vehicle,
+  type VehicleComponent,
 } from "@automate/shared";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { format, parseISO } from "date-fns";
@@ -42,6 +43,7 @@ import { Spinner } from "@/components/ui/spinner";
 import { Textarea } from "@/components/ui/textarea";
 import { PAYMENT_METHOD_LABELS } from "@/features/fuel/constants";
 import { vehicleName } from "@/features/garage/constants";
+import { FormSection } from "@/features/maintenance/components/form-section";
 import { RECORD_TYPE_LABELS, SCHEDULE_STATUS_META } from "@/features/maintenance/constants";
 import { useProviders } from "@/features/maintenance/hooks/use-maintenance";
 import { normalizeApiError } from "@/lib/api-error";
@@ -56,33 +58,6 @@ import {
 
 const NONE = "none";
 
-function Section({
-  step,
-  title,
-  aside,
-  children,
-}: {
-  step: number;
-  title: string;
-  aside?: ReactNode;
-  children: ReactNode;
-}) {
-  return (
-    <section className="flex flex-col gap-4 rounded-xl border bg-card p-5">
-      <div className="flex items-center justify-between gap-3">
-        <div className="flex items-center gap-2.5">
-          <span className="inline-flex size-6 items-center justify-center rounded-full bg-primary/15 text-xs font-semibold text-primary tabular-nums">
-            {step}
-          </span>
-          <h2 className="font-heading text-base font-semibold">{title}</h2>
-        </div>
-        {aside}
-      </div>
-      {children}
-    </section>
-  );
-}
-
 /**
  * Stitch "Add Service Record" ("Log service") and its edit variant: a task page with numbered
  * sections, the work done (items can complete schedules), the cost breakdown with its total, and
@@ -92,6 +67,7 @@ export function RecordForm({
   mode,
   vehicle,
   schedules,
+  components,
   completing,
   defaultValues,
   backTo,
@@ -101,6 +77,8 @@ export function RecordForm({
   vehicle: Vehicle;
   /** The vehicle's schedules, for "Completes schedule". */
   schedules: MaintenanceSchedule[];
+  /** Its fitted parts, for "Component" (hidden when there are none). */
+  components: VehicleComponent[];
   /** Opened from a schedule's "Mark completed". */
   completing?: MaintenanceSchedule;
   defaultValues: RecordFormValues;
@@ -156,7 +134,7 @@ export function RecordForm({
               Completing {completing.name}
             </div>
           )}
-          <RecordFields vehicle={vehicle} schedules={schedules} />
+          <RecordFields vehicle={vehicle} schedules={schedules} components={components} />
         </form>
       </FormProvider>
 
@@ -178,9 +156,11 @@ export function RecordForm({
 function RecordFields({
   vehicle,
   schedules,
+  components,
 }: {
   vehicle: Vehicle;
   schedules: MaintenanceSchedule[];
+  components: VehicleComponent[];
 }) {
   const form = useFormContext<RecordFormValues>();
   const { control } = form;
@@ -216,7 +196,7 @@ function RecordFields({
     <>
       <div className="flex flex-col gap-5 lg:col-span-8">
         <FormError message={errors.root?.server?.message} />
-        <Section step={1} title="What">
+        <FormSection step={1} title="What">
           <div className="grid gap-4 sm:grid-cols-2">
             <FormField
               control={control}
@@ -278,9 +258,9 @@ function RecordFields({
               />
             </div>
           </div>
-        </Section>
+        </FormSection>
 
-        <Section step={2} title="When & where">
+        <FormSection step={2} title="When & where">
           <div className="grid gap-4 sm:grid-cols-2">
             <FormField
               control={control}
@@ -346,9 +326,9 @@ function RecordFields({
               render={(field) => <Input {...field} maxLength={80} />}
             />
           </div>
-        </Section>
+        </FormSection>
 
-        <Section
+        <FormSection
           step={3}
           title="Work done"
           aside={
@@ -356,7 +336,9 @@ function RecordFields({
               type="button"
               variant="outline"
               size="sm"
-              onClick={() => items.append({ name: "", partNumber: "", scheduleId: "" })}
+              onClick={() =>
+                items.append({ name: "", partNumber: "", scheduleId: "", componentId: "" })
+              }
             >
               <Plus data-icon="inline-start" />
               Add item
@@ -424,6 +406,34 @@ function RecordFields({
                       )}
                     />
                   </div>
+                  {components.length > 0 && (
+                    <div className="sm:col-span-11">
+                      <FormField
+                        control={control}
+                        name={`items.${index}.componentId`}
+                        label="Component"
+                        optional
+                        render={(field) => (
+                          <Select
+                            value={field.value || NONE}
+                            onValueChange={(value) => field.onChange(value === NONE ? "" : value)}
+                          >
+                            <SelectTrigger ref={field.ref} id={field.id} className="w-full">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value={NONE}>None</SelectItem>
+                              {components.map((part) => (
+                                <SelectItem key={part.id} value={part.id}>
+                                  {[part.name, part.brand].filter(Boolean).join(" · ")}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        )}
+                      />
+                    </div>
+                  )}
                   <div className="flex justify-end sm:col-span-1">
                     <Button
                       type="button"
@@ -442,9 +452,9 @@ function RecordFields({
           <p className="text-sm text-muted-foreground">
             Items that complete a schedule restart its countdown from this date and reading.
           </p>
-        </Section>
+        </FormSection>
 
-        <Section step={4} title="Cost">
+        <FormSection step={4} title="Cost">
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-5">
             {money("labourAmount", "Labour")}
             {money("partsAmount", "Parts")}
@@ -504,9 +514,9 @@ function RecordFields({
             Saved to Expenses as Maintenance &amp; servicing (or Repairs for repair types). ₹0
             records create no expense.
           </p>
-        </Section>
+        </FormSection>
 
-        <Section step={5} title="Warranty & notes">
+        <FormSection step={5} title="Warranty & notes">
           <div className="grid gap-4 sm:grid-cols-2">
             <FormField
               control={control}
@@ -551,7 +561,7 @@ function RecordFields({
             optional
             render={(field) => <Textarea {...field} rows={2} maxLength={1000} />}
           />
-        </Section>
+        </FormSection>
       </div>
 
       <aside className="flex flex-col gap-4 rounded-xl border bg-card p-5 lg:sticky lg:top-24 lg:col-span-4">

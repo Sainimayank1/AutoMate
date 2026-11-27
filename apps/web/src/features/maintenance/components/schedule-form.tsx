@@ -33,7 +33,9 @@ import { Spinner } from "@/components/ui/spinner";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import { vehicleName } from "@/features/garage/constants";
+import { FormSection } from "@/features/maintenance/components/form-section";
 import { PRIORITY_LABELS } from "@/features/maintenance/constants";
+import { useComponents } from "@/features/maintenance/hooks/use-maintenance";
 import { normalizeApiError } from "@/lib/api-error";
 import { applyServerErrors } from "@/lib/forms";
 import { formatDate, formatDistance, formatNumber } from "@/utils/format";
@@ -46,6 +48,7 @@ import {
 } from "./schedule-form-model";
 
 const BACK_TO = "/maintenance/schedules";
+const NO_COMPONENT = "none";
 const PRIORITIES = Object.values(SchedulePriority).map((value) => ({
   value,
   label: PRIORITY_LABELS[value],
@@ -54,33 +57,6 @@ const KINDS: { value: ScheduleKind; label: string }[] = [
   { value: "REPEATS", label: "Repeats" },
   { value: "ONCE", label: "Once" },
 ];
-
-function Section({
-  step,
-  title,
-  aside,
-  children,
-}: {
-  step: number;
-  title: string;
-  aside?: ReactNode;
-  children: ReactNode;
-}) {
-  return (
-    <section className="flex flex-col gap-4 rounded-xl border bg-card p-5">
-      <div className="flex items-center justify-between gap-3">
-        <div className="flex items-center gap-2.5">
-          <span className="inline-flex size-6 items-center justify-center rounded-full bg-primary/15 text-xs font-semibold text-primary tabular-nums">
-            {step}
-          </span>
-          <h2 className="font-heading text-base font-semibold">{title}</h2>
-        </div>
-        {aside}
-      </div>
-      {children}
-    </section>
-  );
-}
 
 /**
  * Stitch "Add Schedule" (and its edit variant): a focused task page with numbered sections and a
@@ -91,11 +67,14 @@ export function ScheduleForm({
   mode,
   vehicle,
   defaultValues,
+  backTo = BACK_TO,
   onSave,
 }: {
   mode: "create" | "edit";
   vehicle: Vehicle;
   defaultValues: ScheduleFormValues;
+  /** Where saving and cancelling go (default: the schedules list). */
+  backTo?: string;
   onSave: (values: ScheduleFormOutput) => Promise<unknown>;
 }) {
   const navigate = useNavigate();
@@ -114,7 +93,7 @@ export function ScheduleForm({
   const submit = form.handleSubmit(async (output) => {
     try {
       await onSave(output);
-      navigate(BACK_TO, { replace: true, state: { savedChanges: true } });
+      navigate(backTo, { replace: true, state: { savedChanges: true } });
     } catch (error) {
       applyServerErrors(form.setError, error);
       const field = Object.keys(normalizeApiError(error).fieldErrors)[0];
@@ -126,11 +105,11 @@ export function ScheduleForm({
     <TaskPage
       title={creating ? "Add schedule" : "Edit schedule"}
       subtitle={`${vehicleName(vehicle)} · ${formatDistance(vehicle.odometerKm)}`}
-      backTo={BACK_TO}
-      backLabel="Back to schedules"
+      backTo={backTo}
+      backLabel="Back"
       actions={
         <Button variant="ghost" asChild className="max-sm:hidden">
-          <Link to={BACK_TO}>Cancel</Link>
+          <Link to={backTo}>Cancel</Link>
         </Button>
       }
     >
@@ -147,7 +126,7 @@ export function ScheduleForm({
 
       <footer className="fixed inset-x-0 bottom-0 z-30 flex h-16 items-center justify-end gap-3 border-t bg-card px-4 sm:px-6">
         <Button variant="outline" asChild>
-          <Link to={BACK_TO}>Cancel</Link>
+          <Link to={backTo}>Cancel</Link>
         </Button>
         <Button
           type="submit"
@@ -171,6 +150,7 @@ function ScheduleFields({ vehicle }: { vehicle: Vehicle }) {
   const { errors } = form.formState;
   const values = useWatch({ control });
   const repeats = values.kind === "REPEATS";
+  const components = useComponents(vehicle.id, { pageSize: 100 }).data?.items ?? [];
 
   const dateField = (name: "lastDoneDate" | "dueDate", label: string, pastOnly: boolean) => (
     <FormField
@@ -235,7 +215,7 @@ function ScheduleFields({ vehicle }: { vehicle: Vehicle }) {
     <>
       <div className="flex flex-col gap-5 lg:col-span-8">
         <FormError message={errors.root?.server?.message} />
-        <Section step={1} title="What">
+        <FormSection step={1} title="What">
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="sm:col-span-2">
               <FormField
@@ -291,10 +271,39 @@ function ScheduleFields({ vehicle }: { vehicle: Vehicle }) {
                 />
               )}
             />
+            {components.length > 0 && (
+              <div className="sm:col-span-2">
+                <FormField
+                  control={control}
+                  name="componentId"
+                  label="Watches component"
+                  optional
+                  description="Its status shows “inspection due” when this schedule is due"
+                  render={(field) => (
+                    <Select
+                      value={field.value || NO_COMPONENT}
+                      onValueChange={(value) => field.onChange(value === NO_COMPONENT ? "" : value)}
+                    >
+                      <SelectTrigger ref={field.ref} id={field.id} className="w-full">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value={NO_COMPONENT}>None</SelectItem>
+                        {components.map((part) => (
+                          <SelectItem key={part.id} value={part.id}>
+                            {[part.name, part.brand].filter(Boolean).join(" · ")}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  )}
+                />
+              </div>
+            )}
           </div>
-        </Section>
+        </FormSection>
 
-        <Section
+        <FormSection
           step={2}
           title="When"
           aside={
@@ -350,9 +359,9 @@ function ScheduleFields({ vehicle }: { vehicle: Vehicle }) {
               <p className="text-sm text-muted-foreground">Whichever comes first.</p>
             </>
           )}
-        </Section>
+        </FormSection>
 
-        <Section
+        <FormSection
           step={3}
           title="Reminders"
           aside={
@@ -391,9 +400,9 @@ function ScheduleFields({ vehicle }: { vehicle: Vehicle }) {
             It shows as due soon this early. Notifications arrive when the Notifications centre is
             available.
           </p>
-        </Section>
+        </FormSection>
 
-        <Section step={4} title="Notes">
+        <FormSection step={4} title="Notes">
           <FormField
             control={control}
             name="notes"
@@ -408,7 +417,7 @@ function ScheduleFields({ vehicle }: { vehicle: Vehicle }) {
               />
             )}
           />
-        </Section>
+        </FormSection>
       </div>
 
       <aside className="flex flex-col gap-4 rounded-xl border bg-card p-5 lg:sticky lg:top-24 lg:col-span-4">

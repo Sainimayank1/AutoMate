@@ -212,7 +212,16 @@ function Hero({ record }: { record: ServiceRecord }) {
             {record.odometerKm !== null ? formatDistance(record.odometerKm) : "Not recorded"}
           </Fact>
           <Fact label="Workshop">
-            {record.provider?.name ?? "Not recorded"}
+            {record.provider ? (
+              <Link
+                to={`/maintenance/workshops/${record.provider.id}`}
+                className="text-primary hover:underline"
+              >
+                {record.provider.name}
+              </Link>
+            ) : (
+              "Not recorded"
+            )}
             {record.technician && (
               <span className="block text-sm font-normal text-muted-foreground">
                 Technician: {record.technician}
@@ -273,6 +282,14 @@ function WorkDone({ record }: { record: ServiceRecord }) {
                     </span>
                   )}
                 </span>
+                {item.componentId && item.componentName && (
+                  <Link
+                    to={`/maintenance/components/${item.componentId}`}
+                    className="inline-flex shrink-0 items-center rounded-full border px-2.5 py-0.5 text-xs font-medium hover:underline"
+                  >
+                    Part: {item.componentName}
+                  </Link>
+                )}
                 {item.scheduleId && item.scheduleName && (
                   <Link
                     to={`/maintenance/schedules/${item.scheduleId}`}

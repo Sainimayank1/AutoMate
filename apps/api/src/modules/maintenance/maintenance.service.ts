@@ -12,7 +12,13 @@ import {
   ScheduleStatus,
   type UpdateScheduleValues,
 } from "@automate/shared";
-import { ConflictException, Injectable, Logger, NotFoundException } from "@nestjs/common";
+import {
+  BadRequestException,
+  ConflictException,
+  Injectable,
+  Logger,
+  NotFoundException,
+} from "@nestjs/common";
 import { ZodValidationException } from "nestjs-zod";
 
 import { Paginated } from "@/common/pagination/paginated";
@@ -49,8 +55,25 @@ const rowData = (values: CreateScheduleValues) => ({
   leadDays: values.leadDays ?? null,
   leadKm: values.leadKm ?? null,
   priority: values.priority ?? "NORMAL",
+  componentId: values.componentId ?? null,
   notes: values.notes ?? null,
 });
+
+/** A schedule may watch only a part fitted to the same vehicle. */
+async function assertComponent(
+  tx: Prisma.TransactionClient,
+  vehicle: Vehicle,
+  componentId: string | null | undefined,
+) {
+  if (!componentId) return;
+  const found = await tx.vehicleComponent.count({
+    where: { id: componentId, userId: vehicle.userId, vehicleId: vehicle.id, state: "INSTALLED" },
+  });
+  if (!found) {
+    const message = "Choose a fitted component of this vehicle";
+    throw new BadRequestException({ message, details: [{ field: "componentId", message }] });
+  }
+}
 
 function assertActive(vehicle: Vehicle) {
   if (vehicle.archivedAt) {
@@ -140,6 +163,19 @@ export class MaintenanceService {
         if (existing) return existing.id;
       }
       assertLastDoneKm(input.lastDoneKm, vehicle);
+      await assertComponent(tx, vehicle, input.componentId);
+      const finding = input.inspectionItemId
+        ? await tx.inspectionItem.findFirst({
+            where: {
+              id: input.inspectionItemId,
+              inspection: { userId, vehicleId },
+            },
+            select: { id: true },
+          })
+        : null;
+      if (input.inspectionItemId && !finding) {
+        throw new BadRequestException("That inspection finding isn't this vehicle's");
+      }
       const row = await tx.maintenanceSchedule.create({
         data: {
           ...rowData(input),
@@ -149,6 +185,13 @@ export class MaintenanceService {
           addedOdometerKm: vehicle.odometerKm,
         },
       });
+      // The finding now points at the schedule that follows it up.
+      if (finding) {
+        await tx.inspectionItem.update({
+          where: { id: finding.id },
+          data: { followUpScheduleId: row.id },
+        });
+      }
       return row.id;
     });
     this.logger.log(`Maintenance schedule ${id} created`);
@@ -170,6 +213,9 @@ export class MaintenanceService {
       const parsed = createScheduleSchema.safeParse({ ...toScheduleInput(row), ...changes });
       if (!parsed.success) throw new ZodValidationException(parsed.error);
       if (input.lastDoneKm !== undefined) assertLastDoneKm(parsed.data.lastDoneKm, vehicle);
+      if (input.componentId !== undefined) {
+        await assertComponent(tx, vehicle, parsed.data.componentId);
+      }
       await tx.maintenanceSchedule.update({ where: { id }, data: rowData(parsed.data) });
     });
     this.logger.log(`Maintenance schedule ${id} updated`);
@@ -201,6 +247,11 @@ export class MaintenanceService {
       this.logger.log(`Maintenance schedule ${id} ${paused ? "paused" : "resumed"}`);
     });
     return this.get(userId, vehicleId, id);
+  }
+
+  /** Every schedule of the vehicle with its due figures (for components' status). */
+  schedulesOf(vehicle: Vehicle) {
+    return this.computed(vehicle);
   }
 
   /** The dashboard's maintenance status items (docs/architecture/dashboard.md §6). */

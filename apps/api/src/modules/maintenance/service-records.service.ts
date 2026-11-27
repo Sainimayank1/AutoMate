@@ -5,9 +5,8 @@ import {
   type CreateServiceRecordValues,
   MAINTENANCE_CATEGORY_KEYS,
   maintenanceCategoryName,
-  type MaintenanceProvider,
   pageMeta,
-  type ProviderListQuery,
+  type PaginationQuery,
   type ServiceRecord,
   type ServiceRecordFilters,
   type ServiceRecordListQuery,
@@ -240,25 +239,36 @@ export class ServiceRecordsService {
     this.logger.log(`Service record ${id} deleted`);
   }
 
-  /** The user's workshops by name (suggestions for the record form). */
-  async providers(
+  /** A workshop's visits across the user's vehicles, newest first (the caller checks it's theirs). */
+  async byProvider(
     userId: string,
-    { search, ...page }: ProviderListQuery,
-  ): Promise<Paginated<MaintenanceProvider>> {
-    const where: Prisma.ServiceProviderWhereInput = {
-      userId,
-      ...(search && { name: { contains: search, mode: "insensitive" } }),
-    };
+    providerId: string,
+    page: PaginationQuery,
+  ): Promise<Paginated<ServiceRecord>> {
+    const where = { userId, providerId };
     const [rows, total] = await this.prisma.$transaction([
-      this.prisma.serviceProvider.findMany({
+      this.prisma.serviceRecord.findMany({
         where,
-        select: { id: true, name: true },
-        orderBy: [{ name: "asc" }, { id: "asc" }],
+        include: RECORD_INCLUDE,
+        orderBy: ORDER,
         ...pageArgs(page),
       }),
-      this.prisma.serviceProvider.count({ where }),
+      this.prisma.serviceRecord.count({ where }),
     ]);
-    return new Paginated(rows, pageMeta(page, total));
+    return new Paginated(await this.present(rows), pageMeta(page, total));
+  }
+
+  /**
+   * A new record inside another module's write (a component replacement), under the vehicle's
+   * lock the caller holds: the same checks, money and odometer handling as `create`.
+   */
+  createInTransaction(
+    tx: Prisma.TransactionClient,
+    vehicle: Vehicle,
+    id: string,
+    values: CreateServiceRecordValues,
+  ) {
+    return this.write(tx, vehicle, id, values, null);
   }
 
   /** Writes a validated record (new when `current` is null) with its items, money and reading. */
@@ -303,6 +313,7 @@ export class ServiceRecordsService {
       name: item.name,
       partNumber: item.partNumber ?? null,
       scheduleId: item.scheduleId ?? null,
+      componentId: item.componentId ?? null,
     }));
     if (current) {
       await tx.serviceRecordItem.deleteMany({ where: { recordId: id } });
@@ -364,6 +375,21 @@ export class ServiceRecordsService {
     values: CreateServiceRecordValues,
   ) {
     const items = values.items ?? [];
+    const componentIds = items.flatMap((item) => (item.componentId ? [item.componentId] : []));
+    if (componentIds.length) {
+      const found = await tx.vehicleComponent.findMany({
+        where: { id: { in: componentIds }, userId: vehicle.userId, vehicleId: vehicle.id },
+        select: { id: true },
+      });
+      const missing = items.findIndex(
+        (item) => item.componentId && !found.some((row) => row.id === item.componentId),
+      );
+      if (missing >= 0) {
+        throw new BadRequestException(
+          fieldError(`items.${missing}.componentId`, "Choose a component of this vehicle"),
+        );
+      }
+    }
     const ids = items.flatMap((item) => (item.scheduleId ? [item.scheduleId] : []));
     if (!ids.length) return;
     const schedules = await tx.maintenanceSchedule.findMany({
@@ -466,7 +492,7 @@ export class ServiceRecordsService {
   }
 
   /** The user's workshop with this name (any case), created on first use. */
-  private async providerNamed(tx: Prisma.TransactionClient, userId: string, name: string) {
+  async providerNamed(tx: Prisma.TransactionClient, userId: string, name: string) {
     const existing = await tx.serviceProvider.findFirst({
       where: { userId, name: { equals: name, mode: "insensitive" } },
       select: { id: true, name: true },

@@ -1,24 +1,35 @@
 import { Car } from "lucide-react";
 import { useState } from "react";
-import { Link } from "react-router";
+import { Link, useSearchParams } from "react-router";
 
 import { EmptyState } from "@/components/feedback/empty-state";
 import { ErrorState } from "@/components/feedback/error-state";
 import { LoadingState } from "@/components/feedback/loading-state";
 import { Button } from "@/components/ui/button";
 import { ScheduleForm } from "@/features/maintenance/components/schedule-form";
-import { newScheduleForm } from "@/features/maintenance/components/schedule-form-model";
-import { useCreateSchedule } from "@/features/maintenance/hooks/use-maintenance";
+import {
+  newScheduleForm,
+  scheduleFromFinding,
+} from "@/features/maintenance/components/schedule-form-model";
+import { useCreateSchedule, useInspection } from "@/features/maintenance/hooks/use-maintenance";
 import { useActiveVehicle } from "@/hooks/use-active-vehicle";
 
-/** `/maintenance/schedules/new`: add a schedule to the active vehicle. */
+/**
+ * `/maintenance/schedules/new[?inspection=<id>&item=<itemId>]`: add a schedule to the active
+ * vehicle; from an inspection finding it is prefilled and linked to that finding.
+ */
 export function Component() {
   const { activeVehicle, isPending, isError, data, error, refetch } = useActiveVehicle();
+  const [params] = useSearchParams();
+  const inspectionId = params.get("inspection") ?? "";
+  const inspection = useInspection(activeVehicle?.id ?? "", inspectionId);
   const create = useCreateSchedule(activeVehicle?.id ?? "");
   // One id per visit: a retried save returns the schedule it already made.
-  const id = useMemoId();
+  const [id] = useState(() => crypto.randomUUID());
 
-  if (isPending) return <LoadingState fullScreen label="Loading…" />;
+  if (isPending || (activeVehicle && inspectionId && inspection.isPending)) {
+    return <LoadingState fullScreen label="Loading…" />;
+  }
   if (isError && !data) {
     return (
       <ErrorState
@@ -44,17 +55,19 @@ export function Component() {
       />
     );
   }
+  // A finding already followed up isn't linked twice.
+  const finding = inspection.data?.items.find(
+    (item) => item.id === params.get("item") && !item.followUpSchedule,
+  );
   return (
     <ScheduleForm
       mode="create"
       vehicle={activeVehicle}
-      defaultValues={newScheduleForm()}
-      onSave={(values) => create.mutateAsync({ ...values, id })}
+      defaultValues={finding ? scheduleFromFinding(inspection.data!, finding) : newScheduleForm()}
+      backTo={finding ? `/maintenance/inspections/${inspectionId}` : undefined}
+      onSave={(values) =>
+        create.mutateAsync({ ...values, id, ...(finding && { inspectionItemId: finding.id }) })
+      }
     />
   );
-}
-
-function useMemoId() {
-  const [id] = useState(() => crypto.randomUUID());
-  return id;
 }

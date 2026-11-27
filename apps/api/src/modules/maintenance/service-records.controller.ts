@@ -1,4 +1,4 @@
-import type { MaintenanceProvider, ServiceRecord, ServiceRecordSummary } from "@automate/shared";
+import type { ServiceRecord, ServiceRecordSummary } from "@automate/shared";
 import {
   Body,
   Controller,
@@ -24,16 +24,11 @@ import { CurrentUser } from "@/modules/auth/decorators/current-user.decorator";
 
 import {
   CreateServiceRecordDto,
-  ProviderListQueryDto,
   ServiceRecordFiltersDto,
   ServiceRecordListQueryDto,
   UpdateServiceRecordDto,
 } from "./dto/maintenance.dto";
-import {
-  PROVIDER_SCHEMA,
-  RECORD_SUMMARY_SCHEMA,
-  SERVICE_RECORD_SCHEMA,
-} from "./maintenance.constants";
+import { RECORD_SUMMARY_SCHEMA, SERVICE_RECORD_SCHEMA } from "./maintenance.constants";
 import { ServiceRecordsService } from "./service-records.service";
 
 const RECORDS = "vehicles/:vehicleId/service-records";
@@ -122,16 +117,5 @@ export class ServiceRecordsController {
     @Param("id", ParseUUIDPipe) id: string,
   ): Promise<void> {
     return this.records.remove(user.id, vehicleId, id);
-  }
-
-  @Get("maintenance-providers")
-  @ApiOperation({ summary: "The user's workshops by name, a page at a time" })
-  @ApiEnvelopeResponse(PROVIDER_SCHEMA, { paginated: true })
-  @ApiErrorResponses(400, 401)
-  providers(
-    @CurrentUser() user: AuthUser,
-    @Query() query: ProviderListQueryDto,
-  ): Promise<Paginated<MaintenanceProvider>> {
-    return this.records.providers(user.id, query);
   }
 }

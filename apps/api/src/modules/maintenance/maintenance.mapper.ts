@@ -10,6 +10,7 @@ import type { Prisma } from "@/generated/prisma/client";
 /** Every schedule query loads its completions (the logged services behind its next due). */
 export const SCHEDULE_INCLUDE = {
   completions: { select: { record: { select: { serviceDate: true, odometerKm: true } } } },
+  component: { select: { id: true, name: true } },
 } as const satisfies Prisma.MaintenanceScheduleInclude;
 
 type ScheduleRow = Prisma.MaintenanceScheduleGetPayload<{ include: typeof SCHEDULE_INCLUDE }>;
@@ -45,6 +46,7 @@ export function toSchedule(
     addedOdometerKm: row.addedOdometerKm,
     remindersEnabled: row.remindersEnabled,
     priority: row.priority,
+    component: row.component,
     notes: row.notes,
     pausedAt: row.pausedAt?.toISOString() ?? null,
     createdAt: row.createdAt.toISOString(),
@@ -67,7 +69,9 @@ export function toSchedule(
 }
 
 /** A stored schedule as create input, so a PATCH can be merged and re-checked whole. */
-export function toScheduleInput(row: Omit<ScheduleRow, "completions">): CreateScheduleValues {
+export function toScheduleInput(
+  row: Omit<ScheduleRow, "completions" | "component">,
+): CreateScheduleValues {
   return {
     name: row.name,
     categoryKey: row.categoryKey as MaintenanceCategoryKey,
@@ -81,6 +85,7 @@ export function toScheduleInput(row: Omit<ScheduleRow, "completions">): CreateSc
     leadDays: row.leadDays,
     leadKm: row.leadKm,
     priority: row.priority,
+    componentId: row.componentId,
     notes: row.notes,
   };
 }

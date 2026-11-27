@@ -8,6 +8,7 @@ import { useVehicles } from "@/features/garage/hooks/use-vehicles";
 import { RecordForm } from "@/features/maintenance/components/record-form";
 import { editRecordForm } from "@/features/maintenance/components/record-form-model";
 import {
+  useComponents,
   useSchedules,
   useServiceRecord,
   useUpdateServiceRecord,
@@ -22,6 +23,7 @@ export function Component() {
   const vehicles = useVehicles();
   const vehicle = vehicles.data?.find((item) => item.id === vehicleId);
   const record = useServiceRecord(vehicleId, recordId);
+  const parts = useComponents(vehicleId, { pageSize: 100 });
   const schedules = useSchedules(vehicleId, { pageSize: 100 });
   const update = useUpdateServiceRecord(vehicleId, recordId);
   const detail = `/maintenance/records/${vehicleId}/${recordId}`;
@@ -49,6 +51,7 @@ export function Component() {
       mode="edit"
       vehicle={vehicle}
       schedules={schedules.data?.items ?? []}
+      components={parts.data?.items ?? []}
       defaultValues={editRecordForm(record.data)}
       backTo={detail}
       onSave={(values) => update.mutateAsync(values)}

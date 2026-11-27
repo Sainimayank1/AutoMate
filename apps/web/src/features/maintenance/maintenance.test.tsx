@@ -1,9 +1,12 @@
 import type {
+  Inspection,
   MaintenanceOverview,
   MaintenanceSchedule,
+  ProviderProfile,
   ScheduleDue,
   ScheduleStatus,
   ServiceRecord,
+  VehicleComponentDetail,
 } from "@automate/shared";
 import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
@@ -19,6 +22,8 @@ const victoris = testVehicle();
 const OVERVIEW = `/vehicles/${victoris.id}/maintenance-overview`;
 const SCHEDULES = `/vehicles/${victoris.id}/maintenance-schedules`;
 const RECORDS = `/vehicles/${victoris.id}/service-records`;
+const COMPONENTS = `/vehicles/${victoris.id}/components`;
+const INSPECTIONS = `/vehicles/${victoris.id}/inspections`;
 
 const distanceDue = (kmRemaining: number, status: ScheduleStatus): ScheduleDue => ({
   status,
@@ -49,6 +54,7 @@ const schedule = (overrides: Partial<MaintenanceSchedule> = {}): MaintenanceSche
   leadDays: null,
   leadKm: null,
   priority: "NORMAL",
+  component: null,
   notes: null,
   pausedAt: null,
   createdAt: "2026-11-27T05:00:00.000Z",
@@ -307,6 +313,8 @@ const serviced: ServiceRecord = {
       partNumber: null,
       scheduleId: oil.id,
       scheduleName: oil.name,
+      componentId: null,
+      componentName: null,
     },
   ],
   expenseId: "0190d4a2-0000-7000-8000-00000000e001",
@@ -477,5 +485,444 @@ describe("service history", () => {
     });
     renderApp("/maintenance/history");
     expect(await screen.findByText("No service history")).toBeInTheDocument();
+  });
+});
+
+describe("components", () => {
+  const battery: VehicleComponentDetail = {
+    id: "0190d4a2-0000-7000-8000-00000000f101",
+    vehicleId: victoris.id,
+    kind: "BATTERY",
+    name: "12V battery",
+    position: null,
+    brand: "Amaron Pro",
+    partNumber: "38B20L",
+    installedAt: "2025-02-14",
+    installedKm: 1020,
+    provider: null,
+    expectedLifeKm: 40_000,
+    expectedLifeMonths: 48,
+    warrantyUntil: "2028-02-14",
+    warrantyKm: null,
+    warrantyActive: true,
+    condition: "GOOD",
+    state: "INSTALLED",
+    status: "GOOD",
+    removedAt: null,
+    removedKm: null,
+    installRecordId: null,
+    replacedBy: null,
+    replaces: null,
+    life: {
+      kmUsed: 18_400,
+      kmRemaining: 21_600,
+      estimatedKm: 41_020,
+      monthsUsed: 21,
+      daysRemaining: 810,
+      estimatedDate: "2029-02-14",
+      fractionUsed: 0.46,
+      decidedBy: "DISTANCE",
+    },
+    schedules: [{ id: oil.id, name: "Battery check", status: "UPCOMING" }],
+    notes: null,
+    createdAt: "2025-02-14T10:00:00.000Z",
+    updatedAt: "2025-02-14T10:00:00.000Z",
+    history: [
+      {
+        source: "EVENT",
+        type: "INSTALLED",
+        date: "2025-02-14",
+        odometerKm: 1020,
+        condition: null,
+        notes: null,
+        recordId: null,
+        recordTitle: null,
+        inspectionId: null,
+        inspectionTitle: null,
+        checklistCondition: null,
+      },
+    ],
+  };
+
+  it("shows fitted parts with their status, estimated life and warranty", async () => {
+    api({
+      "GET /vehicles": () => okPage([victoris]),
+      [`GET ${COMPONENTS}`]: (config) =>
+        (config.params as { state?: string }).state === "history"
+          ? okPage([], { total: 1 })
+          : okPage([battery]),
+    });
+    renderApp("/maintenance/components");
+    const card = await screen.findByRole("link", { name: /12V battery/ });
+    expect(card).toHaveAttribute("href", `/maintenance/components/${battery.id}`);
+    expect(within(card).getByText("Good")).toBeInTheDocument();
+    expect(within(card).getByText("Amaron Pro · 38B20L")).toBeInTheDocument();
+    expect(
+      within(card).getByText("Estimated life: 46% used · about 21,600 km left (estimate)"),
+    ).toBeInTheDocument();
+    expect(within(card).getByText("Under warranty until 14/02/2028")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Replaced & removed/ })).toHaveTextContent("1");
+  });
+
+  it("invites the first component", async () => {
+    api({
+      "GET /vehicles": () => okPage([victoris]),
+      [`GET ${COMPONENTS}`]: () => okPage([]),
+    });
+    renderApp("/maintenance/components");
+    expect(await screen.findByText("No components tracked")).toBeInTheDocument();
+  });
+
+  it("shows a part's life and lifecycle, and records an inspection", async () => {
+    const calls = api({
+      "GET /vehicles": () => okPage([victoris]),
+      [`GET ${COMPONENTS}/${battery.id}`]: () => ok(battery),
+      [`POST ${COMPONENTS}/${battery.id}/inspect`]: () =>
+        ok({ ...battery, condition: "MONITORING" }),
+    });
+    renderApp(`/maintenance/components/${battery.id}`);
+    const user = userEvent.setup();
+
+    expect(await screen.findByRole("heading", { name: "12V battery" })).toBeInTheDocument();
+    expect(screen.getByText("18,400 of 40,000 km")).toBeInTheDocument();
+    expect(screen.getByText("21 of 48 months")).toBeInTheDocument();
+    expect(
+      screen.getByText(/Estimates from the lifespan you set; not a guarantee/),
+    ).toBeInTheDocument();
+    expect(screen.getAllByText("Installed")).toHaveLength(2); // details row + lifecycle entry
+    expect(screen.getByRole("link", { name: "Replace" })).toHaveAttribute(
+      "href",
+      `/maintenance/components/${battery.id}/replace`,
+    );
+
+    await user.click(screen.getByRole("button", { name: "Record inspection" }));
+    const dialog = await screen.findByRole("dialog");
+    expect(dialog).toHaveTextContent("Your own check, not a professional inspection.");
+    await user.click(within(dialog).getByRole("combobox", { name: "Condition" }));
+    await user.click(await screen.findByRole("option", { name: "Needs monitoring" }));
+    await user.click(within(dialog).getByRole("button", { name: "Save inspection" }));
+    await waitFor(() => expect(calls.some((call) => call.method === "post")).toBe(true));
+    expect(bodyOf(calls.find((call) => call.method === "post"))).toMatchObject({
+      condition: "MONITORING",
+    });
+  });
+
+  it("replaces a part with a cost and opens the new one", async () => {
+    const fresh = {
+      ...battery,
+      id: "0190d4a2-0000-7000-8000-00000000f102",
+      condition: "NEW" as const,
+    };
+    const calls = api({
+      "GET /vehicles": () => okPage([victoris]),
+      [`GET ${COMPONENTS}/${battery.id}`]: () => ok(battery),
+      [`GET ${COMPONENTS}/${fresh.id}`]: () => ok(fresh),
+      [`POST ${COMPONENTS}/${battery.id}/replace`]: () => ok(fresh),
+      "GET /maintenance-providers": () => okPage([]),
+    });
+    renderApp(`/maintenance/components/${battery.id}/replace`);
+    const user = userEvent.setup();
+
+    expect(await screen.findByText(/The old part is kept in its history/)).toBeInTheDocument();
+    expect(screen.getByLabelText(/Expected life/)).toHaveValue("40,000");
+    await user.type(screen.getByLabelText(/Brand/), "Exide");
+    await user.type(screen.getByLabelText(/^Total/), "5400");
+    await user.click(screen.getByRole("button", { name: "Save replacement" }));
+    await waitFor(() => expect(calls.some((call) => call.method === "post")).toBe(true));
+    const body = bodyOf(calls.find((call) => call.method === "post"));
+    expect(body).toMatchObject({ brand: "Exide", totalAmount: "5400", expectedLifeKm: 40_000 });
+    expect(body.id).toEqual(expect.any(String));
+    expect(await screen.findByRole("heading", { name: "12V battery" })).toBeInTheDocument();
+  });
+});
+
+describe("inspections", () => {
+  const finding = (id: string, overrides: Partial<Inspection["items"][number]>) => ({
+    id,
+    area: "TYRES" as const,
+    label: "Tyre pressure",
+    condition: "GOOD" as const,
+    notes: null,
+    recommendedAction: null,
+    componentId: null,
+    componentName: null,
+    followUpSchedule: null,
+    ...overrides,
+  });
+  const PADS = "0190d4a2-0000-7000-8000-00000000a102";
+  const TREAD = "0190d4a2-0000-7000-8000-00000000a103";
+  const monthly: Inspection = {
+    id: "0190d4a2-0000-7000-8000-00000000a001",
+    vehicleId: victoris.id,
+    kind: "SELF_CHECK",
+    templateKey: "MONTHLY",
+    title: "Monthly check",
+    date: "2026-11-27",
+    odometerKm: 8450,
+    inspector: null,
+    provider: null,
+    followUpDate: "2026-12-15",
+    notes: "Book alignment before the highway trip.",
+    items: [
+      finding("0190d4a2-0000-7000-8000-00000000a101", { notes: "33 PSI" }),
+      finding(PADS, {
+        area: "BRAKES",
+        label: "Front brake pads",
+        condition: "REPLACE_SOON",
+        notes: "About 3 mm left",
+        recommendedAction: "Replace front brake pads",
+      }),
+      finding(TREAD, {
+        label: "Front tyre tread",
+        condition: "ATTENTION",
+        recommendedAction: "Rotate tyres",
+        followUpSchedule: { id: oil.id, name: "Front tyre check", status: "DUE_SOON" },
+      }),
+    ],
+    counts: { issues: 2, monitor: 0, ok: 1, notInspected: 0 },
+    createdAt: "2026-11-27T10:00:00.000Z",
+    updatedAt: "2026-11-27T10:00:00.000Z",
+  };
+
+  it("lists inspections with what they found, and filters by kind on the server", async () => {
+    const calls = api({
+      "GET /vehicles": () => okPage([victoris]),
+      [`GET ${INSPECTIONS}`]: (config) =>
+        okPage(config.params?.kind === "PROFESSIONAL" ? [] : [monthly]),
+    });
+    renderApp("/maintenance/inspections");
+    const user = userEvent.setup();
+
+    const row = await screen.findByRole("link", { name: /Monthly check/ });
+    expect(within(row).getByText("2 issues")).toBeInTheDocument();
+    expect(within(row).getByText("1 good")).toBeInTheDocument();
+    expect(within(row).getByText("Follow up by 15/12/2026")).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: /Professional/ }));
+    expect(await screen.findByText("No workshop inspections")).toBeInTheDocument();
+    expect(
+      calls.some((call) => call.params?.kind === "PROFESSIONAL" && call.params?.page === 1),
+    ).toBe(true);
+  });
+
+  it(
+    "records a checklist from a template, asking for an action on flagged items",
+    { timeout: 15_000 },
+    async () => {
+      const calls = api({
+        "GET /vehicles": () => okPage([victoris]),
+        [`GET ${COMPONENTS}`]: () => okPage([]),
+        "GET /maintenance-providers": () => okPage([]),
+        [`POST ${INSPECTIONS}`]: () => ok(monthly, 201),
+        [`GET ${INSPECTIONS}/${monthly.id}`]: () => ok(monthly),
+      });
+      renderApp("/maintenance/inspections/new");
+      const user = userEvent.setup();
+
+      expect(await screen.findByText("0 of 8 checked")).toBeInTheDocument();
+      await user.click(screen.getByRole("combobox", { name: "Condition of Tyre pressure" }));
+      await user.click(await screen.findByRole("option", { name: "Good" }));
+      await user.click(screen.getByRole("combobox", { name: "Condition of Battery terminals" }));
+      await user.click(await screen.findByRole("option", { name: "Replace soon" }));
+      await user.type(screen.getByLabelText(/Recommended action/), "Clean the terminals");
+      expect(screen.getByText("2 of 8 checked")).toBeInTheDocument();
+      expect(screen.getByText("Battery terminals · Replace soon")).toBeInTheDocument();
+
+      await user.click(screen.getByRole("button", { name: "Save inspection" }));
+      await waitFor(() => expect(calls.some((call) => call.method === "post")).toBe(true));
+      const body = bodyOf(calls.find((call) => call.method === "post"));
+      expect(body).toMatchObject({
+        kind: "SELF_CHECK",
+        templateKey: "QUICK",
+        title: "Quick walk-around",
+        odometerKm: null,
+      });
+      expect(body.id).toEqual(expect.any(String));
+      const items = body.items as Record<string, unknown>[];
+      expect(items).toHaveLength(8);
+      expect(items[0]).toMatchObject({ area: "TYRES", label: "Tyre pressure", condition: "GOOD" });
+      expect(items[7]).toMatchObject({
+        area: "BATTERY",
+        label: "Battery terminals",
+        condition: "REPLACE_SOON",
+        recommendedAction: "Clean the terminals",
+      });
+      expect(await screen.findByRole("heading", { name: "Monthly check" })).toBeInTheDocument();
+    },
+  );
+
+  it(
+    "follows a finding up with a linked schedule, and deletes the inspection",
+    { timeout: 15_000 },
+    async () => {
+      const calls = api({
+        "GET /vehicles": () => okPage([victoris]),
+        [`GET ${INSPECTIONS}/${monthly.id}`]: () => ok(monthly),
+        [`GET ${INSPECTIONS}`]: () => okPage([]),
+        [`GET ${COMPONENTS}`]: () => okPage([]),
+        [`POST ${SCHEDULES}`]: () => ok(oil, 201),
+        [`DELETE ${INSPECTIONS}/${monthly.id}`]: () => ({ status: 204 }),
+      });
+      renderApp(`/maintenance/inspections/${monthly.id}`);
+      const user = userEvent.setup();
+
+      expect(await screen.findByRole("heading", { name: "Monthly check" })).toBeInTheDocument();
+      expect(
+        screen.getByRole("link", { name: /Schedule: Front tyre check · due soon/ }),
+      ).toHaveAttribute("href", `/maintenance/schedules/${oil.id}`);
+      expect(screen.getByRole("link", { name: /Log repair/ })).toHaveAttribute(
+        "href",
+        `/maintenance/records/new?inspection=${monthly.id}`,
+      );
+
+      await user.click(screen.getByRole("link", { name: "Create schedule" }));
+      expect(await screen.findByLabelText("Name")).toHaveValue("Replace front brake pads");
+      await user.click(screen.getByRole("button", { name: "Save schedule" }));
+      await waitFor(() => expect(calls.some((call) => call.method === "post")).toBe(true));
+      expect(bodyOf(calls.find((call) => call.method === "post"))).toMatchObject({
+        name: "Replace front brake pads",
+        categoryKey: "BRAKES.INSPECTION",
+        dueDate: "2026-12-15",
+        intervalKm: null,
+        priority: "HIGH",
+        inspectionItemId: PADS,
+      });
+
+      expect(await screen.findByRole("heading", { name: "Monthly check" })).toBeInTheDocument();
+      await user.click(screen.getByRole("button", { name: "Delete" }));
+      const dialog = await screen.findByRole("alertdialog");
+      expect(dialog).toHaveTextContent("Schedules created from its findings are kept");
+      await user.click(within(dialog).getByRole("button", { name: "Delete" }));
+      await waitFor(() => expect(calls.some((call) => call.method === "delete")).toBe(true));
+      expect(await screen.findByText("No inspections yet")).toBeInTheDocument();
+    },
+  );
+
+  it("edits an inspection, keeping its items' ids", { timeout: 15_000 }, async () => {
+    const calls = api({
+      "GET /vehicles": () => okPage([victoris]),
+      [`GET ${INSPECTIONS}/${monthly.id}`]: () => ok(monthly),
+      [`GET ${COMPONENTS}`]: () => okPage([]),
+      "GET /maintenance-providers": () => okPage([]),
+      [`PATCH ${INSPECTIONS}/${monthly.id}`]: () => ok(monthly),
+    });
+    renderApp(`/maintenance/inspections/${monthly.id}/edit`);
+    const user = userEvent.setup();
+
+    await user.click(
+      await screen.findByRole("combobox", { name: "Condition of Front brake pads" }),
+    );
+    await user.click(await screen.findByRole("option", { name: "Replaced" }));
+    await user.click(screen.getByRole("button", { name: "Save changes" }));
+    await waitFor(() => expect(calls.some((call) => call.method === "patch")).toBe(true));
+    const items = bodyOf(calls.find((call) => call.method === "patch")).items as Record<
+      string,
+      unknown
+    >[];
+    expect(items.map((item) => item.id)).toEqual([monthly.items[0]!.id, PADS, TREAD]);
+    expect(items[1]).toMatchObject({ condition: "REPLACED" });
+  });
+});
+
+describe("workshops", () => {
+  const WORKSHOPS = "/maintenance-providers";
+  const arena: ProviderProfile = {
+    id: "0190d4a2-0000-7000-8000-00000000b001",
+    name: "Maruti Arena Service, Gurugram",
+    type: "AUTHORISED",
+    phone: "+91 98100 12345",
+    email: "service@arenagurugram.in",
+    address: "Plot 42, Sector 18, Gurugram",
+    city: "Gurugram",
+    preferred: true,
+    notes: "Ask for Ramesh at the service desk.",
+    archivedAt: null,
+    stats: { visits: 1, firstVisit: "2026-05-18", lastVisit: "2026-05-18", spent: "6500.00" },
+    createdAt: "2026-05-18T10:00:00.000Z",
+    updatedAt: "2026-05-18T10:00:00.000Z",
+  };
+  const quickFix: ProviderProfile = {
+    ...arena,
+    id: "0190d4a2-0000-7000-8000-00000000b002",
+    name: "Quick Fix Garage",
+    type: "INDEPENDENT",
+    phone: null,
+    email: null,
+    address: null,
+    city: null,
+    preferred: false,
+    notes: null,
+    stats: { visits: 0, firstVisit: null, lastVisit: null, spent: "0.00" },
+  };
+
+  it("lists workshops with visits and spending, and adds one", { timeout: 15_000 }, async () => {
+    const calls = api({
+      "GET /vehicles": () => okPage([victoris]),
+      [`GET ${WORKSHOPS}`]: (config) =>
+        okPage(
+          config.params?.archived ? [] : config.params?.preferred ? [arena] : [arena, quickFix],
+        ),
+      [`POST ${WORKSHOPS}`]: () => ok(quickFix, 201),
+    });
+    renderApp("/maintenance/workshops");
+    const user = userEvent.setup();
+
+    const card = (await screen.findByRole("link", { name: arena.name })).closest("article")!;
+    expect(within(card).getByText("Authorised service centre")).toBeInTheDocument();
+    expect(within(card).getByText("Preferred")).toBeInTheDocument();
+    expect(within(card).getByRole("link", { name: /\+91 98100 12345/ })).toHaveAttribute(
+      "href",
+      "tel:+919810012345",
+    );
+    expect(within(card).getByText("₹6,500.00 spent")).toBeInTheDocument();
+    expect(screen.getByText("No visits yet")).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Add workshop" }));
+    const dialog = await screen.findByRole("dialog");
+    await user.type(within(dialog).getByLabelText("Name"), "Quick Fix Garage");
+    await user.type(within(dialog).getByLabelText(/Phone/), "call me");
+    await user.click(within(dialog).getByRole("button", { name: "Save workshop" }));
+    expect(await within(dialog).findByText("Enter a phone number")).toBeInTheDocument();
+    await user.clear(within(dialog).getByLabelText(/Phone/));
+    await user.click(within(dialog).getByRole("switch", { name: /Preferred workshop/ }));
+    await user.click(within(dialog).getByRole("button", { name: "Save workshop" }));
+    await waitFor(() => expect(calls.some((call) => call.method === "post")).toBe(true));
+    const body = bodyOf(calls.find((call) => call.method === "post"));
+    expect(body).toMatchObject({
+      name: "Quick Fix Garage",
+      type: "OTHER",
+      phone: null,
+      preferred: true,
+    });
+    expect(body.id).toEqual(expect.any(String));
+  });
+
+  it("shows a workshop's visits and contact, and archives it", { timeout: 15_000 }, async () => {
+    const calls = api({
+      "GET /vehicles": () => okPage([victoris]),
+      [`GET ${WORKSHOPS}/${arena.id}`]: () => ok(arena),
+      [`GET ${WORKSHOPS}/${arena.id}/service-records`]: () => okPage([serviced]),
+      [`POST ${WORKSHOPS}/${arena.id}/archive`]: () =>
+        ok({ ...arena, archivedAt: "2026-11-27T10:00:00.000Z" }),
+    });
+    renderApp(`/maintenance/workshops/${arena.id}`);
+    const user = userEvent.setup();
+
+    expect(await screen.findByRole("heading", { name: arena.name })).toBeInTheDocument();
+    expect(screen.getByText("From Expenses, net of refunds")).toBeInTheDocument();
+    const visit = await screen.findByRole("link", { name: /2nd free periodic service/ });
+    expect(visit).toHaveAttribute("href", `/maintenance/records/${victoris.id}/${serviced.id}`);
+    expect(screen.getByRole("link", { name: "service@arenagurugram.in" })).toHaveAttribute(
+      "href",
+      "mailto:service@arenagurugram.in",
+    );
+    expect(screen.getByText(/so it can't be deleted/)).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "More actions" }));
+    expect(screen.queryByRole("menuitem", { name: "Delete" })).not.toBeInTheDocument();
+    await user.click(await screen.findByRole("menuitem", { name: "Archive" }));
+    await waitFor(() =>
+      expect(calls.some((call) => call.url === `${WORKSHOPS}/${arena.id}/archive`)).toBe(true),
+    );
   });
 });

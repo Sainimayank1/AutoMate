@@ -1,6 +1,9 @@
 import {
   breakdownTotal,
   checkServiceRecord,
+  type Inspection,
+  inspectionAreaCategory,
+  ISSUE_CONDITIONS,
   type MaintenanceCategoryKey,
   type MaintenanceSchedule,
   type PaymentMethod,
@@ -10,7 +13,12 @@ import {
 } from "@automate/shared";
 import type { z } from "zod";
 
-export type RecordItemValues = { name: string; partNumber: string; scheduleId: string };
+export type RecordItemValues = {
+  name: string;
+  partNumber: string;
+  scheduleId: string;
+  componentId: string;
+};
 
 /** Form state: inputs hold strings; `recordFormSchema` turns them into the API payload. */
 export type RecordFormValues = {
@@ -58,7 +66,16 @@ export function newRecordForm(today: string, schedule?: MaintenanceSchedule): Re
     odometerKm: "",
     providerName: "",
     technician: "",
-    items: schedule ? [{ name: schedule.name, partNumber: "", scheduleId: schedule.id }] : [],
+    items: schedule
+      ? [
+          {
+            name: schedule.name,
+            partNumber: "",
+            scheduleId: schedule.id,
+            componentId: schedule.component?.id ?? "",
+          },
+        ]
+      : [],
     labourAmount: "",
     partsAmount: "",
     otherAmount: "",
@@ -93,6 +110,7 @@ export function editRecordForm(record: ServiceRecord): RecordFormValues {
       name: item.name,
       partNumber: text(item.partNumber),
       scheduleId: text(item.scheduleId),
+      componentId: text(item.componentId),
     })),
     labourAmount: text(record.labourAmount),
     partsAmount: text(record.partsAmount),
@@ -106,5 +124,25 @@ export function editRecordForm(record: ServiceRecord): RecordFormValues {
     warrantyNotes: text(record.warrantyNotes),
     description: text(record.description),
     notes: text(record.notes),
+  };
+}
+
+/** A repair of an inspection's issues; items that a follow-up schedule tracks complete it. */
+export function newRecordFromInspection(today: string, inspection: Inspection): RecordFormValues {
+  const issues = inspection.items.filter((item) => ISSUE_CONDITIONS.includes(item.condition));
+  return {
+    ...newRecordForm(today),
+    type: ServiceRecordType.REPAIR,
+    title: `Repairs after ${inspection.title}`.slice(0, 120),
+    categoryKey: issues[0] ? inspectionAreaCategory(issues[0].area) : "",
+    items: issues.map((item) => ({
+      name: (item.recommendedAction ?? item.label).slice(0, 120),
+      partNumber: "",
+      scheduleId:
+        item.followUpSchedule && item.followUpSchedule.status !== "COMPLETED"
+          ? item.followUpSchedule.id
+          : "",
+      componentId: item.componentId ?? "",
+    })),
   };
 }

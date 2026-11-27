@@ -8,13 +8,17 @@ import {
   addDays,
   type ApiErrorResponse,
   type ApiSuccessResponse,
+  type Inspection,
   istToday,
   type MaintenanceOverview,
   type MaintenanceProvider,
   type MaintenanceSchedule,
   type PageMeta,
+  type ProviderProfile,
   type ServiceRecord,
   type Vehicle,
+  type VehicleComponent,
+  type VehicleComponentDetail,
 } from "@automate/shared";
 import type { NestExpressApplication } from "@nestjs/platform-express";
 import { Test } from "@nestjs/testing";
@@ -714,6 +718,518 @@ describe("Maintenance (e2e)", () => {
       await as(priya)
         .delete(`${records(car.id)}/${first.id}`)
         .expect(404);
+    });
+  });
+
+  describe("components", () => {
+    const components = (vehicleId: string) => `/api/v1/vehicles/${vehicleId}/components`;
+    const battery = (overrides: object = {}) => ({
+      kind: "BATTERY",
+      name: "12V battery",
+      brand: "Exide",
+      installedAt: "2025-02-14",
+      installedKm: 1020,
+      expectedLifeKm: 40_000,
+      expectedLifeMonths: 48,
+      warrantyUntil: "2028-02-14",
+      condition: "GOOD",
+      ...overrides,
+    });
+
+    it("tracks a part with its estimated life, links schedules and records inspections", async () => {
+      const car = await vehicle(arjun, 9020);
+      const id = randomUUID();
+      const part = dataOf<VehicleComponentDetail>(
+        await as(arjun).post(components(car.id), battery({ id })).expect(201),
+      );
+      expect(part).toMatchObject({
+        id,
+        state: "INSTALLED",
+        status: "GOOD",
+        warrantyActive: true,
+        life: { kmUsed: 8000, estimatedKm: 41_020, estimatedDate: "2029-02-14" },
+        history: [{ type: "INSTALLED", date: "2025-02-14", odometerKm: 1020 }],
+      });
+      await as(arjun)
+        .post(components(car.id), battery({ id, name: "Retry" }))
+        .expect(201);
+      expect(metaOf(await as(arjun).get(components(car.id)).expect(200))?.total).toBe(1);
+
+      // A schedule watching it, due now: the part shows "inspection due".
+      await as(arjun)
+        .post(schedules(car.id), {
+          name: "Battery check",
+          categoryKey: "ELECTRICAL.BATTERY_INSPECTION",
+          dueKm: 9100,
+          componentId: id,
+        })
+        .expect(201);
+      expect(
+        dataOf<VehicleComponent>(
+          await as(arjun)
+            .get(`${components(car.id)}/${id}`)
+            .expect(200),
+        ),
+      ).toMatchObject({
+        status: "INSPECTION_DUE",
+        schedules: [{ name: "Battery check", status: "DUE" }],
+      });
+      const other = await vehicle(arjun);
+      await as(arjun)
+        .post(schedules(other.id), {
+          name: "X",
+          categoryKey: "OTHER.OTHER",
+          dueKm: 1,
+          componentId: id,
+        })
+        .expect(400);
+
+      const inspected = dataOf<VehicleComponentDetail>(
+        await as(arjun)
+          .post(`${components(car.id)}/${id}/inspect`, {
+            date: addDays(today, -1),
+            odometerKm: 9000,
+            condition: "REPLACE_SOON",
+            notes: "Slow crank",
+          })
+          .expect(200),
+      );
+      expect(inspected).toMatchObject({
+        condition: "REPLACE_SOON",
+        status: "REPLACEMENT_APPROACHING",
+      });
+      expect(inspected.history.at(-1)).toMatchObject({
+        type: "INSPECTED",
+        condition: "REPLACE_SOON",
+        notes: "Slow crank",
+      });
+      const early = await as(arjun)
+        .post(`${components(car.id)}/${id}/inspect`, { date: "2024-01-01", condition: "GOOD" })
+        .expect(400);
+      expect(errorOf(early).details).toEqual([expect.objectContaining({ field: "date" })]);
+    });
+
+    it("replaces a part: the old one is kept, the work is a record with its expense, schedules move on", async () => {
+      const car = await vehicle(arjun, 9020);
+      const old = dataOf<VehicleComponent>(
+        await as(arjun).post(components(car.id), battery()).expect(201),
+      );
+      const check = dataOf<MaintenanceSchedule>(
+        await as(arjun)
+          .post(schedules(car.id), {
+            name: "Battery check",
+            categoryKey: "ELECTRICAL.BATTERY_INSPECTION",
+            intervalMonths: 6,
+            componentId: old.id,
+          })
+          .expect(201),
+      );
+      const fresh = dataOf<VehicleComponentDetail>(
+        await as(arjun)
+          .post(`${components(car.id)}/${old.id}/replace`, {
+            date: today,
+            odometerKm: 9100,
+            brand: "Amaron Pro",
+            partNumber: "38B20L",
+            warrantyUntil: "2029-11-27",
+            providerName: "Battery Point",
+            totalAmount: "5400",
+            paymentMethod: "UPI",
+          })
+          .expect(200),
+      );
+      expect(fresh).toMatchObject({
+        name: "12V battery",
+        brand: "Amaron Pro",
+        state: "INSTALLED",
+        condition: "NEW",
+        status: "NEW",
+        replaces: { id: old.id },
+        expectedLifeMonths: 48, // carried over
+        schedules: [{ id: check.id }],
+        history: [{ type: "INSTALLED", recordTitle: "12V battery replaced" }],
+      });
+
+      const record = dataOf<ServiceRecord>(
+        await as(arjun)
+          .get(`/api/v1/vehicles/${car.id}/service-records/${fresh.installRecordId}`)
+          .expect(200),
+      );
+      expect(record).toMatchObject({
+        type: "COMPONENT_REPLACEMENT",
+        categoryKey: "ELECTRICAL.BATTERY_REPLACEMENT",
+        totalAmount: "5400.00",
+        items: [{ name: "Amaron Pro 12V battery", componentId: fresh.id, scheduleId: check.id }],
+      });
+      const expense = dataOf<{ amount: string; subcategory: { key: string } }>(
+        await as(arjun).get(`/api/v1/expenses/${record.expenseId}`).expect(200),
+      );
+      expect(expense).toMatchObject({
+        amount: "5400.00",
+        subcategory: { key: "MAINTENANCE.BATTERY" },
+      });
+      expect(
+        dataOf<MaintenanceSchedule>(
+          await as(arjun)
+            .get(`${schedules(car.id)}/${check.id}`)
+            .expect(200),
+        ).due.date,
+      ).toMatchObject({ basis: "COMPLETION", from: today });
+
+      const kept = dataOf<VehicleComponentDetail>(
+        await as(arjun)
+          .get(`${components(car.id)}/${old.id}`)
+          .expect(200),
+      );
+      expect(kept).toMatchObject({
+        state: "REPLACED",
+        status: "REPLACED",
+        removedAt: today,
+        replacedBy: { id: fresh.id },
+        schedules: [],
+      });
+      expect(kept.history.at(-1)).toMatchObject({ type: "REPLACED", recordId: record.id });
+      const history = dataOf<VehicleComponent[]>(
+        await as(arjun)
+          .get(`${components(car.id)}?state=history`)
+          .expect(200),
+      );
+      expect(history.map((part) => part.id)).toEqual([old.id]);
+      await as(arjun)
+        .post(`${components(car.id)}/${old.id}/inspect`, { date: today, condition: "GOOD" })
+        .expect(409);
+    });
+
+    it("marks a part removed, lists records that worked on it, and keeps parts private", async () => {
+      const car = await vehicle(arjun, 9020);
+      const tyres = dataOf<VehicleComponent>(
+        await as(arjun)
+          .post(components(car.id), { kind: "TYRES", name: "Front tyres", position: "Front pair" })
+          .expect(201),
+      );
+      expect(tyres).toMatchObject({ status: "UNKNOWN", life: null, warrantyActive: null });
+      const rotation = dataOf<ServiceRecord>(
+        await as(arjun)
+          .post(`/api/v1/vehicles/${car.id}/service-records`, {
+            type: "ROUTINE_SERVICE",
+            title: "Tyre rotation",
+            categoryKey: "TYRES.ROTATION",
+            serviceDate: addDays(today, -3),
+            odometerKm: 9000,
+            items: [{ name: "Rotation", componentId: tyres.id }],
+          })
+          .expect(201),
+      );
+      expect(rotation.items[0]).toMatchObject({
+        componentId: tyres.id,
+        componentName: "Front tyres",
+      });
+
+      const removed = dataOf<VehicleComponentDetail>(
+        await as(arjun)
+          .post(`${components(car.id)}/${tyres.id}/remove`, {
+            date: today,
+            odometerKm: 9020,
+            failed: true,
+          })
+          .expect(200),
+      );
+      expect(removed).toMatchObject({ state: "REMOVED", status: "REMOVED", condition: "FAILED" });
+      expect(removed.history.map((entry) => entry.type)).toEqual(["SERVICED", "REMOVED"]);
+
+      await as(priya)
+        .get(`${components(car.id)}/${tyres.id}`)
+        .expect(404);
+      const hers = await vehicle(priya);
+      await as(priya)
+        .get(`${components(hers.id)}/${tyres.id}`)
+        .expect(404);
+      await as(arjun)
+        .delete(`${components(car.id)}/${tyres.id}`)
+        .expect(204);
+      const kept = dataOf<ServiceRecord>(
+        await as(arjun)
+          .get(`/api/v1/vehicles/${car.id}/service-records/${rotation.id}`)
+          .expect(200),
+      );
+      expect(kept.items[0]).toMatchObject({ componentId: null });
+    });
+  });
+
+  describe("inspections", () => {
+    const inspections = (vehicleId: string) => `/api/v1/vehicles/${vehicleId}/inspections`;
+    const check = (overrides: object = {}) => ({
+      kind: "SELF_CHECK",
+      templateKey: "MONTHLY",
+      title: "Monthly check",
+      date: today,
+      odometerKm: 8400,
+      followUpDate: addDays(today, 14),
+      items: [
+        { area: "TYRES", label: "Tyre pressure", condition: "GOOD" },
+        {
+          area: "TYRES",
+          label: "Tyre tread",
+          condition: "ATTENTION",
+          recommendedAction: "Check alignment",
+        },
+        { area: "BRAKES", label: "Brake feel", condition: "MONITOR" },
+        { area: "AC", label: "AC cooling", condition: "NOT_INSPECTED" },
+      ],
+      ...overrides,
+    });
+
+    it("records a checklist with counts, a part's finding in its lifecycle, and validates it", async () => {
+      const car = await vehicle(arjun, 8400);
+      const tyres = dataOf<{ id: string }>(
+        await as(arjun)
+          .post(`/api/v1/vehicles/${car.id}/components`, { kind: "TYRES", name: "Front tyres" })
+          .expect(201),
+      );
+      const base = check();
+      const id = randomUUID();
+      const created = dataOf<Inspection>(
+        await as(arjun)
+          .post(inspections(car.id), {
+            ...base,
+            id,
+            items: base.items.map((item, index) =>
+              index === 1 ? { ...item, componentId: tyres.id } : item,
+            ),
+          })
+          .expect(201),
+      );
+      expect(created).toMatchObject({
+        id,
+        kind: "SELF_CHECK",
+        counts: { issues: 1, monitor: 1, ok: 1, notInspected: 1 },
+        items: [
+          { label: "Tyre pressure" },
+          { label: "Tyre tread", componentName: "Front tyres" },
+          {},
+          {},
+        ],
+      });
+      await as(arjun).post(inspections(car.id), check({ id })).expect(201);
+      await as(arjun)
+        .post(inspections(car.id), check({ kind: "PROFESSIONAL", providerName: "Arena" }))
+        .expect(201);
+      expect(
+        metaOf(
+          await as(arjun)
+            .get(`${inspections(car.id)}?kind=SELF_CHECK`)
+            .expect(200),
+        )?.total,
+      ).toBe(1);
+
+      const part = dataOf<{ history: { source: string; checklistCondition: string | null }[] }>(
+        await as(arjun).get(`/api/v1/vehicles/${car.id}/components/${tyres.id}`).expect(200),
+      );
+      expect(part.history).toContainEqual(
+        expect.objectContaining({ source: "INSPECTION", checklistCondition: "ATTENTION" }),
+      );
+
+      const early = await as(arjun)
+        .post(inspections(car.id), check({ followUpDate: addDays(today, -1) }))
+        .expect(400);
+      expect(errorOf(early).details).toContainEqual(
+        expect.objectContaining({ field: "followUpDate" }),
+      );
+      const other = await vehicle(arjun);
+      const foreign = dataOf<{ id: string }>(
+        await as(arjun)
+          .post(`/api/v1/vehicles/${other.id}/components`, { kind: "BATTERY", name: "Battery" })
+          .expect(201),
+      );
+      await as(arjun)
+        .post(
+          inspections(car.id),
+          check({
+            items: [
+              { area: "BATTERY", label: "Battery", condition: "GOOD", componentId: foreign.id },
+            ],
+          }),
+        )
+        .expect(400);
+      await as(arjun)
+        .post(inspections(car.id), check({ items: [] }))
+        .expect(400);
+    });
+
+    it("follows a finding up with a schedule, keeps the link through edits, and keeps the schedule on delete", async () => {
+      const car = await vehicle(arjun, 8400);
+      const inspection = dataOf<Inspection>(
+        await as(arjun).post(inspections(car.id), check()).expect(201),
+      );
+      const finding = inspection.items[1]!;
+      const schedule = dataOf<MaintenanceSchedule>(
+        await as(arjun)
+          .post(schedules(car.id), {
+            name: "Tyre tread check",
+            categoryKey: "TYRES.PRESSURE",
+            dueDate: addDays(today, 14),
+            inspectionItemId: finding.id,
+          })
+          .expect(201),
+      );
+      const linked = dataOf<Inspection>(
+        await as(arjun)
+          .get(`${inspections(car.id)}/${inspection.id}`)
+          .expect(200),
+      );
+      expect(linked.items[1]!.followUpSchedule).toMatchObject({
+        id: schedule.id,
+        name: "Tyre tread check",
+        status: "DUE_SOON",
+      });
+
+      // Editing with the item's id keeps its follow-up; dropping an item removes it.
+      const edited = dataOf<Inspection>(
+        await as(arjun)
+          .patch(`${inspections(car.id)}/${inspection.id}`, {
+            items: [
+              {
+                ...finding,
+                condition: "REPLACE_SOON",
+                followUpSchedule: undefined,
+                componentName: undefined,
+              },
+            ],
+          })
+          .expect(200),
+      );
+      expect(edited.items).toHaveLength(1);
+      expect(edited.items[0]).toMatchObject({
+        id: finding.id,
+        condition: "REPLACE_SOON",
+        followUpSchedule: { id: schedule.id },
+      });
+
+      const other = await vehicle(arjun);
+      await as(arjun)
+        .post(schedules(other.id), {
+          name: "X",
+          categoryKey: "OTHER.OTHER",
+          dueKm: 1,
+          inspectionItemId: finding.id,
+        })
+        .expect(400);
+
+      await as(priya)
+        .get(`${inspections(car.id)}/${inspection.id}`)
+        .expect(404);
+      await as(arjun)
+        .delete(`${inspections(car.id)}/${inspection.id}`)
+        .expect(204);
+      await as(arjun)
+        .get(`${schedules(car.id)}/${schedule.id}`)
+        .expect(200);
+    });
+  });
+  describe("workshops", () => {
+    const providers = "/api/v1/maintenance-providers";
+
+    it("keeps a workshop's profile, visits and spending from Expenses, and archives one with history", async () => {
+      const car = await vehicle(arjun, 8000);
+      const id = randomUUID();
+      const profile = {
+        id,
+        name: "Sharma Tyres & Wheels",
+        type: "TYRES",
+        phone: "+91 98111 22334",
+        city: "Gurugram",
+        preferred: true,
+      };
+      expect(
+        dataOf<ProviderProfile>(await as(arjun).post(providers, profile).expect(201)),
+      ).toMatchObject({
+        id,
+        type: "TYRES",
+        preferred: true,
+        archivedAt: null,
+        stats: { visits: 0, firstVisit: null, lastVisit: null, spent: "0.00" },
+      });
+      // A retried save returns the same workshop; names are unique ignoring case.
+      expect(dataOf<ProviderProfile>(await as(arjun).post(providers, profile).expect(201)).id).toBe(
+        id,
+      );
+      expect(
+        errorOf(
+          await as(arjun)
+            .post(providers, { name: "sharma tyres & wheels", type: "OTHER" })
+            .expect(409),
+        ).details,
+      ).toEqual([{ field: "name", message: "You already have a workshop with this name" }]);
+      await as(arjun).post(providers, { name: "X", type: "OTHER", phone: "call me" }).expect(400);
+
+      // Two visits typed by name: a paid one (then partly refunded) and a free one.
+      const records = `/api/v1/vehicles/${car.id}/service-records`;
+      const paid = dataOf<ServiceRecord>(
+        await as(arjun)
+          .post(records, {
+            type: "REPAIR",
+            title: "Puncture repair",
+            categoryKey: "TYRES.PUNCTURE",
+            serviceDate: today,
+            providerName: "sharma tyres & wheels",
+            totalAmount: "5400",
+          })
+          .expect(201),
+      );
+      expect(paid.provider?.id).toBe(id);
+      await as(arjun)
+        .post(`/api/v1/expenses/${paid.expenseId}/refunds`, {
+          amount: "400",
+          date: today,
+          reason: "REFUND",
+        })
+        .expect(201);
+      await as(arjun)
+        .post(records, {
+          type: "WARRANTY_REPAIR",
+          title: "Valve replaced",
+          categoryKey: "TYRES.PUNCTURE",
+          serviceDate: today,
+          providerName: "Sharma Tyres & Wheels",
+        })
+        .expect(201);
+      expect(
+        dataOf<ProviderProfile>(await as(arjun).get(`${providers}/${id}`).expect(200)).stats,
+      ).toEqual({ visits: 2, firstVisit: today, lastVisit: today, spent: "5000.00" });
+      const visits = await as(arjun).get(`${providers}/${id}/service-records`).expect(200);
+      expect(metaOf(visits)?.total).toBe(2);
+      expect(dataOf<ServiceRecord[]>(visits).map((record) => record.id)).toContain(paid.id);
+
+      // Preferred first; a PATCH changes only what it sends.
+      const quick = dataOf<ProviderProfile>(
+        await as(arjun)
+          .post(providers, { name: "Quick Fix Garage", type: "INDEPENDENT" })
+          .expect(201),
+      );
+      expect(dataOf<ProviderProfile[]>(await as(arjun).get(providers).expect(200))[0]?.id).toBe(id);
+      expect(
+        dataOf<ProviderProfile>(
+          await as(arjun).patch(`${providers}/${id}`, { notes: "Ask for Ramesh" }).expect(200),
+        ),
+      ).toMatchObject({ notes: "Ask for Ramesh", phone: "+91 98111 22334", preferred: true });
+
+      // History blocks deleting; archiving hides it from the list and keeps its visits.
+      await as(arjun).delete(`${providers}/${id}`).expect(409);
+      await as(arjun).post(`${providers}/${id}/archive`).expect(200);
+      await as(arjun).post(`${providers}/${id}/archive`).expect(200);
+      expect(
+        dataOf<ProviderProfile[]>(await as(arjun).get(providers).expect(200)).map((row) => row.id),
+      ).not.toContain(id);
+      expect(
+        dataOf<ProviderProfile[]>(await as(arjun).get(`${providers}?archived=true`).expect(200)),
+      ).toMatchObject([{ id, stats: { visits: 2 } }]);
+      await as(arjun).post(`${providers}/${id}/restore`).expect(200);
+
+      // Someone else's workshop can't be seen; an unused one can be deleted.
+      await as(priya).get(`${providers}/${quick.id}`).expect(404);
+      await as(priya).delete(`${providers}/${quick.id}`).expect(404);
+      await as(priya).get(`${providers}/${id}/service-records`).expect(404);
+      await as(arjun).delete(`${providers}/${quick.id}`).expect(204);
     });
   });
 });

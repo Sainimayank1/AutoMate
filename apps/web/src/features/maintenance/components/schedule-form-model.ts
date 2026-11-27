@@ -1,4 +1,7 @@
 import {
+  type Inspection,
+  inspectionAreaCategory,
+  type InspectionItem,
   type MaintenanceCategoryKey,
   type MaintenanceSchedule,
   scheduleFieldsSchema,
@@ -23,6 +26,7 @@ export type ScheduleFormValues = {
   remindersEnabled: boolean;
   leadDays: string;
   leadKm: string;
+  componentId: string;
   notes: string;
 };
 
@@ -74,6 +78,7 @@ export function newScheduleForm(): ScheduleFormValues {
     remindersEnabled: true,
     leadDays: "",
     leadKm: "",
+    componentId: "",
     notes: "",
   };
 }
@@ -94,6 +99,24 @@ export function editScheduleForm(schedule: MaintenanceSchedule): ScheduleFormVal
     remindersEnabled: schedule.remindersEnabled,
     leadDays: text(schedule.leadDays),
     leadKm: text(schedule.leadKm),
+    componentId: schedule.component?.id ?? "",
     notes: text(schedule.notes),
+  };
+}
+
+/** A one-time schedule following up an inspection finding, due on its follow-up date. */
+export function scheduleFromFinding(
+  inspection: Inspection,
+  item: InspectionItem,
+): ScheduleFormValues {
+  return {
+    ...newScheduleForm(),
+    kind: "ONCE",
+    name: (item.recommendedAction ?? item.label).slice(0, 80),
+    categoryKey: inspectionAreaCategory(item.area),
+    priority: item.condition === "REPLACE_SOON" ? "HIGH" : "NORMAL",
+    dueDate: inspection.followUpDate ?? "",
+    componentId: item.componentId ?? "",
+    notes: [`${inspection.title}: ${item.label}`, item.notes].filter(Boolean).join(". "),
   };
 }

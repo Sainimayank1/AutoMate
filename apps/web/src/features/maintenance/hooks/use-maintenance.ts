@@ -1,11 +1,23 @@
 import type {
+  CreateComponentValues,
+  CreateInspectionValues,
+  CreateProviderValues,
   CreateScheduleValues,
   CreateServiceRecordValues,
+  InspectComponentValues,
+  Inspection,
   MaintenanceSchedule,
   Page,
+  ProviderProfile,
+  RemoveComponentValues,
+  ReplaceComponentValues,
   ServiceRecord,
+  UpdateComponentValues,
+  UpdateInspectionValues,
+  UpdateProviderValues,
   UpdateScheduleValues,
   UpdateServiceRecordValues,
+  VehicleComponent,
 } from "@automate/shared";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
@@ -15,10 +27,14 @@ import { expenseKeys } from "@/features/expenses/hooks/use-expenses";
 import { vehicleKeys } from "@/features/garage/hooks/use-vehicles";
 import { maintenanceKeys } from "@/features/maintenance/hooks/maintenance-keys";
 import type {
+  ComponentListParams,
+  InspectionListParams,
   OverviewParams,
+  PageParams,
   RecordFilterParams,
   RecordListParams,
   ScheduleListParams,
+  WorkshopListParams,
 } from "@/features/maintenance/services/maintenance-service";
 import { maintenanceService } from "@/features/maintenance/services/maintenance-service";
 
@@ -59,12 +75,16 @@ export function useSchedule(vehicleId: string, id: string, enabled = true) {
   });
 }
 
-/** Any schedule write changes the vehicle's overview, lists and that schedule. */
+/**
+ * Any schedule, component or inspection write changes the vehicle's maintenance views; a
+ * workshop typed in may be new.
+ */
 function useSyncMaintenance() {
   const queryClient = useQueryClient();
   return (vehicleId: string) =>
     Promise.all([
       queryClient.invalidateQueries({ queryKey: maintenanceKeys.vehicle(vehicleId) }),
+      queryClient.invalidateQueries({ queryKey: maintenanceKeys.providers }),
       // The dashboard's status panel lists due and overdue schedules.
       queryClient.invalidateQueries({ queryKey: dashboardKeys.all }),
     ]);
@@ -213,6 +233,253 @@ export function useDeleteSchedule() {
       });
       await sync(schedule.vehicleId);
       toast.success("Schedule deleted.");
+    },
+  });
+}
+
+export function useComponents(vehicleId: string | undefined, params: ComponentListParams = {}) {
+  return useQuery({
+    queryKey: maintenanceKeys.components(vehicleId ?? "", params),
+    queryFn: () => maintenanceService.components(vehicleId!, params),
+    enabled: !!vehicleId,
+    placeholderData: (previous, previousQuery) =>
+      previousQuery?.queryKey[1] === vehicleId ? previous : undefined,
+  });
+}
+
+export function useComponent(vehicleId: string, id: string) {
+  return useQuery({
+    queryKey: maintenanceKeys.component(vehicleId, id),
+    queryFn: () => maintenanceService.component(vehicleId, id),
+    enabled: !!vehicleId && !!id,
+  });
+}
+
+export function useCreateComponent(vehicleId: string) {
+  const sync = useSyncMaintenance();
+  return useMutation({
+    mutationFn: (values: CreateComponentValues) =>
+      maintenanceService.createComponent(vehicleId, values),
+    onSuccess: async () => {
+      await sync(vehicleId);
+      toast.success("Component added.");
+    },
+    onError: handledByForm,
+  });
+}
+
+export function useUpdateComponent(vehicleId: string, id: string) {
+  const sync = useSyncMaintenance();
+  return useMutation({
+    mutationFn: (values: UpdateComponentValues) =>
+      maintenanceService.updateComponent(vehicleId, id, values),
+    onSuccess: async () => {
+      await sync(vehicleId);
+      toast.success("Component updated.");
+    },
+    onError: handledByForm,
+  });
+}
+
+export function useInspectComponent(vehicleId: string, id: string) {
+  const sync = useSyncMaintenance();
+  return useMutation({
+    mutationFn: (values: InspectComponentValues) =>
+      maintenanceService.inspectComponent(vehicleId, id, values),
+    onSuccess: async () => {
+      await sync(vehicleId);
+      toast.success("Inspection recorded.");
+    },
+    onError: handledByForm,
+  });
+}
+
+/** A replacement is also a service record (expense, schedules, odometer): refresh like one. */
+export function useReplaceComponent(vehicleId: string, id: string) {
+  const sync = useSyncRecords();
+  return useMutation({
+    mutationFn: (values: ReplaceComponentValues) =>
+      maintenanceService.replaceComponent(vehicleId, id, values),
+    onSuccess: async () => {
+      await sync(vehicleId);
+      toast.success("Component replaced.");
+    },
+    onError: handledByForm,
+  });
+}
+
+export function useRetireComponent(vehicleId: string, id: string) {
+  const sync = useSyncMaintenance();
+  return useMutation({
+    mutationFn: (values: RemoveComponentValues) =>
+      maintenanceService.retireComponent(vehicleId, id, values),
+    onSuccess: async () => {
+      await sync(vehicleId);
+      toast.success("Component marked removed.");
+    },
+    onError: handledByForm,
+  });
+}
+
+export function useDeleteComponent() {
+  const queryClient = useQueryClient();
+  const sync = useSyncMaintenance();
+  return useMutation({
+    mutationFn: (part: VehicleComponent) =>
+      maintenanceService.removeComponent(part.vehicleId, part.id),
+    onSuccess: async (_, part) => {
+      queryClient.removeQueries({ queryKey: maintenanceKeys.component(part.vehicleId, part.id) });
+      await sync(part.vehicleId);
+      toast.success("Component deleted.");
+    },
+  });
+}
+
+export function useInspections(vehicleId: string | undefined, params: InspectionListParams = {}) {
+  return useQuery({
+    queryKey: maintenanceKeys.inspections(vehicleId ?? "", params),
+    queryFn: () => maintenanceService.inspections(vehicleId!, params),
+    enabled: !!vehicleId,
+    placeholderData: (previous, previousQuery) =>
+      previousQuery?.queryKey[1] === vehicleId ? previous : undefined,
+  });
+}
+
+export function useInspection(vehicleId: string, id: string) {
+  return useQuery({
+    queryKey: maintenanceKeys.inspection(vehicleId, id),
+    queryFn: () => maintenanceService.inspection(vehicleId, id),
+    enabled: !!vehicleId && !!id,
+  });
+}
+
+export function useCreateInspection(vehicleId: string) {
+  const sync = useSyncMaintenance();
+  return useMutation({
+    mutationFn: (values: CreateInspectionValues) =>
+      maintenanceService.createInspection(vehicleId, values),
+    onSuccess: async () => {
+      await sync(vehicleId);
+      toast.success("Inspection saved.");
+    },
+    onError: handledByForm,
+  });
+}
+
+export function useUpdateInspection(vehicleId: string, id: string) {
+  const sync = useSyncMaintenance();
+  return useMutation({
+    mutationFn: (values: UpdateInspectionValues) =>
+      maintenanceService.updateInspection(vehicleId, id, values),
+    onSuccess: async () => {
+      await sync(vehicleId);
+      toast.success("Inspection updated.");
+    },
+    onError: handledByForm,
+  });
+}
+
+export function useDeleteInspection() {
+  const queryClient = useQueryClient();
+  const sync = useSyncMaintenance();
+  return useMutation({
+    mutationFn: (inspection: Inspection) =>
+      maintenanceService.removeInspection(inspection.vehicleId, inspection.id),
+    onSuccess: async (_, inspection) => {
+      queryClient.removeQueries({
+        queryKey: maintenanceKeys.inspection(inspection.vehicleId, inspection.id),
+      });
+      await sync(inspection.vehicleId);
+      toast.success("Inspection deleted.");
+    },
+  });
+}
+
+export function useWorkshops(params: WorkshopListParams = {}) {
+  return useQuery({
+    queryKey: maintenanceKeys.workshops(params),
+    queryFn: () => maintenanceService.workshops(params),
+    placeholderData: (previous) => previous,
+  });
+}
+
+export function useWorkshop(id: string) {
+  const queryClient = useQueryClient();
+  return useQuery({
+    queryKey: maintenanceKeys.workshop(id),
+    queryFn: () => maintenanceService.workshop(id),
+    enabled: !!id,
+    // Instant when opened from a list.
+    placeholderData: () =>
+      queryClient
+        .getQueriesData<Page<ProviderProfile>>({
+          queryKey: [...maintenanceKeys.providers, "list"],
+        })
+        .flatMap(([, page]) => page?.items ?? [])
+        .find((workshop) => workshop.id === id),
+  });
+}
+
+export function useWorkshopVisits(id: string, params: PageParams = {}) {
+  return useQuery({
+    queryKey: maintenanceKeys.workshopVisits(id, params),
+    queryFn: () => maintenanceService.workshopVisits(id, params),
+    enabled: !!id,
+    placeholderData: (previous) => previous,
+  });
+}
+
+/** A workshop's name shows on its records: refresh all of maintenance. */
+function useSyncWorkshops() {
+  const queryClient = useQueryClient();
+  return () => queryClient.invalidateQueries({ queryKey: maintenanceKeys.all });
+}
+
+export function useCreateWorkshop() {
+  const sync = useSyncWorkshops();
+  return useMutation({
+    mutationFn: (values: CreateProviderValues) => maintenanceService.createWorkshop(values),
+    onSuccess: async () => {
+      await sync();
+      toast.success("Workshop added.");
+    },
+    onError: handledByForm,
+  });
+}
+
+export function useUpdateWorkshop(id: string) {
+  const sync = useSyncWorkshops();
+  return useMutation({
+    mutationFn: (values: UpdateProviderValues) => maintenanceService.updateWorkshop(id, values),
+    onSuccess: async () => {
+      await sync();
+      toast.success("Workshop updated.");
+    },
+    onError: handledByForm,
+  });
+}
+
+export function useArchiveWorkshop() {
+  const sync = useSyncWorkshops();
+  return useMutation({
+    mutationFn: ({ workshop, archived }: { workshop: ProviderProfile; archived: boolean }) =>
+      maintenanceService.setWorkshopArchived(workshop.id, archived),
+    onSuccess: async (_, { archived }) => {
+      await sync();
+      toast.success(archived ? "Workshop archived." : "Workshop restored.");
+    },
+  });
+}
+
+export function useDeleteWorkshop() {
+  const queryClient = useQueryClient();
+  const sync = useSyncWorkshops();
+  return useMutation({
+    mutationFn: (workshop: ProviderProfile) => maintenanceService.removeWorkshop(workshop.id),
+    onSuccess: async (_, workshop) => {
+      queryClient.removeQueries({ queryKey: maintenanceKeys.workshop(workshop.id) });
+      await sync();
+      toast.success("Workshop deleted.");
     },
   });
 }

@@ -157,9 +157,39 @@ export const appModules = [
         handle: { title: "History" },
       },
       {
+        path: "components",
+        lazy: () => import("@/features/maintenance/components-route"),
+        handle: { title: "Components" },
+      },
+      {
+        path: "components/:componentId",
+        lazy: () => import("@/features/maintenance/component-details-route"),
+        handle: { title: "Component" },
+      },
+      {
         path: "records/:vehicleId/:recordId",
         lazy: () => import("@/features/maintenance/record-details-route"),
         handle: { title: "Service record" },
+      },
+      {
+        path: "inspections",
+        lazy: () => import("@/features/maintenance/inspections-route"),
+        handle: { title: "Inspections" },
+      },
+      {
+        path: "inspections/:inspectionId",
+        lazy: () => import("@/features/maintenance/inspection-details-route"),
+        handle: { title: "Inspection" },
+      },
+      {
+        path: "workshops",
+        lazy: () => import("@/features/maintenance/workshops-route"),
+        handle: { title: "Workshops" },
+      },
+      {
+        path: "workshops/:providerId",
+        lazy: () => import("@/features/maintenance/workshop-details-route"),
+        handle: { title: "Workshop" },
       },
     ],
     taskRoutes: [
@@ -172,12 +202,32 @@ export const appModules = [
         lazy: () => import("@/features/maintenance/edit-schedule-route"),
       },
       {
+        path: "/maintenance/components/new",
+        lazy: () => import("@/features/maintenance/new-component-route"),
+      },
+      {
+        path: "/maintenance/components/:componentId/edit",
+        lazy: () => import("@/features/maintenance/edit-component-route"),
+      },
+      {
+        path: "/maintenance/components/:componentId/replace",
+        lazy: () => import("@/features/maintenance/replace-component-route"),
+      },
+      {
         path: "/maintenance/records/new",
         lazy: () => import("@/features/maintenance/new-record-route"),
       },
       {
         path: "/maintenance/records/:vehicleId/:recordId/edit",
         lazy: () => import("@/features/maintenance/edit-record-route"),
+      },
+      {
+        path: "/maintenance/inspections/new",
+        lazy: () => import("@/features/maintenance/new-inspection-route"),
+      },
+      {
+        path: "/maintenance/inspections/:inspectionId/edit",
+        lazy: () => import("@/features/maintenance/edit-inspection-route"),
       },
     ],
   },

@@ -130,6 +130,25 @@ export class LinkedExpensesService {
     return new Map(rows.map((row) => [row.sourceId!, row.id]));
   }
 
+  /** What was paid for each record that has an expense, its refunds subtracted, by record id. */
+  async netBySource(
+    db: Prisma.TransactionClient,
+    source: LinkedExpense["source"],
+    sourceIds: string[],
+  ): Promise<Map<string, Prisma.Decimal>> {
+    if (!sourceIds.length) return new Map();
+    const rows = await db.expense.findMany({
+      where: { source, sourceId: { in: sourceIds }, kind: ExpenseKind.EXPENSE },
+      select: { sourceId: true, amount: true, refunds: { select: { amount: true } } },
+    });
+    return new Map(
+      rows.map((row) => [
+        row.sourceId!,
+        row.refunds.reduce((net, refund) => net.minus(refund.amount), row.amount),
+      ]),
+    );
+  }
+
   /**
    * The vehicle's odometer history held in Expenses (manual readings and fill-ups through their
    * expenses), around a date: the highest reading before it and the lowest after it. Another

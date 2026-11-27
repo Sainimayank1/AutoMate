@@ -87,6 +87,10 @@ export const scheduleFieldsSchema = z.object({
   leadDays: optionalInt(0, 365, "Enter 0 to 365 days"),
   leadKm: optionalInt(0, 50_000, "Enter 0 to 50,000 km"),
   priority: z.enum(SchedulePriority, { error: "Choose a priority" }).optional(),
+  /** The tracked part it watches (e.g. "Battery inspection" → the battery). */
+  componentId: z.preprocess(blankToNull, z.uuid("Choose a component").nullable()).optional(),
+  /** Create only: the inspection finding this schedule follows up (linked both ways). */
+  inspectionItemId: z.uuid().optional(),
   notes: optionalText(1000),
 });
 
@@ -127,7 +131,9 @@ export function checkSchedule(values: ScheduleRuleInput, ctx: z.RefinementCtx) {
 export const createScheduleSchema = scheduleFieldsSchema.superRefine(checkSchedule);
 
 /** PATCH: null clears a field. The API merges onto the stored schedule and re-checks it whole. */
-export const updateScheduleSchema = scheduleFieldsSchema.omit({ id: true }).partial();
+export const updateScheduleSchema = scheduleFieldsSchema
+  .omit({ id: true, inspectionItemId: true })
+  .partial();
 
 export const scheduleListQuerySchema = paginationQuerySchema.extend({
   status: z.enum(ScheduleStatus).optional(),
@@ -179,6 +185,8 @@ export const serviceRecordItemSchema = z.object({
   partNumber: optionalText(60),
   /** This item completes that schedule (restarts its countdown from this record). */
   scheduleId: z.preprocess(blankToNull, z.uuid("Choose a schedule").nullable()).optional(),
+  /** The tracked part this work was on (shows in its lifecycle). */
+  componentId: z.preprocess(blankToNull, z.uuid("Choose a component").nullable()).optional(),
 });
 
 export const serviceRecordFieldsSchema = z.object({
@@ -320,16 +328,11 @@ export const serviceRecordListQuerySchema = paginationQuerySchema
   .extend(serviceRecordFilterFields)
   .superRefine(checkFilterRanges);
 
-export const providerListQuerySchema = paginationQuerySchema.extend({
-  search: z.string().trim().max(80).optional(),
-});
-
 export type CreateServiceRecordInput = z.input<typeof createServiceRecordSchema>;
 export type CreateServiceRecordValues = z.output<typeof createServiceRecordSchema>;
 export type UpdateServiceRecordValues = z.output<typeof updateServiceRecordSchema>;
 export type ServiceRecordListQuery = z.output<typeof serviceRecordListQuerySchema>;
 export type ServiceRecordFilters = z.output<typeof serviceRecordFiltersSchema>;
-export type ProviderListQuery = z.output<typeof providerListQuerySchema>;
 
 // ---- responses
 
@@ -377,6 +380,7 @@ export interface MaintenanceSchedule {
   leadDays: number | null;
   leadKm: number | null;
   priority: SchedulePriority;
+  component: { id: string; name: string } | null;
   notes: string | null;
   pausedAt: string | null;
   createdAt: string;
@@ -391,6 +395,8 @@ export interface ServiceRecordItem {
   scheduleId: string | null;
   /** The completed schedule's name (null once that schedule is deleted). */
   scheduleName: string | null;
+  componentId: string | null;
+  componentName: string | null;
 }
 
 /** A workshop or other service provider of the user's (profiles arrive with Workshops). */

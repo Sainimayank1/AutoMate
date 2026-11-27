@@ -158,7 +158,7 @@ Touch targets are at least 40px on phones, and there's no horizontal page scroll
 **Feature-level:**
 
 - Auth: `AuthLayout`, `PasswordInput` (show/hide toggle).
-- Maintenance: `MaintenanceLayout` (header + tabs as routes), `ScheduleStatusBadge`, `DueSummary` (deciding track first, thin progress for repeating schedules), `ScheduleActions`, `SpendChart`, `ScheduleForm`.
+- Maintenance: `MaintenanceLayout` (header + tabs as routes), `ScheduleStatusBadge`, `DueSummary` (deciding track first, thin progress for repeating schedules), `ScheduleActions`, `SpendChart`, `ScheduleForm`, `RecordForm`, `FormSection` (numbered task-page section), `HistoryFilters`, `ComponentForm`, the inspect / remove component dialogs, `InspectionForm` (checklist by area; condition select tinted by `INSPECTION_CONDITION_META` tone), `WorkshopDialog` (add / edit a workshop).
 - Garage: `VehicleCard`, `DetailList` ("Not added · Add" for missing values), `DeleteVehicleDialog` (type the plate to confirm), and the vehicle form sections. Their choice fields come in four styles: `cards` (radio + description), `tiles` (icon over label), `segmented` (one joined track), and `select` (the edit page's compact mode).
 
 ## Accessibility checklist
