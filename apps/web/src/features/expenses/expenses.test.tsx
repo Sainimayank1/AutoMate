@@ -343,6 +343,29 @@ describe("transactions", () => {
     expect(await screen.findByText(/1 expense deleted\. 1 skipped/)).toBeInTheDocument();
   });
 
+  it("empties the search with Clear filters and steps back from an emptied last page", async () => {
+    const calls = api({
+      ...base,
+      "GET /expenses": (config) =>
+        paramsOf(config).page === 3
+          ? okPage([], { page: 3, total: 40, totalPages: 2 })
+          : okPage([expense()], { page: Number(paramsOf(config).page), total: 40, totalPages: 2 }),
+    });
+    const router = renderApp("/expenses/transactions?page=3");
+    const user = userEvent.setup();
+
+    await waitFor(() => expect(router.state.location.search).toBe("?page=2"));
+    const search = await screen.findByRole("searchbox", { name: "Search expenses" });
+    await user.type(search, "jaipur");
+    await waitFor(() =>
+      expect(paramsOf(calls.filter((call) => call.url === "/expenses").at(-1))).toMatchObject({
+        search: "jaipur",
+      }),
+    );
+    await user.click(screen.getAllByRole("button", { name: "Clear filters" })[0]!);
+    await waitFor(() => expect(search).toHaveValue(""));
+  });
+
   it("opens the details sheet with the loan split and records a refund", async () => {
     const wash = expense({ title: "3M Car Care", amount: "850.00" });
     const calls = api({
@@ -422,6 +445,71 @@ describe("add expense", () => {
       principalAmount: null,
     });
     expect(String(body.id)).toMatch(/^[0-9a-f-]{36}$/);
+  });
+
+  it("keeps one client id when a failed save is retried", async () => {
+    let attempts = 0;
+    const calls = api({
+      ...base,
+      "GET /expenses": () => okPage([expense()]),
+      "POST /expenses": (config) =>
+        ++attempts === 1
+          ? fail(503, "SERVICE_UNAVAILABLE", "Try again in a moment")
+          : saved(bodyOf(config)),
+      "GET /expenses/0190d4a2-0000-7000-8000-0000000e0001": () => ok(detail(expense())),
+    });
+    renderApp("/expenses/new");
+    const user = userEvent.setup();
+
+    await user.click(await screen.findByRole("button", { name: "Toll" }));
+    await user.type(screen.getByLabelText("Title"), "Delhi–Jaipur Expressway");
+    await user.type(screen.getByLabelText("Amount"), "640");
+    await user.click(screen.getByRole("button", { name: "Save expense" }));
+    await waitFor(() => expect(attempts).toBe(1));
+    await waitFor(() => expect(screen.getByRole("button", { name: "Save expense" })).toBeEnabled());
+    await user.click(screen.getByRole("button", { name: "Save expense" }));
+    await waitFor(() => expect(attempts).toBe(2));
+    const [first, second] = calls.filter((call) => call.method === "post").map(bodyOf);
+    expect(second!.id).toBe(first!.id);
+  });
+
+  it("edits a loan-interest payment's amount (its split follows the amount)", async () => {
+    const interest = expense({
+      id: "0190d4a2-0000-7000-8000-0000000e0009",
+      title: "HDFC Auto Loan interest",
+      amount: "5734.00",
+      category: ref(categories[2]!),
+      subcategory: ref(categories[2]!.subcategories[1]!),
+      finance: {
+        principal: null,
+        interest: "5734.00",
+        charges: null,
+        loanReference: null,
+        loanOutstanding: null,
+      },
+    });
+    const calls = api({
+      ...base,
+      "GET /expenses": () => okPage([interest]),
+      [`GET /expenses/${interest.id}`]: () => ok(detail(interest)),
+      [`PATCH /expenses/${interest.id}`]: () => ok(detail(interest)),
+    });
+    const router = renderApp(`/expenses/${interest.id}/edit`);
+    const user = userEvent.setup();
+
+    const amount = await screen.findByLabelText("Amount");
+    await user.clear(amount);
+    await user.type(amount, "6000");
+    await user.click(screen.getByRole("button", { name: "Save changes" }));
+    await waitFor(() =>
+      expect(router.state.location.pathname).toBe(`/expenses/transactions/${interest.id}`),
+    );
+    expect(bodyOf(calls.find((call) => call.method === "patch"))).toMatchObject({
+      amount: "6000",
+      principalAmount: null,
+      interestAmount: "6000",
+      chargesAmount: null,
+    });
   });
 
   it("shares an expense equally and fills a preset loan component", async () => {

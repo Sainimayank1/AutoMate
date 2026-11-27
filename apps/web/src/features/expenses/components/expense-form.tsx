@@ -56,6 +56,7 @@ import {
   financePreset,
   toExpensePayload,
 } from "./expense-form-model";
+import { Segmented } from "./segmented";
 
 type ExpenseFormProps = {
   mode: "create" | "edit";
@@ -197,41 +198,6 @@ function useFields() {
   return { ...context, control: context.control as Control<ExpenseFormValues> };
 }
 
-function Segmented<T extends string>({
-  value,
-  options,
-  onChange,
-  label,
-}: {
-  value: T;
-  options: { value: T; label: string }[];
-  onChange: (value: T) => void;
-  label: string;
-}) {
-  return (
-    <div
-      role="radiogroup"
-      aria-label={label}
-      className="inline-grid grid-flow-col gap-1 rounded-lg border bg-muted p-1"
-    >
-      {options.map((option) => (
-        <Button
-          key={option.value}
-          type="button"
-          role="radio"
-          aria-checked={value === option.value}
-          variant={value === option.value ? "secondary" : "ghost"}
-          size="sm"
-          className={value === option.value ? "text-primary" : undefined}
-          onClick={() => onChange(option.value)}
-        >
-          {option.label}
-        </Button>
-      ))}
-    </div>
-  );
-}
-
 // ---------------------------------------------------------------- 1 · Vehicle
 
 function VehicleSection({ vehicles }: { vehicles: Vehicle[] }) {
@@ -253,9 +219,19 @@ function VehicleSection({ vehicles }: { vehicles: Vehicle[] }) {
   return (
     <div className="flex flex-col gap-4">
       <Segmented
-        label="Vehicle"
+        aria-label="Vehicle"
+        className="w-fit"
         value={allocation.mode}
-        onChange={(mode) => setAllocation({ mode })}
+        onChange={(mode) => {
+          // A reading belongs to one vehicle; the field hides when shared.
+          if (mode === "shared") {
+            setValue("odometerKm", "", {
+              shouldDirty: true,
+              shouldValidate: formState.isSubmitted,
+            });
+          }
+          setAllocation({ mode });
+        }}
         options={[
           { value: "single", label: "One vehicle" },
           { value: "shared", label: "Shared" },
@@ -336,7 +312,8 @@ function VehicleSection({ vehicles }: { vehicles: Vehicle[] }) {
           </ul>
           <div className="flex flex-wrap items-center justify-between gap-3">
             <Segmented
-              label="Split"
+              aria-label="Split"
+              className="w-fit"
               value={allocation.split}
               onChange={(split) => setAllocation({ split })}
               options={[
@@ -396,6 +373,11 @@ function CategorySection() {
           // Extras belong to the old category: clear them so hidden fields can't block saving.
           if (choice.categoryId !== categoryId) {
             for (const key of CATEGORY_FIELDS) setValue(key, "", opts);
+          } else if (choice.subcategoryId !== subcategoryId) {
+            // A loan split belongs to its payment type (a preset one is filled in on save).
+            for (const key of ["principalAmount", "interestAmount", "chargesAmount"] as const) {
+              setValue(key, "", opts);
+            }
           }
           setValue("categoryId", choice.categoryId, opts);
           setValue("subcategoryId", choice.subcategoryId, opts);

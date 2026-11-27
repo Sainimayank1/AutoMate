@@ -1,4 +1,9 @@
-import { type ExpenseSort, type ExpenseSource, type PaymentMethod } from "@automate/shared";
+import {
+  type ExpenseSort,
+  type ExpenseSource,
+  type PaymentMethod,
+  toPaise,
+} from "@automate/shared";
 import { useSearchParams } from "react-router";
 
 import type { ExpenseListParams } from "@/features/expenses/services/expense-service";
@@ -19,6 +24,17 @@ export const FILTER_KEYS = [
 ] as const;
 export type FilterKey = (typeof FILTER_KEYS)[number];
 
+const AMOUNT = /^\d+(\.\d{1,2})?$/;
+
+/** A range typed back to front ("from" after "to") is read the way it was meant. */
+function ordered(
+  low: string | undefined,
+  high: string | undefined,
+  inverted: (low: string, high: string) => boolean,
+) {
+  return low && high && inverted(low, high) ? [high, low] : [low, high];
+}
+
 /** "All vehicles" in the `vehicle` param; absent means the active vehicle. */
 export const ALL_VEHICLES = "all";
 
@@ -33,16 +49,20 @@ export function useExpenseFilters() {
 
   const vehicle = get("vehicle") ?? activeVehicle?.id ?? ALL_VEHICLES;
   const page = Math.max(1, Number(get("page")) || 1);
+  const [from, to] = ordered(get("from"), get("to"), (a, b) => a > b);
+  const [minAmount, maxAmount] = ordered(get("min"), get("max"), (a, b) =>
+    AMOUNT.test(a) && AMOUNT.test(b) ? toPaise(a) > toPaise(b) : false,
+  );
   const query: ExpenseListParams = {
     page,
     vehicleId: vehicle === ALL_VEHICLES ? undefined : vehicle,
-    from: get("from"),
-    to: get("to"),
+    from,
+    to,
     categoryId: get("category"),
     paymentMethod: get("payment") as PaymentMethod | undefined,
     source: get("source") as ExpenseSource | undefined,
-    minAmount: get("min"),
-    maxAmount: get("max"),
+    minAmount,
+    maxAmount,
     search: get("q"),
     sort: get("sort") as ExpenseSort | undefined,
   };

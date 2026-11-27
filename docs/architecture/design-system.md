@@ -127,7 +127,7 @@ Touch targets are at least 40px on phones, and there's no horizontal page scroll
 
 ## Component inventory
 
-**Primitives** (`components/ui/`, shadcn): accordion, alert, alert-dialog, avatar, badge, breadcrumb, button, calendar, card, chart (Recharts), checkbox, dialog, dropdown-menu, empty, field, input, input-group, label, popover, radio-group, select, progress, separator, sheet, sidebar, skeleton, sonner, spinner, switch, table, tabs, textarea, tooltip.
+**Primitives** (`components/ui/`, shadcn): accordion, alert, alert-dialog, avatar, badge, breadcrumb, button, calendar, card, chart (Recharts), checkbox, dialog, dropdown-menu, empty, field, input, input-group, label, popover, radio-group, select, progress, separator, sheet, sidebar, skeleton, sonner, spinner, switch, table, tabs, textarea, toggle, toggle-group, tooltip.
 
 **App building blocks** (`components/common/`):
 

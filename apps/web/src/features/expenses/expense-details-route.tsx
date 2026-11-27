@@ -32,6 +32,7 @@ import {
 import { PAYMENT_METHOD_LABELS } from "@/features/fuel/constants";
 import { vehicleName } from "@/features/garage/constants";
 import { useVehicles } from "@/features/garage/hooks/use-vehicles";
+import { useIsMobile } from "@/hooks/use-mobile";
 import { normalizeApiError } from "@/lib/api-error";
 import { formatCurrency, formatDate, formatDistance, formatRegistration } from "@/utils/format";
 
@@ -52,6 +53,7 @@ function Row({ label, children }: { label: string; children: ReactNode }) {
 export function Component() {
   const { expenseId = "" } = useParams();
   const navigate = useNavigate();
+  const mobile = useIsMobile();
   const { search } = useLocation();
   const { data: expense, isPending, error } = useExpense(expenseId);
   const inUse = useVehicles();
@@ -72,7 +74,10 @@ export function Component() {
 
   return (
     <Sheet open onOpenChange={(open) => !open && close()}>
-      <SheetContent className="w-full gap-0 overflow-y-auto sm:max-w-md">
+      <SheetContent
+        side={mobile ? "bottom" : "right"}
+        className="w-full gap-0 overflow-y-auto max-md:max-h-[90svh] sm:max-w-md"
+      >
         {isPending ? (
           <div className="flex flex-col gap-4 p-6" aria-busy>
             <SheetTitle className="sr-only">Loading expense</SheetTitle>
@@ -194,7 +199,7 @@ export function Component() {
                 <Block
                   title="Refunds"
                   action={
-                    canRefund(expense) && remainingRefund(expense) !== "0.00" ? (
+                    canRefund(expense) ? (
                       <Button variant="ghost" size="sm" onClick={() => setRefunding(true)}>
                         <Undo2 data-icon="inline-start" />
                         Add refund

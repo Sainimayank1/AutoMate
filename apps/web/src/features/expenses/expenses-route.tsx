@@ -216,7 +216,11 @@ export function Component() {
 
             <section
               aria-labelledby="recent-title"
-              className="flex min-w-0 flex-col gap-4 rounded-xl border bg-card p-4 sm:p-5 lg:col-span-8"
+              aria-busy={recent.isPlaceholderData}
+              className={cn(
+                "flex min-w-0 flex-col gap-4 rounded-xl border bg-card p-4 transition-opacity sm:p-5 lg:col-span-8",
+                recent.isPlaceholderData && "opacity-60",
+              )}
             >
               <header className="flex flex-wrap items-center justify-between gap-3">
                 <h2 id="recent-title" className="font-heading text-lg font-semibold">

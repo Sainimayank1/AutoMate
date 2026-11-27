@@ -1,7 +1,7 @@
 import { type ExpenseCategory, ExpenseSort, ExpenseSource, type Vehicle } from "@automate/shared";
 import { format, parseISO } from "date-fns";
 import { SlidersHorizontal, X } from "lucide-react";
-import type { ReactNode } from "react";
+import { type ReactNode, useEffect, useState } from "react";
 
 import { DatePicker } from "@/components/common/date-picker";
 import { NumberInput } from "@/components/common/number-input";
@@ -107,6 +107,7 @@ function FilterControls({
           id="filter-from"
           value={day(get("from"))}
           onChange={(date) => set("from", iso(date))}
+          disabledDates={day(get("to")) && { after: day(get("to"))! }}
           placeholder="Any date"
         />
       </Control>
@@ -115,6 +116,7 @@ function FilterControls({
           id="filter-to"
           value={day(get("to"))}
           onChange={(date) => set("to", iso(date))}
+          disabledDates={day(get("from")) && { before: day(get("from"))! }}
           placeholder="Any date"
         />
       </Control>
@@ -141,25 +143,40 @@ function FilterControls({
         )}
       </Control>
       <Control label="Amount from" id="filter-min">
-        <NumberInput
-          id="filter-min"
-          prefix="₹"
-          decimals={2}
-          value={get("min") ?? ""}
-          onChange={(value) => set("min", value)}
-        />
+        <AmountFilter id="filter-min" value={get("min")} onCommit={(value) => set("min", value)} />
       </Control>
       <Control label="Amount to" id="filter-max">
-        <NumberInput
-          id="filter-max"
-          prefix="₹"
-          decimals={2}
-          value={get("max") ?? ""}
-          onChange={(value) => set("max", value)}
-        />
+        <AmountFilter id="filter-max" value={get("max")} onCommit={(value) => set("max", value)} />
       </Control>
     </div>
   );
+}
+
+const AMOUNT_DELAY_MS = 400;
+
+/** An amount bound, sent once typing pauses (not one request per keystroke). */
+function AmountFilter({
+  id,
+  value,
+  onCommit,
+}: {
+  id: string;
+  value: string | undefined;
+  onCommit: (value: string | undefined) => void;
+}) {
+  const [text, setText] = useState(value ?? "");
+  // Cleared from outside ("Clear filters"): empty the box too.
+  const [last, setLast] = useState(value);
+  if (value !== last) {
+    setLast(value);
+    if (value === undefined) setText("");
+  }
+  useEffect(() => {
+    if (text === (value ?? "")) return;
+    const timer = setTimeout(() => onCommit(text || undefined), AMOUNT_DELAY_MS);
+    return () => clearTimeout(timer);
+  }, [text]); // eslint-disable-line react-hooks/exhaustive-deps -- debounce on the text only
+  return <NumberInput id={id} prefix="₹" decimals={2} value={text} onChange={setText} />;
 }
 
 export function SortSelect({ filters }: { filters: Filters }) {

@@ -167,6 +167,14 @@ export function emptyExpenseForm(vehicleId: string): ExpenseFormValues {
 }
 
 /** Editing (or duplicating, with today's date): the stored expense back in form shape. */
+/** Loaded split of a preset loan type would go stale when the amount changes: it's derived on save. */
+const hasPresetSplit = (expense: ExpenseDetail) => {
+  const preset = expense.subcategory?.key
+    ? FINANCE_COMPONENT_BY_KEY[expense.subcategory.key]
+    : undefined;
+  return !!preset && preset !== "SPLIT";
+};
+
 export function toExpenseForm(
   expense: ExpenseDetail,
   { duplicate = false } = {},
@@ -194,9 +202,9 @@ export function toExpenseForm(
     odometerKm: duplicate ? "" : text(expense.odometerKm),
     description: text(expense.description),
     notes: text(expense.notes),
-    principalAmount: trim(expense.finance?.principal),
-    interestAmount: trim(expense.finance?.interest),
-    chargesAmount: trim(expense.finance?.charges),
+    principalAmount: hasPresetSplit(expense) ? "" : trim(expense.finance?.principal),
+    interestAmount: hasPresetSplit(expense) ? "" : trim(expense.finance?.interest),
+    chargesAmount: hasPresetSplit(expense) ? "" : trim(expense.finance?.charges),
     loanReference: text(expense.finance?.loanReference),
     loanOutstanding: trim(expense.finance?.loanOutstanding),
     serviceType: text(expense.details.serviceType),

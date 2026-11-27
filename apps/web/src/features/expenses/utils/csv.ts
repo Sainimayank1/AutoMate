@@ -3,9 +3,13 @@ import { type Expense, ExpenseKind } from "@automate/shared";
 import { SOURCE_LABELS } from "@/features/expenses/constants";
 import { PAYMENT_METHOD_LABELS } from "@/features/fuel/constants";
 
-/** One CSV cell: quoted when it holds a comma, quote or line break (RFC 4180). */
+/**
+ * One CSV cell: quoted when it holds a comma, quote or line break (RFC 4180). Text that a
+ * spreadsheet would run as a formula (=, +, -, @, tab, CR) gets a leading ' ; numbers stay numbers.
+ */
 const cell = (value: string | number | null | undefined) => {
-  const text = value === null || value === undefined ? "" : String(value);
+  let text = value === null || value === undefined ? "" : String(value);
+  if (/^[=+\-@\t\r]/.test(text) && !/^-?\d+(\.\d+)?$/.test(text)) text = `'${text}`;
   return /[",\r\n]/.test(text) ? `"${text.replace(/"/g, '""')}"` : text;
 };
 
@@ -44,5 +48,6 @@ export function downloadCsv(filename: string, csv: string) {
   const url = URL.createObjectURL(new Blob(["﻿", csv], { type: "text/csv;charset=utf-8" }));
   const link = Object.assign(document.createElement("a"), { href: url, download: filename });
   link.click();
-  URL.revokeObjectURL(url);
+  // Some browsers (Safari) start the download after click() returns.
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
