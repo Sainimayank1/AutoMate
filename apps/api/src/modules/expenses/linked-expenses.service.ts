@@ -65,19 +65,26 @@ export class LinkedExpensesService {
     const where = { source_sourceId: { source: linked.source, sourceId: linked.sourceId } };
     const existing = await tx.expense.findUnique({ where, select: { id: true } });
     if (!existing) {
-      await tx.expense.create({
+      const created = await tx.expense.create({
         data: { ...data, userId: linked.userId, source: linked.source, sourceId: linked.sourceId },
       });
+      this.logger.log(`Expense ${created.id} created from ${linked.source} ${linked.sourceId}`);
       return;
     }
-    // Money already refunded against it can't exceed what was paid.
-    const { _sum } = await tx.expense.aggregate({
+    // Money already refunded against it can't exceed what was paid, or predate it.
+    const { _sum, _min } = await tx.expense.aggregate({
       where: { refundOfId: existing.id, kind: ExpenseKind.REFUND },
       _sum: { amount: true },
+      _min: { date: true },
     });
     if (_sum.amount?.greaterThan(linked.amount)) {
       throw new ConflictException(
         `${rupees.format(_sum.amount.toNumber())} of its expense was refunded; the amount can't go below it.`,
+      );
+    }
+    if (_min.date && data.date > _min.date) {
+      throw new ConflictException(
+        "Its expense has a refund dated earlier. Change or delete that refund in Expenses first.",
       );
     }
     await tx.expense.update({ where: { id: existing.id }, data });
@@ -86,6 +93,7 @@ export class LinkedExpensesService {
       where: { refundOfId: existing.id },
       data: { vehicleId: data.vehicleId, categoryId, subcategoryId: data.subcategoryId },
     });
+    this.logger.log(`Expense ${existing.id} updated from ${linked.source} ${linked.sourceId}`);
   }
 
   /** Removes the record's expense (and its refunds). Nothing to remove is fine. */
@@ -96,5 +104,6 @@ export class LinkedExpensesService {
   ): Promise<void> {
     const { count } = await tx.expense.deleteMany({ where: { source, sourceId } });
     if (count === 0) this.logger.warn(`No ${source} expense to remove for ${sourceId}`);
+    else this.logger.log(`Expense from ${source} ${sourceId} deleted`);
   }
 }

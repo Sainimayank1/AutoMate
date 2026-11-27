@@ -168,6 +168,12 @@ export function checkExpense(values: ExpenseRuleInput, ctx: z.RefinementCtx) {
           path: ["allocation", "vehicles"],
           message: "Enter every vehicle's share",
         });
+      } else if (shares.some((share) => paise(share) === 0)) {
+        ctx.addIssue({
+          code: "custom",
+          path: ["allocation", "vehicles"],
+          message: "Every share must be more than ₹0; leave out a vehicle that pays nothing",
+        });
       } else if (shares.reduce((sum, share) => sum + paise(share), 0) !== toPaise(total)) {
         ctx.addIssue({
           code: "custom",

@@ -128,7 +128,19 @@ export const EXPENSE_CATEGORY_SCHEMA: Schema = {
     custom: { type: "boolean" },
     active: { type: "boolean" },
     usage: { type: "integer", example: 12 },
-    subcategories: { type: "array", items: { ...CATEGORY_REF } },
+    subcategories: {
+      type: "array",
+      items: {
+        type: "object",
+        properties: {
+          ...CATEGORY_REF.properties,
+          parentId: { type: "string", format: "uuid", nullable: true },
+          custom: { type: "boolean" },
+          active: { type: "boolean" },
+          usage: { type: "integer", example: 3 },
+        },
+      },
+    },
   },
 };
 

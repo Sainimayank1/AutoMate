@@ -44,12 +44,14 @@ export class ExpenseCategoriesService {
   async list(
     userId: string,
     { includeInactive, ...page }: PaginationQuery & { includeInactive: boolean },
+    /** Just this top-level category (after a write). */
+    onlyId?: string,
   ): Promise<Paginated<ExpenseCategory>> {
     const visible = {
       OR: [{ userId: null }, { userId }],
       ...(includeInactive ? {} : { active: true }),
     };
-    const where = { ...visible, parentId: null };
+    const where = { ...visible, parentId: null, ...(onlyId && { id: onlyId }) };
     const orderBy: Prisma.ExpenseCategoryOrderByWithRelationInput[] = [
       { userId: { sort: "asc", nulls: "first" } },
       { sortOrder: "asc" },
@@ -205,8 +207,8 @@ export class ExpenseCategoriesService {
   }
 
   private async one(userId: string, topId: string, id: string): Promise<ExpenseCategory> {
-    const page = await this.list(userId, { includeInactive: true, page: 1, pageSize: 100 });
-    const top = page.items.find((item) => item.id === topId)!;
+    const page = await this.list(userId, { includeInactive: true, page: 1, pageSize: 1 }, topId);
+    const top = page.items[0]!;
     return top.id === id ? top : top.subcategories.find((item) => item.id === id)!;
   }
 

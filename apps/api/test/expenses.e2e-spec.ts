@@ -509,6 +509,146 @@ describe("Expenses (e2e)", () => {
     });
   });
 
+  it("keeps records consistent: retried saves, wildcards, refunds, shares and odometer order", async () => {
+    const car = await vehicle(arjun);
+    const other = await vehicle(arjun);
+    const odometer = async (vehicleId: string) =>
+      dataOf<Vehicle>(await as(arjun).get(`/api/v1/vehicles/${vehicleId}`).expect(200)).odometerKm;
+
+    // A retried save (same client id) returns the expense it created, never a second one.
+    const clientId = randomUUID();
+    const body = toll(car.id, { id: clientId, title: "100%_off toll", date: "2026-11-10" });
+    const first = dataOf<ExpenseDetail>(await as(arjun).post(EXPENSES, body).expect(201));
+    expect(dataOf<ExpenseDetail>(await as(arjun).post(EXPENSES, body)).id).toBe(first.id);
+    await as(arjun)
+      .post(EXPENSES, toll(car.id, { title: "Plain toll", date: "2026-11-12" }))
+      .expect(201);
+    const listed = (search: string) =>
+      as(arjun).get(`${EXPENSES}?vehicleId=${car.id}&search=${encodeURIComponent(search)}`);
+    expect(metaOf(await listed(""))!.total).toBe(2);
+    expect(metaOf(await listed("%"))!.total).toBe(1); // a literal %, not "anything"
+
+    // Later edits can't break the refund rules.
+    await as(arjun)
+      .post(`${EXPENSES}/${first.id}/refunds`, {
+        amount: "100",
+        date: "2026-11-11",
+        reason: "REFUND",
+      })
+      .expect(201);
+    const later = await as(arjun)
+      .patch(`${EXPENSES}/${first.id}`, { date: "2026-11-15" })
+      .expect(409);
+    expect(errorOf(later).details).toEqual([
+      { field: "date", message: expect.stringContaining("refund dated earlier") as string },
+    ]);
+    await as(arjun)
+      .patch(`${EXPENSES}/${first.id}`, {
+        categoryId: id("FINANCE"),
+        subcategoryId: id("FINANCE.INTEREST"),
+        interestAmount: "640",
+      })
+      .expect(409);
+
+    // A share of ₹0 is a validation error, not a database failure.
+    await as(arjun)
+      .post(
+        EXPENSES,
+        toll(car.id, {
+          allocation: {
+            mode: "shared",
+            split: "custom",
+            vehicles: [
+              { vehicleId: car.id, amount: "0" },
+              { vehicleId: other.id, amount: "640" },
+            ],
+          },
+        }),
+      )
+      .expect(400);
+
+    // One odometer history: out-of-order readings are refused; a corrected or moved one is undone.
+    await as(arjun)
+      .post(EXPENSES, toll(car.id, { date: "2026-11-20", odometerKm: 9000 }))
+      .expect(201);
+    const back = await as(arjun)
+      .post(EXPENSES, toll(car.id, { date: "2026-11-25", odometerKm: 8800 }))
+      .expect(409);
+    expect(errorOf(back).details[0]).toMatchObject({ field: "odometerKm" });
+    const typo = dataOf<ExpenseDetail>(
+      await as(arjun)
+        .post(EXPENSES, toll(car.id, { date: "2026-11-26", odometerKm: 92000 }))
+        .expect(201),
+    );
+    expect(await odometer(car.id)).toBe(92000);
+    await as(arjun).patch(`${EXPENSES}/${typo.id}`, { odometerKm: 9200 }).expect(200);
+    expect(await odometer(car.id)).toBe(9200);
+    await as(arjun)
+      .patch(`${EXPENSES}/${typo.id}`, { allocation: { mode: "single", vehicleId: other.id } })
+      .expect(200);
+    expect(await odometer(car.id)).toBe(9000);
+    expect(await odometer(other.id)).toBe(8000); // the reading stayed with its vehicle
+
+    // Bulk actions treat a shared expense as one: an archived vehicle in it keeps it whole.
+    const shared = dataOf<ExpenseDetail>(
+      await as(arjun)
+        .post(
+          EXPENSES,
+          toll(car.id, {
+            title: "Shared wash",
+            allocation: {
+              mode: "shared",
+              split: "equal",
+              vehicles: [{ vehicleId: car.id }, { vehicleId: other.id }],
+            },
+          }),
+        )
+        .expect(201),
+    );
+    await as(arjun).post(`/api/v1/vehicles/${other.id}/archive`).expect(200);
+    expect(
+      dataOf<BulkResult>(
+        await as(arjun)
+          .post(`${EXPENSES}/bulk/delete`, { ids: [shared.id] })
+          .expect(200),
+      ),
+    ).toEqual({ affected: 0, skipped: 1 });
+    expect(
+      dataOf<ExpenseDetail>(await as(arjun).get(`${EXPENSES}/${shared.id}`)).group,
+    ).toHaveLength(2);
+  });
+
+  it("refuses a fill-up date that would put its expense after its refund", async () => {
+    const car = await vehicle(arjun);
+    const entries = `/api/v1/vehicles/${car.id}/fuel-entries`;
+    const fill = (
+      await as(arjun)
+        .post(entries, {
+          filledAt: "2026-11-05T08:00:00.000Z",
+          odometerKm: 8400,
+          fuelType: "PETROL",
+          quantity: "32.4",
+          pricePerUnit: "104.32",
+          totalAmount: "3380",
+          isFullTank: true,
+        })
+        .expect(201)
+    ).body as ApiSuccessResponse<{ id: string }>;
+    const [expense] = dataOf<Expense[]>(
+      await as(arjun).get(`${EXPENSES}?vehicleId=${car.id}&source=FUEL`).expect(200),
+    );
+    await as(arjun)
+      .post(`${EXPENSES}/${expense!.id}/refunds`, {
+        amount: "50",
+        date: "2026-11-06",
+        reason: "REFUND",
+      })
+      .expect(201);
+    await as(arjun)
+      .patch(`${entries}/${fill.data.id}`, { filledAt: "2026-11-08T08:00:00.000Z" })
+      .expect(409);
+  });
+
   it("hides one user's expenses from another and keeps archived vehicles read-only", async () => {
     const car = await vehicle(arjun);
     const expense = dataOf<ExpenseDetail>(await as(arjun).post(EXPENSES, toll(car.id)).expect(201));
