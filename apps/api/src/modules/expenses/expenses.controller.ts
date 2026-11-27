@@ -1,4 +1,4 @@
-import type { BulkResult, Expense, ExpenseDetail } from "@automate/shared";
+import type { BulkResult, Expense, ExpenseDetail, ExpenseSummary } from "@automate/shared";
 import {
   Body,
   Controller,
@@ -28,9 +28,15 @@ import {
   CreateExpenseDto,
   CreateRefundDto,
   ExpenseListQueryDto,
+  ExpenseSummaryQueryDto,
   UpdateExpenseDto,
 } from "./dto/expense.dto";
-import { BULK_RESULT_SCHEMA, EXPENSE_DETAIL_SCHEMA, EXPENSE_SCHEMA } from "./expenses.constants";
+import {
+  BULK_RESULT_SCHEMA,
+  EXPENSE_DETAIL_SCHEMA,
+  EXPENSE_SCHEMA,
+  EXPENSE_SUMMARY_SCHEMA,
+} from "./expenses.constants";
 import { ExpensesService } from "./expenses.service";
 
 /** Expenses across all the user's vehicles (`?vehicleId=` narrows to one). */
@@ -59,7 +65,18 @@ export class ExpensesController {
     return this.expenses.create(user.id, body);
   }
 
-  // Declared before `:id` routes so "bulk" is never read as an id.
+  // Declared before `:id` routes so "summary" and "bulk" are never read as ids.
+  @Get("summary")
+  @ApiOperation({ summary: "Overview figures for this month and year (one vehicle or all)" })
+  @ApiEnvelopeResponse(EXPENSE_SUMMARY_SCHEMA)
+  @ApiErrorResponses(400, 401, 404)
+  summary(
+    @CurrentUser() user: AuthUser,
+    @Query() query: ExpenseSummaryQueryDto,
+  ): Promise<ExpenseSummary> {
+    return this.expenses.summary(user.id, query);
+  }
+
   @Post("bulk/delete")
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: "Delete several expenses (linked ones are skipped)" })

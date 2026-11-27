@@ -7,6 +7,8 @@ import type {
   ExpenseCategory,
   ExpenseDetail,
   ExpenseListQuery,
+  ExpenseSummary,
+  ExpenseSummaryQuery,
   UpdateExpenseCategoryValues,
   UpdateExpenseValues,
 } from "@automate/shared";
@@ -21,6 +23,9 @@ export const expenseService = {
   list: (params: ExpenseListParams) => requestPage<Expense>({ url: "/expenses", params }),
   /** Every page for the current filters (CSV export). */
   listAll: (params: ExpenseListParams) => requestAllPages<Expense>({ url: "/expenses", params }),
+  /** This month's and year's figures for the Overview (one vehicle, or all when omitted). */
+  summary: (params: ExpenseSummaryQuery) =>
+    request<ExpenseSummary>({ url: "/expenses/summary", params }),
   get: (id: string) => request<ExpenseDetail>({ url: `/expenses/${id}` }),
   create: (values: CreateExpenseValues) =>
     request<ExpenseDetail>({ method: "POST", url: "/expenses", data: values }),

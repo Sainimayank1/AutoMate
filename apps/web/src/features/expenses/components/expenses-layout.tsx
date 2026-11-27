@@ -7,14 +7,15 @@ import { PageHeader } from "@/components/common/page-header";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
-/** Tabs that exist today; later phases add Overview, Recurring, Budgets, Ownership cost, Insights. */
+/** Tabs that exist today; later phases add Recurring, Budgets, Ownership cost, Insights. */
 const TABS = [
-  { value: "transactions", label: "Transactions" },
-  { value: "categories", label: "Categories" },
+  { value: "overview", label: "Overview", path: "/expenses" },
+  { value: "transactions", label: "Transactions", path: "/expenses/transactions" },
+  { value: "categories", label: "Categories", path: "/expenses/categories" },
 ] as const;
 
 /**
- * Stitch "Expenses — Transactions": one header and the module's tabs above every tab page.
+ * Stitch "Expenses" screens: one header and the module's tabs above every tab page.
  * Tabs are links (each tab is a route), styled with the shared Tabs primitive.
  */
 export function ExpensesLayout({
@@ -50,7 +51,7 @@ export function ExpensesLayout({
           {TABS.map((item) => (
             <TabsTrigger key={item.value} value={item.value} asChild>
               {/* Keep the vehicle scope and filters when switching tabs. */}
-              <Link to={{ pathname: `/expenses/${item.value}`, search }}>{item.label}</Link>
+              <Link to={{ pathname: item.path, search }}>{item.label}</Link>
             </TabsTrigger>
           ))}
         </TabsList>

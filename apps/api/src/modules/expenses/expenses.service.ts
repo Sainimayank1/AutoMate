@@ -8,10 +8,13 @@ import {
   type CreateRefundValues,
   type Expense,
   type ExpenseDetail,
+  type ExpenseIcon,
   ExpenseKind,
   type ExpenseListQuery,
   ExpenseSort,
   ExpenseSource,
+  type ExpenseSummary,
+  type ExpenseSummaryQuery,
   LINKED_EXPENSE_SOURCES,
   pageMeta,
   splitEqually,
@@ -32,6 +35,12 @@ import { type Expense as ExpenseRow, Prisma } from "@/generated/prisma/client";
 import { VehiclesService } from "@/modules/vehicles/vehicles.service";
 
 import { ExpenseCategoriesService } from "./expense-categories.service";
+import {
+  type MonthTotal,
+  overviewPeriods,
+  summarizeExpenses,
+  type YearReadings,
+} from "./expense-summary";
 import { type ExpenseWithCategories, toDbDate, toExpense, toExpenseInput } from "./expenses.mapper";
 
 const NOT_FOUND = "Expense not found";
@@ -82,6 +91,100 @@ export class ExpensesService {
       }),
     ]);
     return new Paginated(await this.present(rows), pageMeta(query, total));
+  }
+
+  /**
+   * The Overview figures for the current IST month and year: two grouped queries (totals by month,
+   * vehicle and category; odometer readings by vehicle), then `summarizeExpenses`.
+   */
+  async summary(userId: string, { vehicleId }: ExpenseSummaryQuery): Promise<ExpenseSummary> {
+    if (vehicleId) await this.vehicles.findOwned(userId, vehicleId);
+    const period = overviewPeriods(new Date());
+    const vehicle = vehicleId ? Prisma.sql`AND e.vehicle_id = ${vehicleId}::uuid` : Prisma.empty;
+    const [totals, readings] = await Promise.all([
+      this.prisma.$queryRaw<
+        {
+          month: string;
+          vehicle_id: string;
+          category_id: string;
+          cost_class: MonthTotal["costClass"];
+          kind: MonthTotal["kind"];
+          total: Prisma.Decimal;
+        }[]
+      >`
+        SELECT to_char(e.date, 'YYYY-MM') AS month, e.vehicle_id, e.category_id, c.cost_class, e.kind,
+               sum(e.amount) AS total
+        FROM expenses e
+        JOIN expense_categories c ON c.id = e.category_id
+        WHERE e.user_id = ${userId}::uuid AND e.date >= ${period.from}::date AND e.date <= ${period.to}::date
+        ${vehicle}
+        GROUP BY 1, 2, 3, 4, 5`,
+      this.prisma.$queryRaw<
+        {
+          vehicle_id: string;
+          readings: number;
+          min_in_year: number | null;
+          max_in_year: number | null;
+          before: number | null;
+        }[]
+      >`
+        SELECT e.vehicle_id,
+               count(*) FILTER (WHERE e.date >= ${period.yearStart}::date)::int AS readings,
+               min(e.odometer_km) FILTER (WHERE e.date >= ${period.yearStart}::date) AS min_in_year,
+               max(e.odometer_km) FILTER (WHERE e.date >= ${period.yearStart}::date) AS max_in_year,
+               max(e.odometer_km) FILTER (WHERE e.date < ${period.yearStart}::date) AS before
+        FROM expenses e
+        WHERE e.user_id = ${userId}::uuid AND e.odometer_km IS NOT NULL AND e.date <= ${period.to}::date
+        ${vehicle}
+        GROUP BY e.vehicle_id`,
+    ]);
+    const summary = summarizeExpenses(
+      totals.map((row) => ({
+        month: row.month,
+        vehicleId: row.vehicle_id,
+        categoryId: row.category_id,
+        costClass: row.cost_class,
+        kind: row.kind,
+        total: new Prisma.Decimal(row.total),
+      })),
+      readings.map((row): YearReadings => ({
+        vehicleId: row.vehicle_id,
+        readings: row.readings,
+        minInYear: row.min_in_year,
+        maxInYear: row.max_in_year,
+        before: row.before,
+      })),
+      new Date(),
+    );
+    const categories = await this.prisma.expenseCategory.findMany({
+      where: { id: { in: summary.categories.map((item) => item.categoryId) } },
+    });
+    // Shares of the categories shown, so they add up to 100 % even when a refund nets another to zero.
+    const total = summary.categories.reduce(
+      (sum, item) => sum.plus(item.amount),
+      new Prisma.Decimal(0),
+    );
+    return {
+      ...summary,
+      categories: summary.categories.flatMap(({ categoryId, amount }) => {
+        const row = categories.find((category) => category.id === categoryId);
+        return row
+          ? [
+              {
+                category: {
+                  id: row.id,
+                  key: row.key,
+                  name: row.name,
+                  icon: row.icon as ExpenseIcon,
+                  costClass: row.costClass!,
+                },
+                amount: amount.toFixed(2),
+                percent: amount.div(total).times(100).toDecimalPlaces(1).toNumber(),
+              },
+            ]
+          : [];
+      }),
+    };
   }
 
   async get(userId: string, id: string): Promise<ExpenseDetail> {

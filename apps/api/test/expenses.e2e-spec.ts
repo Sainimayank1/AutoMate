@@ -12,6 +12,7 @@ import type {
   Expense,
   ExpenseCategory,
   ExpenseDetail,
+  ExpenseSummary,
   PageMeta,
   Vehicle,
 } from "@automate/shared";
@@ -25,6 +26,7 @@ import { configureApp } from "@/app.setup";
 import { PrismaService } from "@/database/prisma.service";
 import { AuthService } from "@/modules/auth/auth.service";
 import { seedSystemExpenseCategories } from "@/modules/expenses/expense-categories.seed";
+import { overviewPeriods } from "@/modules/expenses/expense-summary";
 
 const DOMAIN = "expenses.e2e.automate.test";
 const EXPENSES = "/api/v1/expenses";
@@ -430,6 +432,81 @@ describe("Expenses (e2e)", () => {
         .expect(201),
     );
     await as(arjun).delete(`${CATEGORIES}/${unused.id}`).expect(204);
+  });
+
+  it("sums the overview: operating cost net of refunds, loan cash apart, cost per km", async () => {
+    const car = await vehicle(arjun);
+    const { today, lastMonth, month } = overviewPeriods(new Date());
+    const sameYear = lastMonth.startsWith(month.slice(0, 4));
+    await as(arjun)
+      .post(EXPENSES, toll(car.id, { amount: "800", date: `${lastMonth}-15`, odometerKm: 8100 }))
+      .expect(201);
+    await as(arjun)
+      .post(EXPENSES, toll(car.id, { amount: "640", date: today, odometerKm: 8600 }))
+      .expect(201);
+    const parking = dataOf<ExpenseDetail>(
+      await as(arjun)
+        .post(
+          EXPENSES,
+          toll(car.id, {
+            title: "Phoenix Mall",
+            amount: "360",
+            date: today,
+            subcategoryId: id("DAILY_USAGE.PARKING"),
+          }),
+        )
+        .expect(201),
+    );
+    await as(arjun)
+      .post(`${EXPENSES}/${parking.id}/refunds`, { amount: "60", date: today, reason: "REFUND" })
+      .expect(201);
+    await as(arjun)
+      .post(
+        EXPENSES,
+        toll(car.id, {
+          categoryId: id("FINANCE"),
+          subcategoryId: id("FINANCE.EMI"),
+          title: "HDFC Auto Loan",
+          amount: "16684",
+          date: today,
+          principalAmount: "10950",
+          interestAmount: "5734",
+        }),
+      )
+      .expect(201);
+
+    const summary = dataOf<ExpenseSummary>(
+      await as(arjun).get(`${EXPENSES}/summary?vehicleId=${car.id}`).expect(200),
+    );
+    expect(summary).toMatchObject({
+      month,
+      operating: {
+        thisMonth: "940.00", // 640 + 360 − 60
+        lastMonth: "800.00",
+        changePercent: 18,
+        thisYear: sameYear ? "1740.00" : "940.00",
+        monthsCovered: sameYear ? 2 : 1,
+      },
+      distanceKm: 500,
+      costPerKm: sameYear ? "3.48" : "1.88",
+      loanOutflowThisMonth: "16684.00",
+      cashOutflowThisMonth: "17624.00",
+    });
+    expect(summary.categories).toEqual([
+      {
+        category: expect.objectContaining({ key: "DAILY_USAGE" }) as object,
+        amount: "940.00",
+        percent: 100,
+      },
+    ]);
+
+    await as(priya).get(`${EXPENSES}/summary?vehicleId=${car.id}`).expect(404);
+    const empty = dataOf<ExpenseSummary>(await as(priya).get(`${EXPENSES}/summary`).expect(200));
+    expect(empty).toMatchObject({
+      operating: { thisMonth: "0.00" },
+      costPerKm: null,
+      categories: [],
+    });
   });
 
   it("hides one user's expenses from another and keeps archived vehicles read-only", async () => {

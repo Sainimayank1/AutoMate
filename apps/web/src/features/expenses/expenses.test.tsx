@@ -1,4 +1,4 @@
-import type { Expense, ExpenseCategory, ExpenseDetail } from "@automate/shared";
+import type { Expense, ExpenseCategory, ExpenseDetail, ExpenseSummary } from "@automate/shared";
 import { act, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { InternalAxiosRequestConfig } from "axios";
@@ -167,10 +167,107 @@ beforeEach(() => {
   useActiveVehicleStore.setState({ activeVehicleId: null });
 });
 
+const summary = (overrides: Partial<ExpenseSummary> = {}): ExpenseSummary => ({
+  month: "2026-11",
+  operating: {
+    thisMonth: "11840.00",
+    lastMonth: "12590.00",
+    changePercent: -6,
+    thisYear: "87710.00",
+    monthsCovered: 9,
+    monthlyAverage: "9745.56",
+  },
+  costPerKm: "10.38",
+  distanceKm: 8438,
+  loanOutflowThisMonth: "16684.00",
+  cashOutflowThisMonth: "28524.00",
+  categories: [
+    { category: ref(categories[0]!), amount: "7120.00", percent: 60.1 },
+    { category: ref(daily), amount: "4720.00", percent: 39.9 },
+  ],
+  ...overrides,
+});
+
+describe("overview", () => {
+  it("invites the first expense", async () => {
+    api({
+      ...base,
+      "GET /expenses": () => okPage([]),
+      "GET /expenses/summary": () =>
+        ok(
+          summary({
+            operating: {
+              thisMonth: "0.00",
+              lastMonth: "0.00",
+              changePercent: null,
+              thisYear: "0.00",
+              monthsCovered: 0,
+              monthlyAverage: null,
+            },
+            costPerKm: null,
+            distanceKm: null,
+            categories: [],
+          }),
+        ),
+    });
+    renderApp("/expenses");
+    expect(await screen.findByText("No expenses yet")).toBeInTheDocument();
+    expect(screen.getByRole("tab", { name: "Overview" })).toHaveAttribute("aria-selected", "true");
+  });
+
+  it("shows this month's figures, the breakdown and the latest expenses", async () => {
+    const calls = api({
+      ...base,
+      "GET /expense-categories": () =>
+        okPage(categories.map((c) => (c.key === "FUEL" ? { ...c, usage: 12 } : c))),
+      "GET /expenses/summary": () => ok(summary()),
+      "GET /expenses": () => okPage([fuelRow, expense(), emiRow], { total: 42, totalPages: 9 }),
+    });
+    renderApp("/expenses");
+    const user = userEvent.setup();
+
+    expect(await screen.findByText("₹11,840.00")).toBeInTheDocument();
+    expect(paramsOf(calls.find((call) => call.url === "/expenses/summary"))).toEqual({
+      vehicleId: victoris.id,
+    });
+    expect(screen.getByText("November 2026")).toBeInTheDocument();
+    expect(screen.getByText("-6% vs October")).toHaveClass("text-success");
+    expect(screen.getByText("9 months")).toBeInTheDocument();
+    expect(screen.getByText("₹10.38")).toBeInTheDocument();
+    expect(screen.getByText("Over 8,438 km in 2026")).toBeInTheDocument();
+    const kpis = screen.getByRole("region", { name: "This month and year" });
+    expect(within(kpis).getByText("₹16,684.00")).toBeInTheDocument();
+    expect(within(kpis).getByText("Of ₹28,524.00 paid this month")).toBeInTheDocument();
+    expect(within(kpis).getByText("Operating (Nov)")).toBeInTheDocument();
+
+    const breakdown = screen.getByRole("region", { name: "Category breakdown" });
+    expect(within(breakdown).getByRole("progressbar", { name: /Fuel, 60%/ })).toBeInTheDocument();
+    expect(within(breakdown).getByText("₹7,120.00")).toBeInTheDocument();
+
+    const recent = screen.getByRole("region", { name: "Recent expenses" });
+    expect(await within(recent).findByText("Showing 3 of 42")).toBeInTheDocument();
+    expect(paramsOf(calls.find((call) => call.url === "/expenses"))).toMatchObject({
+      pageSize: 5,
+      vehicleId: victoris.id,
+    });
+    // Chips are the most used categories; one narrows the list and "View all".
+    await user.click(within(recent).getByRole("button", { name: "Driver salary" }));
+    await waitFor(() =>
+      expect(paramsOf(calls.filter((call) => call.url === "/expenses").at(-1))).toMatchObject({
+        categoryId: ID(4),
+      }),
+    );
+    expect(within(recent).getByRole("link", { name: "View all" })).toHaveAttribute(
+      "href",
+      `/expenses/transactions?category=${ID(4)}`,
+    );
+  });
+});
+
 describe("transactions", () => {
   it("invites the first expense", async () => {
     api({ ...base, "GET /expenses": () => okPage([]) });
-    renderApp("/expenses");
+    renderApp("/expenses/transactions");
     expect(await screen.findByText("No expenses yet")).toBeInTheDocument();
     expect(screen.getByRole("tab", { name: "Transactions" })).toHaveAttribute(
       "aria-selected",

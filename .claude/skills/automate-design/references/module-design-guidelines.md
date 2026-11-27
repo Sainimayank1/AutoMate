@@ -119,11 +119,13 @@ Rules:
 
 **Job:** every rupee spent on the vehicle, clearly categorised and never double-counted.
 
-**Expense overview (`/expenses`):**
+**Expense overview (`/expenses`, Stitch "Expenses — Desktop / Mobile", built):**
 
-- PageHeader with the action "Add expense", a DateRangePicker and vehicle scope (supports All vehicles).
-- **Instruments:** This month, This year, Avg monthly, Cost per km.
-- **Money separation panel** (a Card with 3 `bg-elevated` tiles, always present; definitions in `docs/architecture/expenses.md`):
+- Tabs Overview · Transactions · Categories; a vehicle scope (supports All vehicles) and the IST month.
+- **KPI strip** (5 `StatCard`s, two across on phones): Operating (Nov) with the change vs last month (cost ↑ `warning`, ↓ `success`), Operating (2026) with its months, Monthly average, Running cost / km with the km it's priced over, Loan EMI outflow "of ₹… paid this month". Then the one-line operating-cost definition.
+- **Category breakdown:** this month's running cost per category, amount, % and a `Progress h-2` bar in the category colour.
+- **Recent expenses:** 5 rows (table on desktop, list on phones), chips for the most used categories, "Showing 5 of N" and "View all" into Transactions with the same scope.
+- Planned with phase 6 (Ownership cost): the **money separation panel** (a Card with 3 `bg-elevated` tiles, always present; definitions in `docs/architecture/expenses.md`):
   1. **Operating cost**: running the vehicle (fuel, servicing, repairs, tolls, parking, washing). Cost per km uses only this;
   2. **Cash outflow**: everything paid, including the full EMI (principal too);
   3. **Economic ownership cost**: operating + insurance and taxes + loan interest and charges + accessories + depreciation (an estimate).

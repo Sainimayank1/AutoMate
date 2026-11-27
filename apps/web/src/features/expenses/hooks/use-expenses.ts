@@ -17,6 +17,7 @@ export const expenseKeys = {
   all: ["expenses"] as const,
   lists: () => ["expenses", "list"] as const,
   list: (params: ExpenseListParams) => ["expenses", "list", params] as const,
+  summary: (vehicleId: string | undefined) => ["expenses", "summary", vehicleId ?? "all"] as const,
   detail: (id: string) => ["expenses", "detail", id] as const,
   categories: ["expense-categories"] as const,
 };
@@ -34,6 +35,15 @@ export function useExpenses(params: ExpenseListParams, { enabled = true } = {}) 
 /** Every page for the current filters, for the CSV export. */
 export function useExportExpenses() {
   return useMutation({ mutationFn: (params: ExpenseListParams) => expenseService.listAll(params) });
+}
+
+/** The Overview figures; under `expenseKeys.all`, so every expense or fuel write refreshes them. */
+export function useExpenseSummary(vehicleId: string | undefined, { enabled = true } = {}) {
+  return useQuery({
+    queryKey: expenseKeys.summary(vehicleId),
+    queryFn: () => expenseService.summary({ vehicleId }),
+    enabled,
+  });
 }
 
 export function useExpense(id: string | undefined) {

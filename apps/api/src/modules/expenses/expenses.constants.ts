@@ -131,3 +131,39 @@ export const EXPENSE_CATEGORY_SCHEMA: Schema = {
     subcategories: { type: "array", items: { ...CATEGORY_REF } },
   },
 };
+
+const decimalOrNull = (example: string): Schema => ({ type: "string", nullable: true, example });
+
+/** OpenAPI shape of `ExpenseSummary` (@automate/shared). */
+export const EXPENSE_SUMMARY_SCHEMA: Schema = {
+  type: "object",
+  properties: {
+    month: { type: "string", example: "2026-11" },
+    operating: {
+      type: "object",
+      properties: {
+        thisMonth: money("11840.00"),
+        lastMonth: money("12590.00"),
+        changePercent: { type: "integer", nullable: true, example: -6 },
+        thisYear: money("87710.00"),
+        monthsCovered: { type: "integer", example: 9 },
+        monthlyAverage: decimalOrNull("9745.56"),
+      },
+    },
+    costPerKm: decimalOrNull("10.38"),
+    distanceKm: { type: "integer", nullable: true, example: 8438 },
+    loanOutflowThisMonth: money("16684.00"),
+    cashOutflowThisMonth: money("28524.00"),
+    categories: {
+      type: "array",
+      items: {
+        type: "object",
+        properties: {
+          category: CATEGORY_REF,
+          amount: money("7120.00"),
+          percent: { type: "number", example: 60.1 },
+        },
+      },
+    },
+  },
+};
