@@ -30,23 +30,23 @@ How Prisma 7 differs from older guides:
 
 ## 3. Schema conventions
 
-| Topic          | Rule                                                                                                                                                                                    |
-| -------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Naming         | Models `PascalCase` singular, fields `camelCase`. Map to `snake_case` with `@@map("vehicles")` / `@map("user_id")`                                                                      |
-| IDs            | `id String @id @default(uuid(7)) @db.Uuid`. UUIDv7 is time-ordered, so indexes stay compact. Offline-capable records accept a client-generated UUID, validated in the shared Zod schema |
-| Timestamps     | `createdAt DateTime @default(now()) @db.Timestamptz(3)` and `updatedAt DateTime @updatedAt @db.Timestamptz(3)` on every table (also needed for offline sync)                            |
-| Calendar dates | `@db.Date` for dates without a time (document expiry). A fill-up is an instant (`filledAt`, timestamptz)                                                                                |
-| Money          | `Decimal @db.Decimal(12, 2)` in INR. In code, compute with `decimal.js` (Prisma's `Decimal` is decimal.js). Never `Float`                                                               |
-| Quantities     | Fuel litres/kg/kWh `Decimal @db.Decimal(10, 3)`, price per unit `Decimal @db.Decimal(10, 3)`, odometer `Int` (km)                                                                       |
-| Coordinates    | `latitude`/`longitude` `Decimal @db.Decimal(9, 6)`, nullable as a pair (CHECK constraints for the pair and the ranges); the API returns them as numbers                                 |
-| Ownership      | Every user-owned table has `userId` (FK, `onDelete: Cascade`) and `vehicleId` where applicable. Every query filters by `userId`                                                         |
-| Origin links   | A record that creates an expense links to it with a unique FK (e.g. `Expense.fuelEntryId @unique`) instead of duplicating amounts                                                       |
-| Enums          | Prisma `enum` for closed sets the database must enforce (fuel type). Mirror them in `packages/shared` for the web                                                                       |
-| Constraints    | Use the database for invariants: `@@unique`, FKs, `NOT NULL`. Add `CHECK` constraints (e.g. `amount >= 0`) in the migration SQL with `--create-only`                                    |
-| Indexes        | Add them for real query patterns, typically `@@index([userId, vehicleId, date])` for histories. Don't index speculatively                                                               |
-| JSON columns   | Avoid. Use only for opaque payloads that are never filtered (e.g. AI tool traces)                                                                                                       |
-| Soft delete    | Only where the product needs restore or audit (`deletedAt DateTime?`). Default is hard delete                                                                                           |
-| Files          | Never store bytes. Store the object key and metadata (see [backend.md §11](backend.md#11-file-storage-strategy))                                                                        |
+| Topic          | Rule                                                                                                                                                                                                     |
+| -------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Naming         | Models `PascalCase` singular, fields `camelCase`. Map to `snake_case` with `@@map("vehicles")` / `@map("user_id")`                                                                                       |
+| IDs            | `id String @id @default(uuid(7)) @db.Uuid`. UUIDv7 is time-ordered, so indexes stay compact. Offline-capable records accept a client-generated UUID, validated in the shared Zod schema                  |
+| Timestamps     | `createdAt DateTime @default(now()) @db.Timestamptz(3)` and `updatedAt DateTime @updatedAt @db.Timestamptz(3)` on every table (also needed for offline sync)                                             |
+| Calendar dates | `@db.Date` for dates without a time (document expiry). A fill-up is an instant (`filledAt`, timestamptz)                                                                                                 |
+| Money          | `Decimal @db.Decimal(12, 2)` in INR. In code, compute with `decimal.js` (Prisma's `Decimal` is decimal.js). Never `Float`                                                                                |
+| Quantities     | Fuel litres/kg/kWh `Decimal @db.Decimal(10, 3)`, price per unit `Decimal @db.Decimal(10, 3)`, odometer `Int` (km)                                                                                        |
+| Coordinates    | `latitude`/`longitude` `Decimal @db.Decimal(9, 6)`, nullable as a pair (CHECK constraints for the pair and the ranges); the API returns them as numbers                                                  |
+| Ownership      | Every user-owned table has `userId` (FK, `onDelete: Cascade`) and `vehicleId` where applicable. Every query filters by `userId`                                                                          |
+| Origin links   | A record that is also money has one linked expense, keyed by the unique pair `Expense (source, sourceId)` (e.g. `FUEL` + the fill-up's id) and written in the same transaction (`LinkedExpensesService`) |
+| Enums          | Prisma `enum` for closed sets the database must enforce (fuel type). Mirror them in `packages/shared` for the web                                                                                        |
+| Constraints    | Use the database for invariants: `@@unique`, FKs, `NOT NULL`. Add `CHECK` constraints (e.g. `amount >= 0`) in the migration SQL with `--create-only`                                                     |
+| Indexes        | Add them for real query patterns, typically `@@index([userId, vehicleId, date])` for histories. Don't index speculatively                                                                                |
+| JSON columns   | Avoid. Use only for opaque payloads that are never filtered (e.g. AI tool traces)                                                                                                                        |
+| Soft delete    | Only where the product needs restore or audit (`deletedAt DateTime?`). Default is hard delete                                                                                                            |
+| Files          | Never store bytes. Store the object key and metadata (see [backend.md §11](backend.md#11-file-storage-strategy))                                                                                         |
 
 Illustrative only (not created yet):
 

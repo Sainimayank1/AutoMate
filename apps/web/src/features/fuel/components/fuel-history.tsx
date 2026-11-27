@@ -300,7 +300,7 @@ export function FuelHistory({ vehicleId, showFuel }: { vehicleId: string; showFu
         title="Delete this fill-up?"
         description={
           deleting
-            ? `The ${formatDate(deleting.filledAt)} fill-up of ${formatVolume(deleting.quantity, FUEL_UNIT[deleting.fuelType])} (${formatCurrency(deleting.totalAmount)}) will be removed and mileage recalculated. This can't be undone.`
+            ? `The ${formatDate(deleting.filledAt)} fill-up of ${formatVolume(deleting.quantity, FUEL_UNIT[deleting.fuelType])} (${formatCurrency(deleting.totalAmount)}) will be removed with its expense, and mileage recalculated. This can't be undone.`
             : undefined
         }
         confirmLabel="Delete"

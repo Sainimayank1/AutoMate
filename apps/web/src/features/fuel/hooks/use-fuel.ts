@@ -7,6 +7,7 @@ import type {
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 
+import { expenseKeys } from "@/features/expenses/hooks/use-expenses";
 import { type FuelListParams, fuelService } from "@/features/fuel/services/fuel-service";
 import { vehicleKeys } from "@/features/garage/hooks/use-vehicles";
 import { useActiveVehicleStore } from "@/stores/vehicle-store";
@@ -57,8 +58,9 @@ export function useFuelEntry(vehicleId: string, id: string) {
 }
 
 /**
- * After any write: one entry changes the mileage of its neighbours and the summary, and may raise
- * the vehicle's odometer, so refetch the vehicle's fuel data and the vehicles.
+ * After any write: one entry changes the mileage of its neighbours and the summary, may raise
+ * the vehicle's odometer, and is also an expense (created, updated or deleted with it), so
+ * refetch the vehicle's fuel data, the vehicles and every expense view.
  */
 function useSyncFuel() {
   const queryClient = useQueryClient();
@@ -66,6 +68,8 @@ function useSyncFuel() {
     Promise.all([
       queryClient.invalidateQueries({ queryKey: fuelKeys.vehicle(vehicleId) }),
       queryClient.invalidateQueries({ queryKey: vehicleKeys.all }),
+      queryClient.invalidateQueries({ queryKey: expenseKeys.all }),
+      queryClient.invalidateQueries({ queryKey: expenseKeys.categories }),
     ]);
 }
 

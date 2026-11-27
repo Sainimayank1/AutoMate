@@ -177,7 +177,9 @@ describe("fuel page", () => {
     await user.click(within(table).getByRole("button", { name: "Actions for 09/11/2026 fill-up" }));
     await user.click(await screen.findByRole("menuitem", { name: "Delete" }));
     const dialog = await screen.findByRole("alertdialog", { name: "Delete this fill-up?" });
-    expect(within(dialog).getByText(/14.2 L \(₹1,481.34\)/)).toBeInTheDocument();
+    expect(
+      within(dialog).getByText(/14.2 L \(₹1,481.34\) will be removed with its expense/),
+    ).toBeInTheDocument();
     await user.click(within(dialog).getByRole("button", { name: "Delete" }));
 
     await waitFor(() => expect(calls.some((call) => call.method === "delete")).toBe(true));

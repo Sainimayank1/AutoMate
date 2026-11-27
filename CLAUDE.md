@@ -4,7 +4,7 @@ Mobile-first app to manage vehicles, fuel, expenses, maintenance, documents, tri
 
 ## Status
 
-Phase 0 (infrastructure) is done, plus email/password auth. **P0 modules in progress:** Garage (M2) and Fuel (M3) are built; Expenses (M4) is built in approved phases (phase 1 · core done; plan and money rules in `docs/architecture/expenses.md`), then Dashboard (M1). Build one module at a time, in this order.
+Phase 0 (infrastructure) is done, plus email/password auth. **P0 modules in progress:** Garage (M2) and Fuel (M3) are built; Expenses (M4) is built in approved phases (phases 1 · core and 2 · Fuel link done; plan and money rules in `docs/architecture/expenses.md`), then Dashboard (M1). Build one module at a time, in this order.
 
 ## Token-saving tools (mandatory on every prompt)
 

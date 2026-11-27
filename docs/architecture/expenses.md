@@ -48,6 +48,18 @@ Every top-level category has a **cost class**; subcategories inherit it. The cla
 
 ## 4. Phases
 
-Built: **1 · Core** (categories, add / edit / delete / duplicate, transactions with filters, sorting, paging and CSV export, details, shared expenses, refunds, bulk actions, manual loan split).
+Built: **1 · Core** (categories, add / edit / delete / duplicate, transactions with filters, sorting, paging and CSV export, details, shared expenses, refunds, bulk actions, manual loan split) and **2 · Fuel link** (§5).
 
-Next, one at a time, each after approval: 2 · Fuel link (fill-ups create their expense; backfill), 3 · Overview, 4 · Recurring payments and the Vehicle Loan (amortisation schedule, reducing balance by default, flat optional, prepayments and RBI-style rate changes), 5 · Budgets, 6 · Ownership cost, 7 · Insights, 8 · CSV import and the printable report. Receipt attachments and receipt scanning are out of scope (no file storage in this project).
+Next, one at a time, each after approval: 3 · Overview, 4 · Recurring payments and the Vehicle Loan (amortisation schedule, reducing balance by default, flat optional, prepayments and RBI-style rate changes), 5 · Budgets, 6 · Ownership cost, 7 · Insights, 8 · CSV import and the printable report. Receipt attachments and receipt scanning are out of scope (no file storage in this project).
+
+## 5. Linked records (Fuel today; Maintenance and Trips later)
+
+`LinkedExpensesService` (exported by `ExpensesModule`) is the only way another module writes money:
+
+- `sync(tx, linked)` creates or updates the expense for `(source, sourceId)`; `remove(tx, source, sourceId)` deletes it (with its refunds). Both run **inside the owning module's write transaction, while it holds the vehicle lock**, so the record and its money never disagree.
+- The caller passes system category keys (`FUEL`, `FUEL.PETROL`…), never ids, and the IST calendar date.
+- A sync that would lower an amount below what was already refunded against it is refused (409).
+- **Fuel:** `toFuelExpense` (`modules/fuel/fuel-expense.ts`) maps a fill-up: title = station (or "Fuel fill-up"), amount = total paid, date = the IST day of the fill-up, subcategory by fuel (Petrol, Diesel, CNG, EV charging; hybrids burn petrol), vendor = station, odometer, description "32.4 L at ₹104.32/L", payment and notes. Create, edit and delete of a fill-up do the same to its expense.
+- **Backfill:** migration `link_fuel_expenses` gave every fill-up logged before phase 2 its expense with the same fields (idempotent on the unique key; it also makes sure the Fuel categories exist, since migrations run before the seed).
+- **Web:** fuel writes refresh every expense view; expense rows from Fuel link to their fill-up ("Edit in Fuel").
+- **Next modules:** Maintenance (service records → maintenance/repair expenses) and Trips (tolls, parking) call the same service with their own `source`; nothing in Expenses changes.

@@ -90,13 +90,13 @@ A module imports another module's exported service rather than querying another 
 
 **How the built modules connect:**
 
-| From → to             | Through                                                                                                                                         | Why                                                                                   |
-| --------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------- |
-| Fuel → Vehicles       | `VehiclesService.findOwned` (reads), `lockOwned(userId, id, tx)` (writes), `raiseOdometer(id, km, tx)`                                          | Ownership (404 for others), one odometer history, the vehicle's reading only goes up  |
-| Fuel → Expenses       | M4: `ExpensesService` creates/updates/deletes the linked expense in the fuel write's transaction (`Expense.fuelEntryId @unique`, origin `FUEL`) | One money record per fill-up; M4's migration backfills expenses for existing fill-ups |
-| Expenses → Vehicles   | `findOwned`, `lockOwned` for every vehicle a write touches (id order), `raiseOdometer`                                                          | Ownership, archived vehicles read-only, one odometer history                          |
-| Dashboard → Fuel      | M1: `GET /vehicles/:id/fuel-summary`                                                                                                            | Mileage and fuel spend come from the API, never recomputed                            |
-| Fuel form → Geocoding | Web: `POST /geocode/reverse` when the add form gets the device position; the address is saved with the coordinates                              | Read-only, automatic location for a future map of fill-ups                            |
+| From → to             | Through                                                                                                                                                               | Why                                                                                  |
+| --------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------ |
+| Fuel → Vehicles       | `VehiclesService.findOwned` (reads), `lockOwned(userId, id, tx)` (writes), `raiseOdometer(id, km, tx)`                                                                | Ownership (404 for others), one odometer history, the vehicle's reading only goes up |
+| Fuel → Expenses       | `LinkedExpensesService.sync / remove` inside the fuel write transaction, keyed by `(source FUEL, sourceId)` (unique); the backfill migration covered earlier fill-ups | One money record per fill-up, read-only in Expenses                                  |
+| Expenses → Vehicles   | `findOwned`, `lockOwned` for every vehicle a write touches (id order), `raiseOdometer`                                                                                | Ownership, archived vehicles read-only, one odometer history                         |
+| Dashboard → Fuel      | M1: `GET /vehicles/:id/fuel-summary`                                                                                                                                  | Mileage and fuel spend come from the API, never recomputed                           |
+| Fuel form → Geocoding | Web: `POST /geocode/reverse` when the add form gets the device position; the address is saved with the coordinates                                                    | Read-only, automatic location for a future map of fill-ups                           |
 
 Writes that touch a vehicle's records take its row lock first (`lockOwned`), so concurrent saves can't break ordering rules such as the odometer sequence. Maintenance, Trips and service records should use the same lock and `raiseOdometer`.
 
