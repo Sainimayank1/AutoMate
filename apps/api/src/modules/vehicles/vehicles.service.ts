@@ -1,6 +1,13 @@
-import type { CreateVehicleValues, UpdateVehicleValues, Vehicle } from "@automate/shared";
+import {
+  type CreateVehicleValues,
+  pageMeta,
+  type UpdateVehicleValues,
+  type Vehicle,
+  type VehicleListQuery,
+} from "@automate/shared";
 import { ConflictException, Injectable, NotFoundException } from "@nestjs/common";
 
+import { pageArgs, Paginated } from "@/common/pagination/paginated";
 import { PrismaService } from "@/database/prisma.service";
 import type { Prisma, Vehicle as VehicleRow } from "@/generated/prisma/client";
 
@@ -13,13 +20,18 @@ const NOT_FOUND = "Vehicle not found";
 export class VehiclesService {
   constructor(private readonly prisma: PrismaService) {}
 
-  /** Vehicles in use (default) or archived ones, oldest first so the order stays stable. */
-  async list(userId: string, { archived }: { archived: boolean }): Promise<Vehicle[]> {
-    const rows = await this.prisma.vehicle.findMany({
-      where: { userId, archivedAt: archived ? { not: null } : null },
-      orderBy: { createdAt: "asc" },
-    });
-    return rows.map(toVehicle);
+  /** Vehicles in use (default) or archived ones, oldest first so pages stay stable. */
+  async list(userId: string, { archived, ...page }: VehicleListQuery): Promise<Paginated<Vehicle>> {
+    const where = { userId, archivedAt: archived ? { not: null } : null };
+    const [total, rows] = await this.prisma.$transaction([
+      this.prisma.vehicle.count({ where }),
+      this.prisma.vehicle.findMany({
+        where,
+        orderBy: [{ createdAt: "asc" }, { id: "asc" }],
+        ...pageArgs(page),
+      }),
+    ]);
+    return new Paginated(rows.map(toVehicle), pageMeta(page, total));
   }
 
   async get(userId: string, id: string): Promise<Vehicle> {
@@ -83,6 +95,22 @@ export class VehiclesService {
   async lockOwned(userId: string, id: string, tx: Prisma.TransactionClient): Promise<VehicleRow> {
     await tx.$queryRaw`SELECT 1 FROM vehicles WHERE id = ${id}::uuid AND user_id = ${userId}::uuid FOR UPDATE`;
     return this.findOwned(userId, id, tx);
+  }
+
+  /**
+   * A reading another module raised the odometer to was corrected down: follow it to `toKm` (the
+   * highest reading still recorded), but only if the vehicle still shows the old reading.
+   * shortcut: can land below a reading typed in Garage when a back-logged record is corrected;
+   * keep per-source readings once Maintenance and Trips record odometers too.
+   */
+  async correctOdometer(
+    id: string,
+    fromKm: number,
+    toKm: number,
+    tx: Prisma.TransactionClient,
+  ): Promise<void> {
+    if (toKm >= fromKm) return;
+    await tx.vehicle.updateMany({ where: { id, odometerKm: fromKm }, data: { odometerKm: toKm } });
   }
 
   /** A newer reading from another module (fuel, service, trips): raise, never lower. */

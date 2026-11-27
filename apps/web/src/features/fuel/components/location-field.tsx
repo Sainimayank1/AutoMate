@@ -25,7 +25,7 @@ const coordinates = (latitude: number, longitude: number) =>
  */
 export function LocationField({ capture }: { capture: boolean }) {
   const id = useId();
-  const { control, setValue } = useFormContext<FuelFormValues>();
+  const { control, getValues, setValue } = useFormContext<FuelFormValues>();
   const [latitude, longitude, address] = useWatch({
     control,
     name: ["latitude", "longitude", "location"],
@@ -38,14 +38,24 @@ export function LocationField({ capture }: { capture: boolean }) {
     if (capture) locate();
   }, [capture, locate]);
 
-  // Each fix (and its address, once looked up) fills the fields. Not marked dirty: an automatic
-  // value alone isn't an unsaved change. After "Remove", nothing changes until the next refresh.
+  // Each fix fills the coordinates once. Not marked dirty: an automatic value alone isn't an
+  // unsaved change. After "Remove", nothing comes back until the next refresh.
   useEffect(() => {
     if (!found) return;
     setValue("latitude", found.latitude);
     setValue("longitude", found.longitude);
-    setValue("location", lookup.data?.address ?? "");
-  }, [found, lookup.data, setValue]);
+    setValue("location", "");
+  }, [found, setValue]);
+
+  // The address arrives later (up to seconds): use it only if the form still holds that fix, so
+  // a "Remove" made while it was loading stays removed.
+  useEffect(() => {
+    if (!found || !lookup.data) return;
+    const { latitude, longitude } = getValues();
+    if (latitude === found.latitude && longitude === found.longitude) {
+      setValue("location", lookup.data.address ?? "");
+    }
+  }, [found, lookup.data, getValues, setValue]);
 
   const remove = () => {
     setValue("latitude", null, { shouldDirty: true });

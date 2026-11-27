@@ -51,7 +51,7 @@ export function Component() {
       vehicles={[vehicle.data]}
       defaultValues={toFuelForm(entry.data)}
       editingId={entryId}
-      onSave={({ vehicleId: _vehicleId, ...values }) => update.mutateAsync(values)}
+      onSave={(_, changed) => update.mutateAsync(changed)}
     />
   );
 }

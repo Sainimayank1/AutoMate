@@ -6,7 +6,7 @@ import { beforeEach, describe, expect, it } from "vitest";
 
 import { useSessionStore } from "@/stores/session-store";
 import { useActiveVehicleStore } from "@/stores/vehicle-store";
-import { fail, mockApi, type MockReply, ok, testUser, testVehicle } from "@/test/mock-api";
+import { fail, mockApi, type MockReply, ok, okPage, testUser, testVehicle } from "@/test/mock-api";
 import { renderApp } from "@/test/render-app";
 
 const victoris = testVehicle();
@@ -35,8 +35,8 @@ function api(routes: Routes) {
   });
 }
 const garage = (inUse: Vehicle[], archived: Vehicle[] = []): Routes => ({
-  "GET /vehicles": () => ok(inUse),
-  "GET /vehicles?archived": () => ok(archived),
+  "GET /vehicles": () => okPage(inUse),
+  "GET /vehicles?archived": () => okPage(archived),
 });
 const bodyOf = (config: InternalAxiosRequestConfig | undefined) =>
   JSON.parse(String(config?.data)) as Record<string, unknown>;

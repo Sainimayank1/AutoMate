@@ -26,7 +26,19 @@ Every JSON 2xx response is wrapped by `ResponseEnvelopeInterceptor`. Controllers
 ```
 
 - `data` is the resource, an array of resources, or `null`.
-- `meta` is `null` today. When pagination arrives with the first list endpoint it will carry `{ page, pageSize, total }`, using one helper so every list behaves the same.
+- `meta` is `null`, except on list endpoints (below).
+
+**Pagination (mandatory for every list endpoint).** A route that returns a collection never returns it whole:
+
+- Query: `?page=1&pageSize=20`. `page` starts at 1; `pageSize` defaults to 20 and is capped at 100 (`PAGE_SIZE_MAX`). Out-of-range values are a 400 `VALIDATION_ERROR`. A page past the end is an empty `data` with the real `meta`, not an error.
+- Response: `data` is the page (an array) and `meta` is `{ page, pageSize, total, totalPages }` (`PageMeta`).
+- Filters, search and sort order are query params the API applies **before** paging (e.g. `GET /vehicles/:id/fuel-entries?tank=partial&search=shell`). The client never filters a page.
+- Order must be stable (add `id` as the last sort key) so items don't move between pages.
+- API: extend `paginationQuerySchema` (`@automate/shared`) for the route's query DTO; return `Paginated` from `@/common/pagination/paginated`, either `Paginated.of(all, query)` for a list computed in memory or `pageArgs(query)` plus a `count` in one `$transaction`. `ResponseEnvelopeInterceptor` turns it into `data` + `meta`. Document it with `@ApiEnvelopeResponse(ItemSchema, { paginated: true })`.
+- Web: `requestPage<T>()` returns `{ items, meta }`; `requestAllPages<T>()` walks every page for small sets the UI needs whole (the vehicle switcher). Show `<Pager>`; give `DataTable` one page with `paginate={false}`.
+
+Paginated today: `GET /vehicles`, `GET /vehicles/:vehicleId/fuel-entries`.
+
 - **Not wrapped:** `204 No Content` (use `@HttpCode(204)` for deletes) and file streams (`StreamableFile`), so downloads and HTTP semantics stay standard.
 
 ## 3. Error responses

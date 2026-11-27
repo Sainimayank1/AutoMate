@@ -43,8 +43,6 @@ export const FUEL_ENTRY_SCHEMA: Schema = {
   },
 };
 
-export const FUEL_ENTRY_LIST_SCHEMA: Schema = { type: "array", items: FUEL_ENTRY_SCHEMA };
-
 /** OpenAPI shape of `FuelSummary` (@automate/shared). */
 export const FUEL_SUMMARY_SCHEMA: Schema = {
   type: "object",

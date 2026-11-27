@@ -6,6 +6,7 @@ import {
   PaymentMethod,
   type Vehicle,
 } from "@automate/shared";
+import { TriangleAlert } from "lucide-react";
 import { useRef } from "react";
 import { Controller, useFormContext, useWatch } from "react-hook-form";
 
@@ -56,11 +57,13 @@ const isAmount = (value: string) => /^\d+(\.\d+)?$/.test(value) && /[1-9]/.test(
  * file storage (Documents, M6).
  */
 export function FuelEntryFields({ vehicle, vehicles, history, editingId }: FuelEntryFieldsProps) {
-  const { control, getValues, setValue, formState } = useFormContext<FuelFormValues>();
+  const { control, getValues, setValue, getFieldState, formState } =
+    useFormContext<FuelFormValues>();
   const fuelType = useWatch({ control, name: "fuelType" });
   const unit = FUEL_UNIT[fuelType];
-  // Once the amount paid is typed in, quantity and price stop overwriting it.
-  const totalTyped = useRef(false);
+  // Once the amount paid is typed in, quantity and price stop overwriting it. A saved fill-up
+  // already has what was paid: correcting its price or quantity doesn't change that.
+  const totalTyped = useRef(!!editingId);
 
   const fillTotal = () => {
     if (totalTyped.current) return;
@@ -73,6 +76,17 @@ export function FuelEntryFields({ vehicle, vehicles, history, editingId }: FuelE
   };
 
   const last = history.find((entry) => entry.id !== editingId);
+  // A new fill-up after every logged one shouldn't read below the vehicle's odometer: probably a
+  // typo (8,450 for 84,500). A warning, not a block: it may be an older fill-up logged late.
+  const [odometerText, filledAtText] = useWatch({ control, name: ["odometerKm", "filledAt"] });
+  const odometer = Number(odometerText.replace(/\D/g, ""));
+  const isNewest = !last || new Date(filledAtText).getTime() >= Date.parse(last.filledAt);
+  const belowVehicle = !editingId && odometer > 0 && isNewest && odometer < vehicle.odometerKm;
+  // Editing keeps the entry's own fuel selectable even if the vehicle's fuel type changed since.
+  const allowed = FUELS_FOR_VEHICLE[vehicle.fuelType];
+  const recorded = formState.defaultValues?.fuelType;
+  const fuelOptions =
+    editingId && recorded && !allowed.includes(recorded) ? [...allowed, recorded] : allowed;
   const stations = [
     ...new Set(history.map((entry) => entry.stationName).filter((name) => name !== null)),
   ].slice(0, 12);
@@ -92,6 +106,11 @@ export function FuelEntryFields({ vehicle, vehicles, history, editingId }: FuelE
                   field.onChange(id);
                   const next = vehicles.find((item) => item.id === id);
                   if (next) setValue("fuelType", FUELS_FOR_VEHICLE[next.fuelType][0]);
+                  // The carried-over price belongs to the previous vehicle's fuel.
+                  if (!getFieldState("pricePerUnit").isDirty) {
+                    setValue("pricePerUnit", "");
+                    fillTotal();
+                  }
                 }}
               >
                 <SelectTrigger
@@ -126,17 +145,28 @@ export function FuelEntryFields({ vehicle, vehicles, history, editingId }: FuelE
             />
           )}
         />
-        <FormField
-          control={control}
-          name="odometerKm"
-          label="Odometer reading"
-          description={
-            last
-              ? `Last reading: ${formatDistance(last.odometerKm)} on ${formatDate(last.filledAt)}`
-              : `Vehicle odometer: ${formatDistance(vehicle.odometerKm)}`
-          }
-          render={(field) => <NumberInput {...field} suffix="km" placeholder="8,450" />}
-        />
+        <div className="flex flex-col gap-1.5">
+          <FormField
+            control={control}
+            name="odometerKm"
+            label="Odometer reading"
+            description={
+              last
+                ? `Last reading: ${formatDistance(last.odometerKm)} on ${formatDate(last.filledAt)}`
+                : `Vehicle odometer: ${formatDistance(vehicle.odometerKm)}`
+            }
+            render={(field) => (
+              <NumberInput {...field} suffix="km" placeholder="8,450" warning={belowVehicle} />
+            )}
+          />
+          {belowVehicle && (
+            <p role="status" className="flex items-start gap-1.5 text-sm text-warning">
+              <TriangleAlert className="mt-0.5 size-4 shrink-0" aria-hidden />
+              Lower than the vehicle&apos;s odometer ({formatDistance(vehicle.odometerKm)}). Check
+              the reading, unless this is an older fill-up.
+            </p>
+          )}
+        </div>
         <FormField
           control={control}
           name="fuelType"
@@ -152,7 +182,7 @@ export function FuelEntryFields({ vehicle, vehicles, history, editingId }: FuelE
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                {FUELS_FOR_VEHICLE[vehicle.fuelType].map((value) => (
+                {fuelOptions.map((value) => (
                   <SelectItem key={value} value={value}>
                     {FUEL_TYPE_LABELS[value]}
                   </SelectItem>

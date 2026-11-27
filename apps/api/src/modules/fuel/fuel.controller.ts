@@ -10,6 +10,7 @@ import {
   ParseUUIDPipe,
   Patch,
   Post,
+  Query,
 } from "@nestjs/common";
 import { ApiBearerAuth, ApiOperation, ApiTags } from "@nestjs/swagger";
 
@@ -17,11 +18,16 @@ import {
   ApiEnvelopeResponse,
   ApiErrorResponses,
 } from "@/common/decorators/api-response.decorators";
+import type { Paginated } from "@/common/pagination/paginated";
 import type { AuthUser } from "@/modules/auth/auth.types";
 import { CurrentUser } from "@/modules/auth/decorators/current-user.decorator";
 
-import { CreateFuelEntryDto, UpdateFuelEntryDto } from "./dto/fuel-entry.dto";
-import { FUEL_ENTRY_LIST_SCHEMA, FUEL_ENTRY_SCHEMA, FUEL_SUMMARY_SCHEMA } from "./fuel.constants";
+import {
+  CreateFuelEntryDto,
+  FuelEntryListQueryDto,
+  UpdateFuelEntryDto,
+} from "./dto/fuel-entry.dto";
+import { FUEL_ENTRY_SCHEMA, FUEL_SUMMARY_SCHEMA } from "./fuel.constants";
 import { FuelService } from "./fuel.service";
 
 @ApiTags("fuel")
@@ -31,14 +37,17 @@ export class FuelController {
   constructor(private readonly fuel: FuelService) {}
 
   @Get("fuel-entries")
-  @ApiOperation({ summary: "A vehicle's fill-ups, newest first, with mileage per full tank" })
-  @ApiEnvelopeResponse(FUEL_ENTRY_LIST_SCHEMA)
+  @ApiOperation({
+    summary: "A vehicle's fill-ups, newest first, with mileage per full tank, a page at a time",
+  })
+  @ApiEnvelopeResponse(FUEL_ENTRY_SCHEMA, { paginated: true })
   @ApiErrorResponses(400, 401, 404)
   list(
     @CurrentUser() user: AuthUser,
     @Param("vehicleId", ParseUUIDPipe) vehicleId: string,
-  ): Promise<FuelEntry[]> {
-    return this.fuel.list(user.id, vehicleId);
+    @Query() query: FuelEntryListQueryDto,
+  ): Promise<Paginated<FuelEntry>> {
+    return this.fuel.list(user.id, vehicleId, query);
   }
 
   @Get("fuel-summary")

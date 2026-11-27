@@ -43,6 +43,7 @@ pnpm + Turborepo monorepo · TypeScript strict
 - Validation schemas live once in `packages/shared` and are reused by web and api.
 - Business logic (mileage, costs, maintenance due) lives in api/shared, never in UI components. Backend numbers are authoritative.
 - Web calls the API only through the central API layer + feature hooks.
+- **Every list endpoint is paginated (mandatory).** Query `?page&pageSize` (default 20, max 100) via `paginationQuerySchema` extended per list; return `Paginated` (`Paginated.of` or `pageArgs` + `count`), which puts `{ page, pageSize, total, totalPages }` in the envelope's `meta`. Filters and search are query params applied before paging, never on the client. Web reads lists with `requestPage` (or `requestAllPages` for small sets the UI needs whole) and shows `<Pager>`. Rules: `docs/architecture/api-conventions.md` §2.
 - API layering: Controller → Service → data access. No DB calls in controllers. Transactions for multi-record writes. A Prisma migration for every schema change.
 - Config from validated env vars, never hardcoded.
 - Money, fuel and other financial values use Decimal (DB) / decimal.js (code), never float.

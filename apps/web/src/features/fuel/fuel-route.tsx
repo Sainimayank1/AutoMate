@@ -1,5 +1,4 @@
 import { FUEL_UNIT, FUELS_FOR_VEHICLE, type FuelSummary } from "@automate/shared";
-import { format } from "date-fns";
 import { Car, Fuel } from "lucide-react";
 import type { ReactNode } from "react";
 import { Link } from "react-router";
@@ -15,7 +14,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { FuelHistory } from "@/features/fuel/components/fuel-history";
 import { MileageChart } from "@/features/fuel/components/mileage-chart";
 import { efficiencyUnit } from "@/features/fuel/constants";
-import { useFuelEntries, useFuelSummary } from "@/features/fuel/hooks/use-fuel";
+import { useFuelSummary } from "@/features/fuel/hooks/use-fuel";
 import { vehicleName } from "@/features/garage/constants";
 import { useActiveVehicle } from "@/hooks/use-active-vehicle";
 import {
@@ -43,7 +42,7 @@ const addFuel = (
 export function Component() {
   const garage = useActiveVehicle();
   const vehicle = garage.activeVehicle;
-  const entries = useFuelEntries(vehicle?.id);
+  // The summary decides the page's state (fillCount); the history loads its own pages.
   const summary = useFuelSummary(vehicle?.id);
 
   const header = (description: ReactNode) => (
@@ -81,25 +80,23 @@ export function Component() {
     );
   }
 
-  const error = entries.error ?? summary.error;
-
   return (
     <PageContainer>
       {header(vehicle ? `Full-tank mileage tracking · ${vehicleName(vehicle)}` : "Loading…")}
 
-      {error ? (
+      {summary.isError ? (
         <ErrorState
           title="Couldn't load fuel records"
-          error={error}
-          onRetry={() => void Promise.all([entries.refetch(), summary.refetch()])}
+          error={summary.error}
+          onRetry={() => void summary.refetch()}
         />
-      ) : !vehicle || !entries.data || !summary.data ? (
+      ) : !vehicle || !summary.data ? (
         <>
           <FuelStats loading />
           <Skeleton className="h-72 rounded-xl max-md:hidden" />
           <Skeleton className="h-64 rounded-xl" />
         </>
-      ) : entries.data.length === 0 ? (
+      ) : summary.data.fillCount === 0 ? (
         <FuelEmptyState />
       ) : (
         <>
@@ -109,7 +106,9 @@ export function Component() {
             <Benchmarks summary={summary.data} />
           </div>
           <FuelHistory
-            entries={entries.data}
+            // A different vehicle starts at page 1 with no filters.
+            key={vehicle.id}
+            vehicleId={vehicle.id}
             showFuel={FUELS_FOR_VEHICLE[vehicle.fuelType].length > 1}
           />
         </>
@@ -139,6 +138,13 @@ function FuelEmptyState() {
   );
 }
 
+/** The API counts "this month" in IST; label it the same way whatever the browser's zone. */
+const IST_MONTH = new Intl.DateTimeFormat("en-IN", {
+  month: "short",
+  year: "numeric",
+  timeZone: "Asia/Kolkata",
+});
+
 /** Stitch's six instruments; phones keep four (2 × 2), as in "Fuel — Mobile". */
 function FuelStats({ summary, loading }: { summary?: FuelSummary; loading?: boolean }) {
   const unit = summary ? FUEL_UNIT[summary.fuelType] : "L";
@@ -167,7 +173,7 @@ function FuelStats({ summary, loading }: { summary?: FuelSummary; loading?: bool
     {
       label: "Fuel this month",
       value: formatVolume(summary?.thisMonth.quantity, unit),
-      hint: format(new Date(), "MMM yyyy"),
+      hint: IST_MONTH.format(new Date()),
       phone: false,
     },
     {

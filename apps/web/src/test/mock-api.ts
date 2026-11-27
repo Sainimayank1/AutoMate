@@ -2,6 +2,7 @@ import type {
   ApiErrorResponse,
   AuthSession,
   ErrorCode,
+  PageMeta,
   UserProfile,
   Vehicle,
 } from "@automate/shared";
@@ -14,13 +15,16 @@ export type MockReply =
 
 /**
  * Replaces axios's network layer so the real interceptors run against canned replies.
- * Pass one reply for every request, or a function to answer per URL. Returns the requests seen.
+ * Pass one reply for every request, or a function to answer per URL (it may return a promise,
+ * to hold a reply back). Returns the requests seen.
  */
-export function mockApi(handler: MockReply | ((config: InternalAxiosRequestConfig) => MockReply)) {
+export function mockApi(
+  handler: MockReply | ((config: InternalAxiosRequestConfig) => MockReply | Promise<MockReply>),
+) {
   const calls: InternalAxiosRequestConfig[] = [];
   apiClient.defaults.adapter = async (config) => {
     calls.push(config);
-    const reply = typeof handler === "function" ? handler(config) : handler;
+    const reply = await (typeof handler === "function" ? handler(config) : handler);
     if (reply === "offline") throw new AxiosError("Network Error", "ERR_NETWORK", config);
     if (reply === "timeout") throw new AxiosError("timeout", "ECONNABORTED", config);
     const response: AxiosResponse = {
@@ -42,6 +46,23 @@ export function mockApi(handler: MockReply | ((config: InternalAxiosRequestConfi
 export const ok = (data: unknown, status = 200): MockReply => ({
   status,
   data: { success: true, message: "OK", data, meta: null },
+});
+
+/** A list envelope: the items as one page, with its meta (override it to test paging). */
+export const okPage = (items: unknown[], meta: Partial<PageMeta> = {}): MockReply => ({
+  status: 200,
+  data: {
+    success: true,
+    message: "OK",
+    data: items,
+    meta: {
+      page: 1,
+      pageSize: 20,
+      total: items.length,
+      totalPages: items.length ? 1 : 0,
+      ...meta,
+    } satisfies PageMeta,
+  },
 });
 
 /** An error envelope. */

@@ -1,6 +1,7 @@
 import {
   type CreateFuelEntryValues,
   type FuelEntry,
+  type FuelEntryListQuery,
   FUELS_FOR_VEHICLE,
   type FuelSummary,
   type FuelType,
@@ -14,6 +15,7 @@ import {
   NotFoundException,
 } from "@nestjs/common";
 
+import { Paginated } from "@/common/pagination/paginated";
 import { PrismaService } from "@/database/prisma.service";
 import type { Prisma, Vehicle as VehicleRow } from "@/generated/prisma/client";
 import { VehiclesService } from "@/modules/vehicles/vehicles.service";
@@ -44,10 +46,26 @@ export class FuelService {
     private readonly vehicles: VehiclesService,
   ) {}
 
-  /** Newest first, each with its place in the mileage sequence. */
-  async list(userId: string, vehicleId: string): Promise<FuelEntry[]> {
+  /**
+   * Newest first, each with its place in the mileage sequence. Mileage needs the whole history,
+   * so filters and the page apply after it is computed.
+   */
+  async list(
+    userId: string,
+    vehicleId: string,
+    { tank, search, ...page }: FuelEntryListQuery,
+  ): Promise<Paginated<FuelEntry>> {
     await this.vehicles.findOwned(userId, vehicleId);
-    return this.history(userId, vehicleId);
+    const needle = search?.toLowerCase();
+    const matches = (await this.history(userId, vehicleId)).filter(
+      (entry) =>
+        (!tank || entry.isFullTank === (tank === "full")) &&
+        (!needle ||
+          [entry.stationName, entry.location, entry.notes, entry.fuelType].some((text) =>
+            text?.toLowerCase().includes(needle),
+          )),
+    );
+    return Paginated.of(matches, page);
   }
 
   async summary(userId: string, vehicleId: string): Promise<FuelSummary> {
@@ -89,7 +107,10 @@ export class FuelService {
       const current = await tx.fuelEntry.findFirst({ where: { id, userId, vehicleId } });
       if (!current) throw new NotFoundException(NOT_FOUND);
       // Only a changed fuel is checked: the vehicle's fuel type may have been edited since.
-      assertWritable(vehicle, input.fuelType ?? null);
+      assertWritable(
+        vehicle,
+        input.fuelType !== current.fuelType ? (input.fuelType ?? null) : null,
+      );
 
       const filledAt = input.filledAt ? new Date(input.filledAt) : current.filledAt;
       const odometerKm = input.odometerKm ?? current.odometerKm;
@@ -110,14 +131,29 @@ export class FuelService {
 
       await tx.fuelEntry.update({ where: { id }, data: { ...input, filledAt } });
       await this.vehicles.raiseOdometer(vehicleId, odometerKm, tx);
+      if (odometerKm < current.odometerKm) {
+        // A corrected typo (84120 → 8412) mustn't leave the vehicle at the wrong reading.
+        const { _max } = await tx.fuelEntry.aggregate({
+          where: { vehicleId },
+          _max: { odometerKm: true },
+        });
+        await this.vehicles.correctOdometer(vehicleId, current.odometerKm, _max.odometerKm!, tx);
+      }
     });
     return this.get(userId, vehicleId, id);
   }
 
-  /** Mileage around it is recomputed on the next read; the vehicle's odometer is left as is. */
+  /**
+   * Mileage around it is recomputed on the next read. The vehicle keeps its odometer: deleting a
+   * record (often a duplicate) doesn't mean the car didn't drive; a wrong reading is fixed by editing.
+   */
   async remove(userId: string, vehicleId: string, id: string): Promise<void> {
-    const { count } = await this.prisma.fuelEntry.deleteMany({ where: { id, userId, vehicleId } });
-    if (count === 0) throw new NotFoundException(NOT_FOUND);
+    await this.prisma.$transaction(async (tx) => {
+      // Same rules as the other writes: owned, not archived, one write at a time per vehicle.
+      assertWritable(await this.vehicles.lockOwned(userId, vehicleId, tx), null);
+      const { count } = await tx.fuelEntry.deleteMany({ where: { id, userId, vehicleId } });
+      if (count === 0) throw new NotFoundException(NOT_FOUND);
+    });
   }
 
   // shortcut: loads the vehicle's whole history (mileage needs it); page the list response
@@ -133,10 +169,10 @@ export class FuelService {
   }
 }
 
-/** Archived vehicles are read-only; a vehicle only takes the fuels it can run on. */
+/** Archived vehicles are read-only (no adds, edits or deletes); a vehicle only takes its fuels. */
 function assertWritable(vehicle: VehicleRow, fuelType: FuelType | null) {
   if (vehicle.archivedAt) {
-    throw new ConflictException("This vehicle is archived. Restore it to add or change fill-ups.");
+    throw new ConflictException("This vehicle is archived. Restore it to change its fill-ups.");
   }
   if (fuelType && !FUELS_FOR_VEHICLE[vehicle.fuelType].includes(fuelType)) {
     throw new BadRequestException({

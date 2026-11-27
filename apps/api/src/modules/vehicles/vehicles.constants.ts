@@ -49,5 +49,3 @@ export const VEHICLE_SCHEMA: Schema = {
     updatedAt: { type: "string", format: "date-time" },
   },
 };
-
-export const VEHICLE_LIST_SCHEMA: Schema = { type: "array", items: VEHICLE_SCHEMA };

@@ -308,11 +308,99 @@ describe("Fuel (e2e)", () => {
     }
   });
 
-  it("refuses new fill-ups on an archived vehicle", async () => {
+  it("pages, filters and searches the history after computing mileage on all of it", async () => {
     const car = await vehicle(arjun);
+    const days = ["2026-11-01", "2026-11-05", "2026-11-10", "2026-11-15", "2026-11-20"];
+    for (const [index, day] of days.entries()) {
+      await as(arjun)
+        .post(entries(car.id), {
+          ...fillUp,
+          filledAt: `${day}T08:00:00.000Z`,
+          odometerKm: 8000 + index * 300,
+          isFullTank: index !== 2,
+          stationName: index === 3 ? "Shell V-Power" : "IndianOil XP95",
+        })
+        .expect(201);
+    }
+
+    const first = await as(arjun)
+      .get(`${entries(car.id)}?pageSize=2`)
+      .expect(200);
+    expect(dataOf<FuelEntry[]>(first).map((e) => e.odometerKm)).toEqual([9200, 8900]);
+    expect((first.body as ApiSuccessResponse<FuelEntry[]>).meta).toEqual({
+      page: 1,
+      pageSize: 2,
+      total: 5,
+      totalPages: 3,
+    });
+
+    // The partial is still "rolled in": statuses come from the whole history, not the page.
+    const partial = dataOf<FuelEntry[]>(
+      await as(arjun)
+        .get(`${entries(car.id)}?tank=partial`)
+        .expect(200),
+    );
+    expect(partial.map((e) => [e.odometerKm, e.mileageStatus])).toEqual([[8600, "ROLLED_IN"]]);
+
+    const shell = await as(arjun)
+      .get(`${entries(car.id)}?search=shell`)
+      .expect(200);
+    expect(dataOf<FuelEntry[]>(shell).map((e) => e.stationName)).toEqual(["Shell V-Power"]);
+    expect((shell.body as ApiSuccessResponse<FuelEntry[]>).meta).toMatchObject({ total: 1 });
+
+    await as(arjun)
+      .get(`${entries(car.id)}?tank=half`)
+      .expect(400);
+  });
+
+  it("follows a corrected odometer typo down, and keeps old fills editable after a fuel change", async () => {
+    const car = await vehicle(arjun);
+    await as(arjun)
+      .post(entries(car.id), { ...fillUp, filledAt: "2026-11-01T08:00:00.000Z", odometerKm: 7900 })
+      .expect(201);
+    const typo = dataOf<FuelEntry>(
+      await as(arjun)
+        .post(entries(car.id), { ...fillUp, odometerKm: 84120 })
+        .expect(201),
+    );
+    const odometer = async () =>
+      dataOf<Vehicle>(await as(arjun).get(`${VEHICLES}/${car.id}`).expect(200)).odometerKm;
+    expect(await odometer()).toBe(84120);
+
+    await as(arjun)
+      .patch(`${entries(car.id)}/${typo.id}`, { odometerKm: 8412 })
+      .expect(200);
+    expect(await odometer()).toBe(8412);
+
+    // The vehicle becomes diesel; its old petrol fill-ups can still be edited (fuel unchanged)…
+    await as(arjun).patch(`${VEHICLES}/${car.id}`, { fuelType: "DIESEL" }).expect(200);
+    await as(arjun)
+      .patch(`${entries(car.id)}/${typo.id}`, { fuelType: "PETROL", notes: "Old car fuel" })
+      .expect(200);
+    // …but a fill-up can't be switched to a fuel the vehicle doesn't take.
+    const other = dataOf<FuelEntry[]>(await as(arjun).get(entries(car.id)).expect(200))[1]!;
+    await as(arjun)
+      .patch(`${entries(car.id)}/${other.id}`, { fuelType: "CNG" })
+      .expect(400);
+  });
+
+  it("keeps an archived vehicle's fill-ups read-only", async () => {
+    const car = await vehicle(arjun);
+    const entry = dataOf<FuelEntry>(await as(arjun).post(entries(car.id), fillUp).expect(201));
     await as(arjun).post(`${VEHICLES}/${car.id}/archive`).expect(200);
+
     const res = await as(arjun).post(entries(car.id), fillUp).expect(409);
     expect(errorOf(res).code).toBe("CONFLICT");
+    await as(arjun)
+      .patch(`${entries(car.id)}/${entry.id}`, { notes: "x" })
+      .expect(409);
+    await as(arjun)
+      .delete(`${entries(car.id)}/${entry.id}`)
+      .expect(409);
+    // Still readable.
+    await as(arjun)
+      .get(`${entries(car.id)}/${entry.id}`)
+      .expect(200);
   });
 
   it("deletes a fill-up", async () => {

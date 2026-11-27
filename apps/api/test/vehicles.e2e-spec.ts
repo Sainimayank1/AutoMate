@@ -117,6 +117,36 @@ describe("Vehicles (e2e)", () => {
     expect(dataOf<Vehicle>(fetched)).toEqual(vehicle);
   });
 
+  it("lists vehicles a page at a time, with the page meta", async () => {
+    const user = await (async () =>
+      (
+        await app.get(AuthService).register(
+          {
+            name: "Kabir Rao",
+            email: `vehicles-${randomUUID()}@${DOMAIN}`,
+            password: "Drive2026safe",
+            acceptedTerms: true,
+          },
+          {},
+        )
+      ).session.accessToken)();
+    const made = [await create(user), await create(user), await create(user)];
+
+    const first = await as(user).get(`${VEHICLES}?pageSize=2`).expect(200);
+    expect(dataOf<Vehicle[]>(first).map((v) => v.id)).toEqual([made[0]!.id, made[1]!.id]);
+    expect((first.body as ApiSuccessResponse<Vehicle[]>).meta).toEqual({
+      page: 1,
+      pageSize: 2,
+      total: 3,
+      totalPages: 2,
+    });
+    const second = await as(user).get(`${VEHICLES}?page=2&pageSize=2`).expect(200);
+    expect(dataOf<Vehicle[]>(second).map((v) => v.id)).toEqual([made[2]!.id]);
+
+    await as(user).get(`${VEHICLES}?pageSize=500`).expect(400);
+    await as(user).get(`${VEHICLES}?page=0`).expect(400);
+  });
+
   it("accepts a client-generated id (offline-ready) and ignores ids on update", async () => {
     const id = randomUUID();
     const vehicle = await create(arjun, { id });

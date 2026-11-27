@@ -1,11 +1,12 @@
 import type { CreateVehicleValues, UpdateVehicleValues, Vehicle } from "@automate/shared";
 
-import { request } from "@/lib/api-client";
+import { request, requestAllPages } from "@/lib/api-client";
 
 /** Garage endpoints (`/vehicles`). Every call is scoped to the signed-in user by the API. */
 export const vehicleService = {
+  /** Every vehicle (all pages): the switcher, garage chips and counts need the whole set. */
   list: ({ archived = false }: { archived?: boolean } = {}) =>
-    request<Vehicle[]>({ url: "/vehicles", params: archived ? { archived: true } : undefined }),
+    requestAllPages<Vehicle>({ url: "/vehicles", params: archived ? { archived: true } : {} }),
   get: (id: string) => request<Vehicle>({ url: `/vehicles/${id}` }),
   create: (values: CreateVehicleValues) =>
     request<Vehicle>({ method: "POST", url: "/vehicles", data: values }),

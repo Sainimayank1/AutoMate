@@ -51,7 +51,7 @@ export function Component() {
     <FuelEntryForm
       mode="create"
       vehicles={vehicles}
-      defaultValues={newFuelForm(vehicle, history.data)}
+      defaultValues={newFuelForm(vehicle, history.data?.items)}
       onSave={({ vehicleId, ...values }) => create.mutateAsync({ vehicleId, values })}
     />
   );

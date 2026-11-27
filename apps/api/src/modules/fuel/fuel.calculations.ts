@@ -38,9 +38,14 @@ type Sequence = {
   mileage: Decimal;
 };
 
-/** History order: by time, then odometer (two fills logged at the same minute). */
+/**
+ * History order: by time, then odometer (two fills logged at the same minute), then id, so equal
+ * rows always come out the same way and mileage statuses never flip between requests.
+ */
 export const byHistoryOrder = (a: FuelFill, b: FuelFill) =>
-  a.filledAt.getTime() - b.filledAt.getTime() || a.odometerKm - b.odometerKm;
+  a.filledAt.getTime() - b.filledAt.getTime() ||
+  a.odometerKm - b.odometerKm ||
+  (a.id < b.id ? -1 : a.id > b.id ? 1 : 0);
 
 const sum = (values: Decimal[]) =>
   values.reduce((total, value) => total.plus(value), new Decimal(0));

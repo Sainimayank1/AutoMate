@@ -79,10 +79,11 @@ Use the Garage module as the example. Read its section in MODULES.md first.
    ├── dto/vehicle.dto.ts           class CreateVehicleDto extends createZodDto(createVehicleSchema) {}
    └── vehicles.constants.ts / vehicles.types.ts   only when needed
    ```
-5. **Scope every query by user.** Take the user from `@CurrentUser()` and include `userId: user.id` in every `where`. Never accept `userId` from the request body.
-6. **Document it:** `@ApiTags("vehicles")`, `@ApiBearerAuth()`, and `@ApiEnvelopeResponse(VehicleDto)` / `@ApiErrorResponses(401, 404)` on each route (see [api-conventions.md §7](api-conventions.md#7-swagger)).
-7. **Register it** in `AppModule.imports`.
-8. **Test it:** unit tests for services (use `vi.fn()` mocks for `PrismaService` or a real test database), plus e2e cases in `test/` for the HTTP contract.
+5. **Paginate every list** (api-conventions.md §2): a query DTO from `paginationQuerySchema`, a `Paginated` result, `{ paginated: true }` on its Swagger decorator.
+6. **Scope every query by user.** Take the user from `@CurrentUser()` and include `userId: user.id` in every `where`. Never accept `userId` from the request body.
+7. **Document it:** `@ApiTags("vehicles")`, `@ApiBearerAuth()`, and `@ApiEnvelopeResponse(VehicleDto)` / `@ApiErrorResponses(401, 404)` on each route (see [api-conventions.md §7](api-conventions.md#7-swagger)).
+8. **Register it** in `AppModule.imports`.
+9. **Test it:** unit tests for services (use `vi.fn()` mocks for `PrismaService` or a real test database), plus e2e cases in `test/` for the HTTP contract.
 
 A module imports another module's exported service rather than querying another module's tables directly. For example, Fuel calls `ExpensesService` to create the linked expense, inside one `prisma.$transaction`.
 

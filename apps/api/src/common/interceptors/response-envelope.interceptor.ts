@@ -10,9 +10,11 @@ import type { Response } from "express";
 import { map, type Observable } from "rxjs";
 
 import { DEFAULT_SUCCESS_MESSAGE } from "../constants/http.constants";
+import { Paginated } from "../pagination/paginated";
 
 /**
  * Wraps every JSON success body in the standard envelope.
+ * A `Paginated` result becomes `data` (the page) plus `meta` (PageMeta).
  * File streams and 204 No Content responses pass through untouched.
  */
 @Injectable()
@@ -24,11 +26,12 @@ export class ResponseEnvelopeInterceptor implements NestInterceptor {
         if (data instanceof StreamableFile || response.statusCode === 204) {
           return data;
         }
-        const body: ApiSuccessResponse<unknown> = {
+        const page = data instanceof Paginated ? data : null;
+        const body: ApiSuccessResponse<unknown, unknown> = {
           success: true,
           message: DEFAULT_SUCCESS_MESSAGE,
-          data: data ?? null,
-          meta: null,
+          data: page ? page.items : (data ?? null),
+          meta: page ? page.meta : null,
         };
         return body;
       }),

@@ -6,7 +6,7 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
 import { useSessionStore } from "@/stores/session-store";
 import { useActiveVehicleStore } from "@/stores/vehicle-store";
-import { fail, mockApi, type MockReply, ok, testUser, testVehicle } from "@/test/mock-api";
+import { fail, mockApi, type MockReply, ok, okPage, testUser, testVehicle } from "@/test/mock-api";
 import { renderApp } from "@/test/render-app";
 
 const victoris = testVehicle();
@@ -80,7 +80,10 @@ const summary = (overrides: Partial<FuelSummary> = {}): FuelSummary => ({
   ...overrides,
 });
 
-type Routes = Record<string, (config: InternalAxiosRequestConfig) => MockReply>;
+type Routes = Record<
+  string,
+  (config: InternalAxiosRequestConfig) => MockReply | Promise<MockReply>
+>;
 
 /** Answers by "METHOD url"; everything else is a 404. */
 function api(routes: Routes) {
@@ -118,15 +121,15 @@ afterEach(() => {
 
 describe("fuel page", () => {
   it("asks for a vehicle first", async () => {
-    api({ "GET /vehicles": () => ok([]) });
+    api({ "GET /vehicles": () => okPage([]) });
     renderApp("/fuel");
     expect(await screen.findByText("Add a vehicle first")).toBeInTheDocument();
   });
 
   it("invites the first fill-up", async () => {
     api({
-      "GET /vehicles": () => ok([victoris]),
-      [`GET ${ENTRIES}`]: () => ok([]),
+      "GET /vehicles": () => okPage([victoris]),
+      [`GET ${ENTRIES}`]: () => okPage([]),
       [`GET ${SUMMARY}`]: () => ok(summary({ fillCount: 0, averageMileage: null })),
     });
     renderApp("/fuel");
@@ -138,8 +141,12 @@ describe("fuel page", () => {
 
   it("shows the API's figures, explains missing mileage, filters and deletes", async () => {
     const calls = api({
-      "GET /vehicles": () => ok([victoris]),
-      [`GET ${ENTRIES}`]: () => ok(history),
+      "GET /vehicles": () => okPage([victoris]),
+      // The API filters: answer like it does for `tank`.
+      [`GET ${ENTRIES}`]: (config) => {
+        const tank = (config.params as { tank?: string }).tank;
+        return okPage(tank ? history.filter((e) => e.isFullTank === (tank === "full")) : history);
+      },
       [`GET ${SUMMARY}`]: () => ok(summary()),
       [`DELETE ${ENTRIES}/${history[1]!.id}`]: () => ({ status: 204 }),
     });
@@ -156,12 +163,15 @@ describe("fuel page", () => {
 
     // Mileage only on the full tank that closes a sequence; the others say why.
     const table = screen.getByRole("table");
-    expect(within(table).getByText("16.9 km/L")).toBeInTheDocument();
+    expect(await within(table).findByText("16.9 km/L")).toBeInTheDocument();
     expect(within(table).getByText("In next full tank")).toBeInTheDocument();
     expect(within(table).getByText("Baseline")).toBeInTheDocument();
 
     await user.click(screen.getByRole("button", { name: "Partial tank" }));
-    expect(within(table).queryByText(/IndianOil XP95/)).not.toBeInTheDocument();
+    await waitFor(() =>
+      expect(within(table).queryByText(/IndianOil XP95/)).not.toBeInTheDocument(),
+    );
+    expect(calls.at(-1)?.params).toMatchObject({ page: 1, tank: "partial" });
     expect(within(table).getByText("Shell V-Power · Partial")).toBeInTheDocument();
 
     await user.click(within(table).getByRole("button", { name: "Actions for 09/11/2026 fill-up" }));
@@ -175,12 +185,75 @@ describe("fuel page", () => {
   });
 });
 
+describe("fuel history paging", () => {
+  it("asks the API for the next page and for a search, from page 1", async () => {
+    const calls = api({
+      "GET /vehicles": () => okPage([victoris]),
+      [`GET ${SUMMARY}`]: () => ok(summary({ fillCount: 25 })),
+      [`GET ${ENTRIES}`]: (config) => {
+        const { page = 1, search } = config.params as { page?: number; search?: string };
+        if (search) return okPage([history[1]!], { total: 1 });
+        return okPage(page === 1 ? [history[0]!] : [history[2]!], {
+          page,
+          total: 25,
+          totalPages: 2,
+        });
+      },
+    });
+    renderApp("/fuel");
+    const user = userEvent.setup();
+
+    const table = await screen.findByRole("table");
+    expect(await within(table).findByText("IndianOil XP95 · Full")).toBeInTheDocument();
+    expect(screen.getByText("25 fill-ups")).toBeInTheDocument();
+    expect(screen.getByText("Page 1 of 2")).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Next page" }));
+    expect(await within(table).findByText("HP Power95 · Full")).toBeInTheDocument();
+    expect(screen.getByText("Page 2 of 2")).toBeInTheDocument();
+
+    await user.type(screen.getByRole("searchbox", { name: "Search fill-ups" }), "shell");
+    expect(await within(table).findByText("Shell V-Power · Partial")).toBeInTheDocument();
+    const searched = calls.filter((call) => call.url === ENTRIES).at(-1);
+    expect(searched?.params).toMatchObject({ page: 1, search: "shell" });
+    expect(screen.queryByText(/^Page \d/)).not.toBeInTheDocument();
+  });
+});
+
+describe("fuel history range", () => {
+  it("moves back to the last page when the list shrinks under it", async () => {
+    let shrunk = false;
+    const calls = api({
+      "GET /vehicles": () => okPage([victoris]),
+      [`GET ${SUMMARY}`]: () => ok(summary({ fillCount: 21 })),
+      [`GET ${ENTRIES}`]: (config) => {
+        const { page = 1 } = config.params as { page?: number };
+        if (page === 2) {
+          shrunk = true; // e.g. deleted in another tab: page 2 no longer exists
+          return okPage([], { page: 2, total: 20, totalPages: 1 });
+        }
+        return okPage([history[0]!], { total: shrunk ? 20 : 21, totalPages: shrunk ? 1 : 2 });
+      },
+    });
+    renderApp("/fuel");
+    const user = userEvent.setup();
+
+    await user.click(await screen.findByRole("button", { name: "Next page" }));
+    expect(
+      await within(screen.getByRole("table")).findByText("IndianOil XP95 · Full"),
+    ).toBeInTheDocument();
+    // Page 2 was asked for, came back past the end, and page 1 (cached) is shown instead.
+    expect(calls.filter((call) => call.url === ENTRIES).at(-1)?.params).toMatchObject({ page: 2 });
+    expect(within(screen.getByRole("table")).getAllByRole("row")).toHaveLength(2);
+  });
+});
+
 describe("add fuel", () => {
   it("fills the total from quantity × price, shows the API's odometer error, then saves", async () => {
     let attempts = 0;
     const calls = api({
-      "GET /vehicles": () => ok([victoris]),
-      [`GET ${ENTRIES}`]: () => ok(history),
+      "GET /vehicles": () => okPage([victoris]),
+      [`GET ${ENTRIES}`]: () => okPage(history),
       [`GET ${SUMMARY}`]: () => ok(summary()),
       [`POST ${ENTRIES}`]: () =>
         ++attempts === 1
@@ -234,8 +307,19 @@ describe("add fuel", () => {
     expect(useActiveVehicleStore.getState().activeVehicleId).toBe(victoris.id);
   });
 
+  it("warns (without blocking) when a new reading is below the vehicle's odometer", async () => {
+    api({ "GET /vehicles": () => okPage([victoris]), [`GET ${ENTRIES}`]: () => okPage([]) });
+    renderApp("/fuel/new");
+    const user = userEvent.setup();
+
+    await user.type(await screen.findByLabelText("Odometer reading"), "845");
+    expect(screen.getByText(/Lower than the vehicle's odometer \(8,450 km\)/)).toBeInTheDocument();
+    await user.type(screen.getByLabelText("Odometer reading"), "00");
+    expect(screen.queryByText(/Lower than the vehicle's odometer/)).not.toBeInTheDocument();
+  });
+
   it("blocks a total that doesn't match quantity × price", async () => {
-    api({ "GET /vehicles": () => ok([victoris]), [`GET ${ENTRIES}`]: () => ok([]) });
+    api({ "GET /vehicles": () => okPage([victoris]), [`GET ${ENTRIES}`]: () => okPage([]) });
     renderApp("/fuel/new");
     const user = userEvent.setup();
 
@@ -256,8 +340,8 @@ describe("fill-up location", () => {
   it("records the device's position and its address, read-only, and saves both", async () => {
     stubGeolocation({ latitude: 28.45950123, longitude: 77.07260456 });
     const calls = api({
-      "GET /vehicles": () => ok([victoris]),
-      [`GET ${ENTRIES}`]: () => ok([]),
+      "GET /vehicles": () => okPage([victoris]),
+      [`GET ${ENTRIES}`]: () => okPage([]),
       "POST /geocode/reverse": () =>
         ok({ address: "IndianOil COCO, Sector 29, Gurugram, Haryana" }),
       [`POST ${ENTRIES}`]: () => ok(entry(), 201),
@@ -290,11 +374,38 @@ describe("fill-up location", () => {
     });
   });
 
+  it("keeps a location removed while its address was still loading", async () => {
+    stubGeolocation({ latitude: 28.4595, longitude: 77.0726 });
+    let answer: (reply: MockReply) => void = () => {};
+    const calls = api({
+      "GET /vehicles": () => okPage([victoris]),
+      [`GET ${ENTRIES}`]: () => okPage([]),
+      "POST /geocode/reverse": () => new Promise<MockReply>((resolve) => (answer = resolve)),
+      [`POST ${ENTRIES}`]: () => ok(entry(), 201),
+    });
+    const router = renderApp("/fuel/new");
+    const user = userEvent.setup();
+
+    expect(await screen.findByLabelText(/Location/)).toHaveValue("Looking up the address…");
+    await user.click(screen.getByRole("button", { name: "Remove location" }));
+    answer(ok({ address: "Sector 29, Gurugram, Haryana" }));
+    await waitFor(() => expect(screen.getByLabelText(/Location/)).toHaveValue("Not recorded"));
+
+    await user.type(screen.getByLabelText("Odometer reading"), "8500");
+    await user.type(screen.getByLabelText("Quantity (L)"), "10");
+    await user.type(screen.getByLabelText("Price per L"), "100");
+    await user.click(screen.getByRole("button", { name: "Save fuel log" }));
+    await waitFor(() => expect(router.state.location.pathname).toBe("/fuel"));
+    expect(
+      bodyOf(calls.find((call) => call.method === "post" && call.url === ENTRIES)),
+    ).toMatchObject({ latitude: null, longitude: null, location: null });
+  });
+
   it("saves without a location when access is blocked, and can leave a found one out", async () => {
     stubGeolocation("denied");
     const calls = api({
-      "GET /vehicles": () => ok([victoris]),
-      [`GET ${ENTRIES}`]: () => ok([]),
+      "GET /vehicles": () => okPage([victoris]),
+      [`GET ${ENTRIES}`]: () => okPage([]),
       "POST /geocode/reverse": () => ok({ address: null }),
       [`POST ${ENTRIES}`]: () => ok(entry(), 201),
     });
@@ -331,12 +442,12 @@ describe("fill-up location", () => {
 });
 
 describe("edit fuel", () => {
-  it("loads the fill-up and saves the changes", async () => {
+  it("loads the fill-up and sends only what changed, keeping the amount paid", async () => {
     const target = history[1]!;
     const calls = api({
       [`GET /vehicles/${victoris.id}`]: () => ok(victoris),
-      "GET /vehicles": () => ok([victoris]),
-      [`GET ${ENTRIES}`]: () => ok(history),
+      "GET /vehicles": () => okPage([victoris]),
+      [`GET ${ENTRIES}`]: () => okPage(history),
       [`GET ${SUMMARY}`]: () => ok(summary()),
       [`GET ${ENTRIES}/${target.id}`]: () => ok(target),
       [`PATCH ${ENTRIES}/${target.id}`]: (config) => ok({ ...target, ...bodyOf(config) }),
@@ -351,15 +462,16 @@ describe("edit fuel", () => {
     expect(screen.queryByLabelText("Vehicle")).not.toBeInTheDocument();
 
     await user.type(screen.getByLabelText("Notes (optional)"), "Highway run");
+    // Correcting the price doesn't rewrite what was paid.
+    await user.clear(screen.getByLabelText("Price per L"));
+    await user.type(screen.getByLabelText("Price per L"), "104.4");
+    expect(screen.getByLabelText("Total amount")).toHaveValue("1,481.34");
     await user.click(screen.getByRole("button", { name: "Save changes" }));
 
     await waitFor(() => expect(router.state.location.pathname).toBe("/fuel"));
-    expect(bodyOf(calls.find((call) => call.method === "patch"))).toMatchObject({
+    expect(bodyOf(calls.find((call) => call.method === "patch"))).toEqual({
       notes: "Highway run",
-      odometerKm: 8100,
-      quantity: "14.2",
-      totalAmount: "1481.34",
-      isFullTank: false,
+      pricePerUnit: "104.4",
     });
   });
 });

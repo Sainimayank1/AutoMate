@@ -1,5 +1,6 @@
 import { z } from "zod";
 
+import { paginationQuerySchema } from "../api/pagination.js";
 import { blankToNull, optionalText, positiveDecimal, requiredInt } from "../common/fields.js";
 import { PaymentMethod } from "../common/payment-method.js";
 import { FuelType, ODOMETER_MAX_KM } from "../vehicles/vehicle.schema.js";
@@ -166,6 +167,14 @@ export const updateFuelEntrySchema = fuelEntryBaseSchema
   .omit({ id: true })
   .partial()
   .superRefine(checkCoordinates);
+
+/** `GET /vehicles/:id/fuel-entries`: newest first, optionally only full or partial fills, or a search. */
+export const fuelEntryListQuerySchema = paginationQuerySchema.extend({
+  tank: z.enum(["full", "partial"]).optional(),
+  /** Matches station, location, notes and fuel type, case-insensitively. */
+  search: z.string().trim().max(80).optional(),
+});
+export type FuelEntryListQuery = z.output<typeof fuelEntryListQuerySchema>;
 
 export type CreateFuelEntryInput = z.input<typeof createFuelEntrySchema>;
 export type CreateFuelEntryValues = z.output<typeof createFuelEntrySchema>;

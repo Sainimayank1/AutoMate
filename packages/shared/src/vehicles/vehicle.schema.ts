@@ -1,5 +1,6 @@
 import { z } from "zod";
 
+import { paginationQuerySchema } from "../api/pagination.js";
 import {
   optionalCode,
   optionalDate,
@@ -115,6 +116,12 @@ export const createVehicleSchema = z.object({
 
 /** PATCH: every field optional; `null` clears an optional field, a missing key leaves it unchanged. */
 export const updateVehicleSchema = createVehicleSchema.omit({ id: true }).partial();
+
+/** `GET /vehicles`: vehicles in use (default) or the archived ones, a page at a time. */
+export const vehicleListQuerySchema = paginationQuerySchema.extend({
+  archived: z.stringbool().default(false),
+});
+export type VehicleListQuery = z.output<typeof vehicleListQuerySchema>;
 
 export type CreateVehicleInput = z.input<typeof createVehicleSchema>;
 export type CreateVehicleValues = z.output<typeof createVehicleSchema>;

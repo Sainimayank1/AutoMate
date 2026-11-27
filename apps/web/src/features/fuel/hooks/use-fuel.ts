@@ -1,24 +1,36 @@
-import type { CreateFuelEntryValues, FuelEntry, UpdateFuelEntryValues } from "@automate/shared";
+import type {
+  CreateFuelEntryValues,
+  FuelEntry,
+  Page,
+  UpdateFuelEntryValues,
+} from "@automate/shared";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 
-import { fuelService } from "@/features/fuel/services/fuel-service";
+import { type FuelListParams, fuelService } from "@/features/fuel/services/fuel-service";
 import { vehicleKeys } from "@/features/garage/hooks/use-vehicles";
 import { useActiveVehicleStore } from "@/stores/vehicle-store";
 
 export const fuelKeys = {
   vehicle: (vehicleId: string) => ["fuel", vehicleId] as const,
-  list: (vehicleId: string) => ["fuel", vehicleId, "list"] as const,
+  lists: (vehicleId: string) => ["fuel", vehicleId, "list"] as const,
+  list: (vehicleId: string, params: FuelListParams) => ["fuel", vehicleId, "list", params] as const,
   summary: (vehicleId: string) => ["fuel", vehicleId, "summary"] as const,
   detail: (vehicleId: string, id: string) => ["fuel", vehicleId, "detail", id] as const,
 };
 
-/** A vehicle's fill-ups, newest first. `vehicleId` may be empty while the garage loads. */
-export function useFuelEntries(vehicleId: string | undefined) {
+/**
+ * One page of a vehicle's fill-ups, newest first (page 1 by default). `vehicleId` may be empty
+ * while the garage loads. Paging or filtering keeps the last page on screen until the next one
+ * arrives, but never shows another vehicle's.
+ */
+export function useFuelEntries(vehicleId: string | undefined, params: FuelListParams = {}) {
   return useQuery({
-    queryKey: fuelKeys.list(vehicleId ?? ""),
-    queryFn: () => fuelService.list(vehicleId!),
+    queryKey: fuelKeys.list(vehicleId ?? "", params),
+    queryFn: () => fuelService.list(vehicleId!, params),
     enabled: !!vehicleId,
+    placeholderData: (previous, previousQuery) =>
+      previousQuery?.queryKey[1] === vehicleId ? previous : undefined,
   });
 }
 
@@ -38,8 +50,9 @@ export function useFuelEntry(vehicleId: string, id: string) {
     // Instant when coming from the history list.
     placeholderData: () =>
       queryClient
-        .getQueryData<FuelEntry[]>(fuelKeys.list(vehicleId))
-        ?.find((entry) => entry.id === id),
+        .getQueriesData<Page<FuelEntry>>({ queryKey: fuelKeys.lists(vehicleId) })
+        .flatMap(([, page]) => page?.items ?? [])
+        .find((entry) => entry.id === id),
   });
 }
 

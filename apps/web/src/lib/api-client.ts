@@ -1,4 +1,10 @@
-import type { ApiSuccessResponse, AuthSession } from "@automate/shared";
+import {
+  type ApiSuccessResponse,
+  type AuthSession,
+  type Page,
+  PAGE_SIZE_MAX,
+  type PageMeta,
+} from "@automate/shared";
 import axios, {
   type AxiosRequestConfig,
   type InternalAxiosRequestConfig,
@@ -55,6 +61,27 @@ apiClient.interceptors.response.use(
 export async function request<TData>(config: AxiosRequestConfig): Promise<TData> {
   const response = await apiClient.request<ApiSuccessResponse<TData>>(config);
   return response.data.data; // a 204 has no body: TData should be void
+}
+
+/** One page of a list endpoint: its items plus the envelope's page `meta` (api-conventions.md §2). */
+export async function requestPage<TItem>(config: AxiosRequestConfig): Promise<Page<TItem>> {
+  const response = await apiClient.request<ApiSuccessResponse<TItem[], PageMeta>>(config);
+  const { data: items, meta } = response.data;
+  if (!meta) throw new Error(`${config.url ?? "List"} returned no page meta`);
+  return { items, meta };
+}
+
+/** Every page of a list, for small sets the UI needs whole (e.g. the vehicle switcher). */
+export async function requestAllPages<TItem>(config: AxiosRequestConfig): Promise<TItem[]> {
+  const items: TItem[] = [];
+  for (let page = 1; ; page++) {
+    const result = await requestPage<TItem>({
+      ...config,
+      params: { ...(config.params as object), page, pageSize: PAGE_SIZE_MAX },
+    });
+    items.push(...result.items);
+    if (page >= result.meta.totalPages) return items;
+  }
 }
 
 let refreshing: Promise<boolean> | null = null;

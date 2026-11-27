@@ -183,7 +183,8 @@ component → feature hook (useQuery/useMutation) → feature service → reques
 - `apiClient` holds the base URL from env, a 15 s timeout and `withCredentials: true` (for the refresh cookie).
   - **Request interceptor:** adds `Authorization: Bearer <token>`.
   - **Response interceptor:** converts every failure to `ApiError`. On a 401 from a non-auth route it refreshes once and replays the request (§4a).
-- `request<T>(config)` returns the envelope's `data`. For a 204 response use `T = void`. When you need `meta` (pagination) or a raw file download, use `apiClient` directly.
+- `request<T>(config)` returns the envelope's `data`. For a 204 response use `T = void`. For a raw file download, use `apiClient` directly.
+- List endpoints are paginated (api-conventions.md §2): `requestPage<T>(config)` returns `{ items, meta }`; `requestAllPages<T>(config)` fetches every page, only for small sets the UI needs whole (vehicles). Keep page, filters and search in the query key and send them as params; render `<Pager>` and pass one page to `DataTable` with `paginate={false}`. Tests answer list endpoints with `okPage(items, meta?)`.
 - `ApiError` has:
   - `message`: always safe to show. 5xx and unparseable responses get a generic message.
   - `status`: null when there was no response.

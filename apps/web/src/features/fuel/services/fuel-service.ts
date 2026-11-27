@@ -1,18 +1,24 @@
 import type {
   CreateFuelEntryValues,
   FuelEntry,
+  FuelEntryListQuery,
   FuelSummary,
   ReverseGeocodeResult,
   UpdateFuelEntryValues,
 } from "@automate/shared";
 
-import { request } from "@/lib/api-client";
+import { request, requestPage } from "@/lib/api-client";
 
 const entries = (vehicleId: string) => `/vehicles/${vehicleId}/fuel-entries`;
 
+/** List filters; the API defaults the rest (page 1, 20 per page, every fill-up). */
+export type FuelListParams = Partial<FuelEntryListQuery>;
+
 /** Fuel endpoints, nested under the vehicle. Every call is scoped to the signed-in user by the API. */
 export const fuelService = {
-  list: (vehicleId: string) => request<FuelEntry[]>({ url: entries(vehicleId) }),
+  /** One page, newest first. */
+  list: (vehicleId: string, params: FuelListParams = {}) =>
+    requestPage<FuelEntry>({ url: entries(vehicleId), params }),
   summary: (vehicleId: string) =>
     request<FuelSummary>({ url: `/vehicles/${vehicleId}/fuel-summary` }),
   get: (vehicleId: string, id: string) =>

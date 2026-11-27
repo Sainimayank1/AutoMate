@@ -34,15 +34,28 @@ export const ERROR_RESPONSE_SCHEMA: SchemaObject = {
   },
 };
 
+const PAGE_META_SCHEMA: SchemaObject = {
+  type: "object",
+  required: ["page", "pageSize", "total", "totalPages"],
+  properties: {
+    page: { type: "integer", example: 1 },
+    pageSize: { type: "integer", example: 20 },
+    total: { type: "integer", example: 42 },
+    totalPages: { type: "integer", example: 3 },
+  },
+};
+
 /**
  * Documents a success response inside the standard envelope.
  * Pass a DTO class (e.g. from createZodDto) or an inline schema for `data`.
+ * `paginated`: `data` is an array of that schema and `meta` is the page meta (list endpoints).
  */
 export function ApiEnvelopeResponse(
   data: Type<unknown> | SchemaObject,
-  options: { status?: number; description?: string } = {},
+  options: { status?: number; description?: string; paginated?: boolean } = {},
 ) {
   const isModel = typeof data === "function";
+  const item = isModel ? { $ref: getSchemaPath(data) } : data;
   return applyDecorators(
     ...(isModel ? [ApiExtraModels(data)] : []),
     ApiResponse({
@@ -54,8 +67,8 @@ export function ApiEnvelopeResponse(
         properties: {
           success: { type: "boolean", enum: [true] },
           message: { type: "string", example: DEFAULT_SUCCESS_MESSAGE },
-          data: isModel ? { $ref: getSchemaPath(data) } : data,
-          meta: { type: "object", nullable: true },
+          data: options.paginated ? { type: "array", items: item } : item,
+          meta: options.paginated ? PAGE_META_SCHEMA : { type: "object", nullable: true },
         },
       },
     }),

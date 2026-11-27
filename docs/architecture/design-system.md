@@ -139,6 +139,7 @@ Touch targets are at least 40px on phones, and there's no horizontal page scroll
 | `Breadcrumbs`             | Built from route `handle.title`s                                                                    |
 | `SearchInput`             | Search field with icon and clear button (controlled)                                                |
 | `NumberInput`             | Number with Indian grouping and a unit (₹ prefix, km/L suffix); spread a `FormField` render onto it |
+| `Pager`                   | "Page 2 of 5" with previous/next; under `DataTable` (client paging) and server-paged lists          |
 | `StatCard`                | Label, value, hint and icon; optional link to its module; loading skeleton                          |
 | `DataTable`               | TanStack Table v8: sortable headers, pagination, loading and empty rows                             |
 | `ConfirmDialog`           | Confirm/cancel with async pending state and a destructive variant                                   |

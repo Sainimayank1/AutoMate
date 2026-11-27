@@ -24,7 +24,8 @@ type FuelEntryFormProps = {
   vehicles: Vehicle[];
   defaultValues: FuelFormValues;
   editingId?: string;
-  onSave: (values: FuelFormOutput) => Promise<unknown>;
+  /** `changed`: only the fields the user changed (what an edit sends, as a PATCH). */
+  onSave: (values: FuelFormOutput, changed: Partial<FuelFormOutput>) => Promise<unknown>;
 };
 
 const BACK_TO = "/fuel";
@@ -50,12 +51,18 @@ export function FuelEntryForm({
   const { isDirty, isSubmitting, errors } = form.formState;
   const vehicleId = useWatch({ control: form.control, name: "vehicleId" });
   const vehicle = vehicles.find((item) => item.id === vehicleId) ?? vehicles[0]!;
-  const history = useFuelEntries(vehicle.id).data ?? [];
+  // The latest page: enough for the last reading and recent stations.
+  const history = useFuelEntries(vehicle.id).data?.items ?? [];
   const creating = mode === "create";
 
   const submit = form.handleSubmit(async (values) => {
     try {
-      await onSave(values);
+      // Untouched fields stay exactly as stored (e.g. a time saved with seconds by another client).
+      const { dirtyFields } = form.formState;
+      const changed = Object.fromEntries(
+        Object.entries(values).filter(([key]) => dirtyFields[key as keyof FuelFormValues]),
+      ) as Partial<FuelFormOutput>;
+      await onSave(values, changed);
       navigate(BACK_TO, { replace: true, state: { savedChanges: true } });
     } catch (error) {
       applyServerErrors(form.setError, error);

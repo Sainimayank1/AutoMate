@@ -7,23 +7,23 @@ import {
   HttpCode,
   HttpStatus,
   Param,
-  ParseBoolPipe,
   ParseUUIDPipe,
   Patch,
   Post,
   Query,
 } from "@nestjs/common";
-import { ApiBearerAuth, ApiOperation, ApiQuery, ApiTags } from "@nestjs/swagger";
+import { ApiBearerAuth, ApiOperation, ApiTags } from "@nestjs/swagger";
 
 import {
   ApiEnvelopeResponse,
   ApiErrorResponses,
 } from "@/common/decorators/api-response.decorators";
+import type { Paginated } from "@/common/pagination/paginated";
 import type { AuthUser } from "@/modules/auth/auth.types";
 import { CurrentUser } from "@/modules/auth/decorators/current-user.decorator";
 
-import { CreateVehicleDto, UpdateVehicleDto } from "./dto/vehicle.dto";
-import { VEHICLE_LIST_SCHEMA, VEHICLE_SCHEMA } from "./vehicles.constants";
+import { CreateVehicleDto, UpdateVehicleDto, VehicleListQueryDto } from "./dto/vehicle.dto";
+import { VEHICLE_SCHEMA } from "./vehicles.constants";
 import { VehiclesService } from "./vehicles.service";
 
 @ApiTags("vehicles")
@@ -33,15 +33,16 @@ export class VehiclesController {
   constructor(private readonly vehicles: VehiclesService) {}
 
   @Get()
-  @ApiOperation({ summary: "The signed-in user's vehicles (in use, or archived)" })
-  @ApiQuery({ name: "archived", required: false, type: Boolean })
-  @ApiEnvelopeResponse(VEHICLE_LIST_SCHEMA)
+  @ApiOperation({
+    summary: "The signed-in user's vehicles (in use, or archived), a page at a time",
+  })
+  @ApiEnvelopeResponse(VEHICLE_SCHEMA, { paginated: true })
   @ApiErrorResponses(400, 401)
   list(
     @CurrentUser() user: AuthUser,
-    @Query("archived", new ParseBoolPipe({ optional: true })) archived = false,
-  ): Promise<Vehicle[]> {
-    return this.vehicles.list(user.id, { archived });
+    @Query() query: VehicleListQueryDto,
+  ): Promise<Paginated<Vehicle>> {
+    return this.vehicles.list(user.id, query);
   }
 
   @Get(":id")

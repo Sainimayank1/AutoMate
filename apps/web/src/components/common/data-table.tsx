@@ -7,9 +7,10 @@ import {
   type SortingState,
   useReactTable,
 } from "@tanstack/react-table";
-import { ArrowDown, ArrowUp, ChevronLeft, ChevronRight, ChevronsUpDown } from "lucide-react";
+import { ArrowDown, ArrowUp, ChevronsUpDown } from "lucide-react";
 import { type ReactNode, useState } from "react";
 
+import { Pager } from "@/components/common/pager";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
@@ -20,7 +21,6 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { formatNumber } from "@/utils/format";
 
 type DataTableProps<TData> = {
   columns: ColumnDef<TData>[];
@@ -29,18 +29,21 @@ type DataTableProps<TData> = {
   /** Shown when there are no rows, e.g. an <EmptyState>. */
   empty?: ReactNode;
   pageSize?: number;
+  /**
+   * false: `data` is already one page from the API (list endpoints are paginated). Render a
+   * <Pager> for it next to the table, and turn off column sorting, which would only sort the page.
+   */
+  paginate?: boolean;
 };
 
-/**
- * Table foundation: client-side sorting and pagination on TanStack Table.
- * shortcut: client-side only; switch to manualPagination/manualSorting when a list needs server paging.
- */
+/** Table foundation on TanStack Table: client-side sorting and paging, or one server page as is. */
 export function DataTable<TData>({
   columns,
   data,
   loading,
   empty = "No records yet.",
   pageSize = 20,
+  paginate = true,
 }: DataTableProps<TData>) {
   const [sorting, setSorting] = useState<SortingState>([]);
 
@@ -52,7 +55,8 @@ export function DataTable<TData>({
     onSortingChange: setSorting,
     getCoreRowModel: getCoreRowModel(),
     getSortedRowModel: getSortedRowModel(),
-    getPaginationRowModel: getPaginationRowModel(),
+    getPaginationRowModel: paginate ? getPaginationRowModel() : undefined,
+    enableSorting: paginate,
     initialState: { pagination: { pageSize } },
   });
 
@@ -142,33 +146,12 @@ export function DataTable<TData>({
         </Table>
       </div>
 
-      {pageCount > 1 && (
-        <div className="flex items-center justify-between gap-2 text-sm text-muted-foreground">
-          <span>
-            Page {formatNumber(table.getState().pagination.pageIndex + 1)} of{" "}
-            {formatNumber(pageCount)}
-          </span>
-          <div className="flex gap-2">
-            <Button
-              variant="outline"
-              size="icon"
-              aria-label="Previous page"
-              onClick={() => table.previousPage()}
-              disabled={!table.getCanPreviousPage()}
-            >
-              <ChevronLeft />
-            </Button>
-            <Button
-              variant="outline"
-              size="icon"
-              aria-label="Next page"
-              onClick={() => table.nextPage()}
-              disabled={!table.getCanNextPage()}
-            >
-              <ChevronRight />
-            </Button>
-          </div>
-        </div>
+      {paginate && (
+        <Pager
+          page={table.getState().pagination.pageIndex + 1}
+          pageCount={pageCount}
+          onPageChange={(page) => table.setPageIndex(page - 1)}
+        />
       )}
     </div>
   );
