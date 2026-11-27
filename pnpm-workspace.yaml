@@ -1,0 +1,15 @@
+packages:
+  - apps/*
+  - packages/*
+
+# Don't install versions published less than 7 days ago (minutes).
+minimumReleaseAge: 10080
+
+# Dependencies allowed to run install scripts (pnpm approve-builds).
+allowBuilds:
+  '@prisma/engines': true
+  '@scarf/scarf': false
+  '@swc/core': true
+  argon2: true
+  esbuild: true
+  prisma: true

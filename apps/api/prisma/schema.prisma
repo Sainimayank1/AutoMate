@@ -1,0 +1,13 @@
+// Conventions: docs/architecture/database.md
+// No models yet: entities arrive with their modules (auth adds User first).
+
+generator client {
+  provider            = "prisma-client"
+  output              = "../src/generated/prisma"
+  moduleFormat        = "cjs"
+  importFileExtension = "js"
+}
+
+datasource db {
+  provider = "postgresql"
+}

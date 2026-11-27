@@ -1,0 +1,21 @@
+import { z } from "zod/mini";
+
+const envSchema = z.object({
+  VITE_API_BASE_URL: z.url(),
+});
+
+export type Env = z.infer<typeof envSchema>;
+
+export function parseEnv(source: Record<string, unknown>): Env {
+  const result = envSchema.safeParse(source);
+  if (!result.success) {
+    throw new Error(
+      `Invalid environment configuration:\n${z.prettifyError(result.error)}\n` +
+        "Copy apps/web/.env.example to apps/web/.env and fill in the values.",
+    );
+  }
+  return result.data;
+}
+
+/** Validated at import time, so a missing variable fails on startup, not on first API call. */
+export const env = parseEnv(import.meta.env);
