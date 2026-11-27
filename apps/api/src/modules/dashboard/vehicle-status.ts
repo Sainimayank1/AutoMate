@@ -1,0 +1,180 @@
+import type {
+  ExpiryItem,
+  StatusItem,
+  StatusSeverity,
+  UntrackedArea,
+  Vehicle,
+  VehicleStatus,
+} from "@automate/shared";
+
+/** Expiring soon (design skill: documents ≤ 30 days are a warning). */
+export const EXPIRING_DAYS = 30;
+/** A warranty this close to its km limit is worth a warning. */
+export const WARRANTY_KM_NOTICE = 1_000;
+
+const DAY_MS = 24 * 60 * 60 * 1000;
+const dayFormat = new Intl.DateTimeFormat("en-IN", {
+  day: "numeric",
+  month: "short",
+  year: "numeric",
+  timeZone: "UTC",
+});
+const kmFormat = new Intl.NumberFormat("en-IN");
+const day = (iso: string) => dayFormat.format(new Date(`${iso}T00:00:00.000Z`));
+const km = (value: number) => `${kmFormat.format(value)} km`;
+const daysUntil = (today: string, date: string) =>
+  Math.round((Date.parse(date) - Date.parse(today)) / DAY_MS);
+const inDays = (days: number) =>
+  days === 0 ? "today" : days === 1 ? "tomorrow" : `in ${days} days`;
+const RANK: Record<StatusSeverity, number> = { critical: 0, warning: 1, info: 2 };
+
+/** The latest insurance policy on record, from its payment (Expenses). */
+export type InsuranceOnRecord = { expenseId: string; paidOn: string; policyEnd: string };
+
+/**
+ * The status panel (docs/architecture/dashboard.md §1): only facts from records the user keeps.
+ * Maintenance counts as tracked only while the vehicle has an active schedule; documents aren't
+ * tracked yet. While anything is untracked the vehicle is never called healthy.
+ */
+export function vehicleStatus({
+  vehicle,
+  insurance,
+  maintenance,
+  today,
+}: {
+  vehicle: Vehicle;
+  insurance: InsuranceOnRecord | null;
+  /** From MaintenanceService.statusFor: due and overdue schedules; tracked = has an active one. */
+  maintenance: { items: StatusItem[]; tracked: boolean };
+  today: string;
+}): VehicleStatus {
+  const items = [
+    insuranceItem(insurance, today),
+    warrantyItem(vehicle, today),
+    ...maintenance.items,
+  ]
+    .filter((item): item is StatusItem => item !== null)
+    .sort((a, b) => RANK[a.severity] - RANK[b.severity]);
+  const untracked: UntrackedArea[] = maintenance.tracked
+    ? ["documents"]
+    : ["maintenance", "documents"];
+  const level = items.some((item) => item.severity !== "info")
+    ? "attention"
+    : untracked.length
+      ? "incomplete"
+      : "no_issues";
+  return { level, items, untracked };
+}
+
+type Expiry = { state: ExpiryItem["state"]; summary: string; detail: string | null; href: string };
+
+const lowerFirst = (text: string) => text.charAt(0).toLowerCase() + text.slice(1);
+const SEVERITY: Record<Exclude<ExpiryItem["state"], "not_added">, StatusSeverity> = {
+  expired: "critical",
+  expiring: "warning",
+  valid: "info",
+};
+
+/** The insurance policy's expiry, from the payment that carries its dates. */
+function insuranceExpiry(insurance: InsuranceOnRecord, today: string): Expiry {
+  const left = daysUntil(today, insurance.policyEnd);
+  return {
+    state: left < 0 ? "expired" : left <= EXPIRING_DAYS ? "expiring" : "valid",
+    summary:
+      left < 0
+        ? `Expired on ${day(insurance.policyEnd)}`
+        : left <= EXPIRING_DAYS
+          ? `Expires ${inDays(left)}`
+          : `Valid until ${day(insurance.policyEnd)}`,
+    detail: `From your insurance payment of ${day(insurance.paidOn)}`,
+    href: `/expenses/transactions/${insurance.expenseId}`,
+  };
+}
+
+/** Warranty from the vehicle record: whichever of date or km comes first. */
+function warrantyExpiry(vehicle: Vehicle, today: string): Expiry | null {
+  const { warrantyExpiryDate: date, warrantyKmLimit: limit } = vehicle;
+  if (!date && limit === null) return null;
+  const daysLeft = date ? daysUntil(today, date) : null;
+  const kmLeft = limit !== null ? limit - vehicle.odometerKm : null;
+  const href = `/garage/${vehicle.id}`;
+  const expiry = (state: Expiry["state"], summary: string, detail: string | null = null) => ({
+    state,
+    summary,
+    detail,
+    href,
+  });
+  if (daysLeft !== null && daysLeft < 0) return expiry("expired", `Ended on ${day(date!)}`);
+  if (kmLeft !== null && kmLeft <= 0) return expiry("expired", `Ended at ${km(limit!)}`);
+  const both =
+    date && limit !== null ? `${day(date)} or ${km(limit)}, whichever comes first` : null;
+  if (daysLeft !== null && daysLeft <= EXPIRING_DAYS) {
+    return expiry("expiring", `Ends ${inDays(daysLeft)}`, both);
+  }
+  if (kmLeft !== null && kmLeft <= WARRANTY_KM_NOTICE) {
+    return expiry("expiring", `Ends in ${km(kmLeft)}`, both);
+  }
+  return expiry(
+    "valid",
+    date && limit !== null
+      ? `Valid until ${day(date)} or ${km(limit)}`
+      : date
+        ? `Valid until ${day(date)}`
+        : `Valid up to ${km(limit!)}`,
+  );
+}
+
+function insuranceItem(insurance: InsuranceOnRecord | null, today: string): StatusItem | null {
+  if (!insurance) return null;
+  const expiry = insuranceExpiry(insurance, today);
+  return {
+    id: "insurance",
+    severity: SEVERITY[expiry.state as keyof typeof SEVERITY],
+    title: `Insurance ${lowerFirst(expiry.summary)}`,
+    detail: expiry.detail,
+    href: expiry.href,
+  };
+}
+
+/** An ended warranty is worth knowing, not an alarm: it's information. */
+function warrantyItem(vehicle: Vehicle, today: string): StatusItem | null {
+  const expiry = warrantyExpiry(vehicle, today);
+  if (!expiry) return null;
+  return {
+    id: "warranty",
+    severity: expiry.state === "expiring" ? "warning" : "info",
+    title: `Warranty ${lowerFirst(expiry.summary)}`,
+    detail: expiry.detail,
+    href: expiry.href,
+  };
+}
+
+/**
+ * The expiry-dates card: insurance always (saying so when no policy is on record, since a car
+ * needs one) and the warranty when the vehicle has one. Documents adds PUC, registration and the
+ * licence when it's built.
+ */
+export function expiryDates({
+  vehicle,
+  insurance,
+  today,
+}: {
+  vehicle: Vehicle;
+  insurance: InsuranceOnRecord | null;
+  today: string;
+}): ExpiryItem[] {
+  const warranty = warrantyExpiry(vehicle, today);
+  return [
+    insurance
+      ? { id: "insurance", label: "Insurance", ...insuranceExpiry(insurance, today) }
+      : {
+          id: "insurance",
+          label: "Insurance",
+          state: "not_added",
+          summary: "No policy on record",
+          detail: "Add the insurance payment with its policy dates.",
+          href: "/expenses/new",
+        },
+    ...(warranty ? [{ id: "warranty" as const, label: "Warranty", ...warranty }] : []),
+  ];
+}

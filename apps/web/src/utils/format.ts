@@ -105,6 +105,25 @@ export function formatDateTime(value: DateValue | null | undefined): string {
   return date ? format(date, DATE_TIME_FORMAT) : EMPTY_VALUE;
 }
 
+/**
+ * A period in prose: "1–27 Oct", "28 Feb – 27 Mar", "1 Dec 2025 – 27 Jan 2026". The year shows
+ * when the ends are in different years or not this year. `from` and `to` are "YYYY-MM-DD".
+ */
+export function formatDateRange(
+  { from, to }: { from: string; to: string },
+  now: Date = new Date(),
+): string {
+  const start = new Date(`${from}T00:00:00`);
+  const end = new Date(`${to}T00:00:00`);
+  const sameYear = start.getFullYear() === end.getFullYear();
+  const year = !sameYear || end.getFullYear() !== now.getFullYear() ? " yyyy" : "";
+  if (from === to) return format(end, `d MMM${year}`);
+  if (sameYear && start.getMonth() === end.getMonth()) {
+    return `${format(start, "d")}–${format(end, `d MMM${year}`)}`;
+  }
+  return `${format(start, sameYear ? "d MMM" : "d MMM yyyy")} – ${format(end, `d MMM${year}`)}`;
+}
+
 const STANDARD_PLATE = /^([A-Z]{2})(\d{1,2})([A-Z]{0,3})(\d{1,4})$/;
 const BHARAT_PLATE = /^(\d{2})(BH)(\d{4})([A-Z]{1,2})$/;
 

@@ -148,6 +148,8 @@ Touch targets are at least 40px on phones, and there's no horizontal page scroll
 | `PlateBadge`              | Registration chip in Geist Mono: `HR-26-EV-4821`                                                    |
 | `VehicleImage`            | Vehicle visual; until photos are supported, the glow-panel fallback (`panel` or 40px `thumb`)       |
 | `UnsavedChangesGuard`     | Asks before leaving a dirty form (in-app navigation and closing the tab)                            |
+| `StatusBadge`             | A status as tone + icon + label (`destructive`, `warning`, `info`, `success`, `neutral`)            |
+| `Segmented`               | One joined radio track (Expenses kind, Maintenance priority and "Repeats / Once")                   |
 
 **Layout** (`components/layout/`): `AppShell`, `AppSidebar` (with `VehicleSelector`, the active-vehicle switcher), `AppHeader`, `ThemeToggle`, `UserMenu`, `BrandLogo`/`BrandMark`, and `TaskPage` (full-page flows outside the shell: a focused header with back button, used by the add and edit vehicle pages).
 
@@ -156,6 +158,7 @@ Touch targets are at least 40px on phones, and there's no horizontal page scroll
 **Feature-level:**
 
 - Auth: `AuthLayout`, `PasswordInput` (show/hide toggle).
+- Maintenance: `MaintenanceLayout` (header + tabs as routes), `ScheduleStatusBadge`, `DueSummary` (deciding track first, thin progress for repeating schedules), `ScheduleActions`, `SpendChart`, `ScheduleForm`.
 - Garage: `VehicleCard`, `DetailList` ("Not added · Add" for missing values), `DeleteVehicleDialog` (type the plate to confirm), and the vehicle form sections. Their choice fields come in four styles: `cards` (radio + description), `tiles` (icon over label), `segmented` (one joined track), and `select` (the edit page's compact mode).
 
 ## Accessibility checklist

@@ -1,5 +1,6 @@
 import {
   type CreateFuelEntryValues,
+  type DateWindow,
   type FuelEntry,
   type FuelEntryListQuery,
   FUELS_FOR_VEHICLE,
@@ -21,7 +22,7 @@ import type { Prisma, Vehicle as VehicleRow } from "@/generated/prisma/client";
 import { LinkedExpensesService } from "@/modules/expenses/linked-expenses.service";
 import { VehiclesService } from "@/modules/vehicles/vehicles.service";
 
-import { byHistoryOrder, computeMileage, summarize } from "./fuel.calculations";
+import { byHistoryOrder, computeMileage, fuelInWindow, summarize } from "./fuel.calculations";
 import { toFuelEntry } from "./fuel.mapper";
 import { toFuelExpense } from "./fuel-expense";
 
@@ -70,6 +71,21 @@ export class FuelService {
           )),
     );
     return Paginated.of(matches, page);
+  }
+
+  /** Whether the vehicle has any fill-up. */
+  async hasFills(userId: string, vehicleId: string): Promise<boolean> {
+    return !!(await this.prisma.fuelEntry.findFirst({
+      where: { userId, vehicleId },
+      select: { id: true },
+    }));
+  }
+
+  /** Fuel in each window (the dashboard's period and the one it's compared with). */
+  async inWindows(userId: string, vehicleId: string, windows: DateWindow[]) {
+    const vehicle = await this.vehicles.findOwned(userId, vehicleId);
+    const rows = await this.rows(userId, vehicleId);
+    return windows.map((window) => fuelInWindow(rows, vehicle.fuelType, window));
   }
 
   async summary(userId: string, vehicleId: string): Promise<FuelSummary> {

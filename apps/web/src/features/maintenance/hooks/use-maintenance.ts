@@ -1,0 +1,201 @@
+import type {
+  CreateScheduleValues,
+  CreateServiceRecordValues,
+  MaintenanceSchedule,
+  Page,
+  ServiceRecord,
+  UpdateScheduleValues,
+  UpdateServiceRecordValues,
+} from "@automate/shared";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { toast } from "sonner";
+
+import { dashboardKeys } from "@/features/dashboard/hooks/use-dashboard";
+import { expenseKeys } from "@/features/expenses/hooks/use-expenses";
+import { vehicleKeys } from "@/features/garage/hooks/use-vehicles";
+import { maintenanceKeys } from "@/features/maintenance/hooks/maintenance-keys";
+import type {
+  OverviewParams,
+  RecordListParams,
+  ScheduleListParams,
+} from "@/features/maintenance/services/maintenance-service";
+import { maintenanceService } from "@/features/maintenance/services/maintenance-service";
+
+/** `vehicleId` may be empty while the garage loads. */
+export function useMaintenanceOverview(vehicleId: string | undefined, params: OverviewParams = {}) {
+  return useQuery({
+    queryKey: maintenanceKeys.overview(vehicleId ?? "", params),
+    queryFn: () => maintenanceService.overview(vehicleId!, params),
+    enabled: !!vehicleId,
+    // Changing the period keeps the page on screen, but never shows another vehicle's.
+    placeholderData: (previous, previousQuery) =>
+      previousQuery?.queryKey[1] === vehicleId ? previous : undefined,
+  });
+}
+
+export function useSchedules(vehicleId: string | undefined, params: ScheduleListParams = {}) {
+  return useQuery({
+    queryKey: maintenanceKeys.list(vehicleId ?? "", params),
+    queryFn: () => maintenanceService.list(vehicleId!, params),
+    enabled: !!vehicleId,
+    placeholderData: (previous, previousQuery) =>
+      previousQuery?.queryKey[1] === vehicleId ? previous : undefined,
+  });
+}
+
+export function useSchedule(vehicleId: string, id: string, enabled = true) {
+  const queryClient = useQueryClient();
+  return useQuery({
+    queryKey: maintenanceKeys.detail(vehicleId, id),
+    queryFn: () => maintenanceService.get(vehicleId, id),
+    enabled: enabled && !!vehicleId && !!id,
+    // Instant when opened from a list.
+    placeholderData: () =>
+      queryClient
+        .getQueriesData<Page<MaintenanceSchedule>>({ queryKey: maintenanceKeys.lists(vehicleId) })
+        .flatMap(([, page]) => page?.items ?? [])
+        .find((schedule) => schedule.id === id),
+  });
+}
+
+/** Any schedule write changes the vehicle's overview, lists and that schedule. */
+function useSyncMaintenance() {
+  const queryClient = useQueryClient();
+  return (vehicleId: string) =>
+    Promise.all([
+      queryClient.invalidateQueries({ queryKey: maintenanceKeys.vehicle(vehicleId) }),
+      // The dashboard's status panel lists due and overdue schedules.
+      queryClient.invalidateQueries({ queryKey: dashboardKeys.all }),
+    ]);
+}
+
+/**
+ * A record write also completes schedules, keeps an expense and may raise the odometer: refresh
+ * maintenance, every expense view, the vehicles and the dashboard.
+ */
+function useSyncRecords() {
+  const queryClient = useQueryClient();
+  return (vehicleId: string) =>
+    Promise.all([
+      queryClient.invalidateQueries({ queryKey: maintenanceKeys.vehicle(vehicleId) }),
+      queryClient.invalidateQueries({ queryKey: maintenanceKeys.providers }),
+      queryClient.invalidateQueries({ queryKey: expenseKeys.all }),
+      queryClient.invalidateQueries({ queryKey: vehicleKeys.all }),
+      queryClient.invalidateQueries({ queryKey: dashboardKeys.all }),
+    ]);
+}
+
+export function useServiceRecords(vehicleId: string | undefined, params: RecordListParams = {}) {
+  return useQuery({
+    queryKey: maintenanceKeys.records(vehicleId ?? "", params),
+    queryFn: () => maintenanceService.records(vehicleId!, params),
+    enabled: !!vehicleId,
+  });
+}
+
+export function useServiceRecord(vehicleId: string, id: string) {
+  return useQuery({
+    queryKey: maintenanceKeys.record(vehicleId, id),
+    queryFn: () => maintenanceService.record(vehicleId, id),
+    enabled: !!vehicleId && !!id,
+  });
+}
+
+export function useProviders() {
+  return useQuery({ queryKey: maintenanceKeys.providers, queryFn: maintenanceService.providers });
+}
+
+export function useCreateServiceRecord(vehicleId: string) {
+  const sync = useSyncRecords();
+  return useMutation({
+    mutationFn: (values: CreateServiceRecordValues) =>
+      maintenanceService.createRecord(vehicleId, values),
+    onSuccess: async () => {
+      await sync(vehicleId);
+      toast.success("Service record saved.");
+    },
+    onError: handledByForm,
+  });
+}
+
+export function useUpdateServiceRecord(vehicleId: string, id: string) {
+  const sync = useSyncRecords();
+  return useMutation({
+    mutationFn: (values: UpdateServiceRecordValues) =>
+      maintenanceService.updateRecord(vehicleId, id, values),
+    onSuccess: async () => {
+      await sync(vehicleId);
+      toast.success("Service record updated.");
+    },
+    onError: handledByForm,
+  });
+}
+
+export function useDeleteServiceRecord() {
+  const queryClient = useQueryClient();
+  const sync = useSyncRecords();
+  return useMutation({
+    mutationFn: (record: ServiceRecord) =>
+      maintenanceService.removeRecord(record.vehicleId, record.id),
+    onSuccess: async (_, record) => {
+      queryClient.removeQueries({ queryKey: maintenanceKeys.record(record.vehicleId, record.id) });
+      await sync(record.vehicleId);
+      toast.success("Service record deleted.");
+    },
+  });
+}
+
+// The form shows errors inline (applyServerErrors), so these opt out of the global error toast.
+const handledByForm = () => {};
+
+export function useCreateSchedule(vehicleId: string) {
+  const sync = useSyncMaintenance();
+  return useMutation({
+    mutationFn: (values: CreateScheduleValues) => maintenanceService.create(vehicleId, values),
+    onSuccess: async () => {
+      await sync(vehicleId);
+      toast.success("Schedule added.");
+    },
+    onError: handledByForm,
+  });
+}
+
+export function useUpdateSchedule(vehicleId: string, id: string) {
+  const sync = useSyncMaintenance();
+  return useMutation({
+    mutationFn: (values: UpdateScheduleValues) => maintenanceService.update(vehicleId, id, values),
+    onSuccess: async () => {
+      await sync(vehicleId);
+      toast.success("Schedule updated.");
+    },
+    onError: handledByForm,
+  });
+}
+
+export function usePauseSchedule() {
+  const sync = useSyncMaintenance();
+  return useMutation({
+    mutationFn: ({ schedule, paused }: { schedule: MaintenanceSchedule; paused: boolean }) =>
+      maintenanceService.setPaused(schedule.vehicleId, schedule.id, paused),
+    onSuccess: async (schedule, { paused }) => {
+      await sync(schedule.vehicleId);
+      toast.success(paused ? "Schedule paused." : "Schedule resumed.");
+    },
+  });
+}
+
+export function useDeleteSchedule() {
+  const queryClient = useQueryClient();
+  const sync = useSyncMaintenance();
+  return useMutation({
+    mutationFn: (schedule: MaintenanceSchedule) =>
+      maintenanceService.remove(schedule.vehicleId, schedule.id),
+    onSuccess: async (_, schedule) => {
+      queryClient.removeQueries({
+        queryKey: maintenanceKeys.detail(schedule.vehicleId, schedule.id),
+      });
+      await sync(schedule.vehicleId);
+      toast.success("Schedule deleted.");
+    },
+  });
+}

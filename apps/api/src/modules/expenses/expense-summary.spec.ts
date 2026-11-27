@@ -34,6 +34,7 @@ describe("overviewPeriods", () => {
     expect(overviewPeriods(NOW)).toMatchObject({
       month: "2026-11",
       lastMonth: "2026-10",
+      lastMonthWindow: { from: "2026-10-01", to: "2026-10-27" }, // the same days, not all October
       from: "2026-01-01",
     });
     // 31 Dec 2026, 23:30 UTC is already 1 Jan 2027 in India.
@@ -41,6 +42,7 @@ describe("overviewPeriods", () => {
       today: "2027-01-01",
       month: "2027-01",
       lastMonth: "2026-12",
+      lastMonthWindow: { from: "2026-12-01", to: "2026-12-01" },
       from: "2026-12-01",
     });
   });
@@ -61,10 +63,12 @@ describe("summarizeExpenses", () => {
       ],
       [],
       NOW,
+      D("4000"), // 1–27 Oct
     );
     expect(summary.operating).toEqual({
       thisMonth: "6300.00",
       lastMonth: "4000.00",
+      lastMonthWindow: { from: "2026-10-01", to: "2026-10-27" },
       changePercent: 58, // 6300 / 4000 − 1 = 57.5 %
       thisYear: "11300.00",
       monthsCovered: 4, // August to November
@@ -104,6 +108,7 @@ describe("summarizeExpenses", () => {
       ],
       readings,
       NOW,
+      D("0"),
     );
     expect(summary.distanceKm).toBe(3412);
     expect(summary.costPerKm).toBe("5.00"); // B's cost has no km: left out
@@ -124,6 +129,7 @@ describe("summarizeExpenses", () => {
         },
       ],
       NOW,
+      D("0"),
     );
     expect(summary.distanceKm).toBe(2812);
     expect(summary.costPerKm).toBe("5.23"); // 14,718.08 / 2,812, not 17,847.68 / 2,812
@@ -143,6 +149,7 @@ describe("summarizeExpenses", () => {
         },
       ],
       NOW,
+      D("0"),
     );
     expect(summary).toMatchObject({
       operating: { thisMonth: "0.00", changePercent: null, monthsCovered: 0, monthlyAverage: null },

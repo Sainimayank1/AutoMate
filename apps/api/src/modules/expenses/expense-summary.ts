@@ -1,4 +1,11 @@
-import { CostClass, ExpenseKind, type ExpenseSummary } from "@automate/shared";
+import {
+  addDays,
+  CostClass,
+  ExpenseKind,
+  type ExpenseSummary,
+  ReportingPeriod,
+  resolvePeriod,
+} from "@automate/shared";
 
 import { Prisma } from "@/generated/prisma/client";
 
@@ -16,7 +23,10 @@ export type MonthTotal = {
   total: Decimal;
 };
 
-/** A vehicle's odometer readings (from expenses, fill-ups included) around this year. */
+/**
+ * A vehicle's odometer readings (from expenses, fill-ups included) in a window ("in year" is the
+ * window: the year for the Overview, the period for the dashboard).
+ */
 export type YearReadings = {
   vehicleId: string;
   readings: number;
@@ -28,24 +38,21 @@ export type YearReadings = {
   costAfterFirst: Decimal;
 };
 
-const IST_OFFSET_MS = 330 * 60 * 1000;
-
-/** Today in IST and the periods the overview needs. */
+/** Today in IST and the periods the overview needs (shared period rules). */
 export function overviewPeriods(now: Date) {
-  const today = new Date(now.getTime() + IST_OFFSET_MS).toISOString().slice(0, 10);
-  const [year, month] = today.split("-").map(Number) as [number, number];
-  const lastMonth =
-    month === 1 ? `${year - 1}-12` : `${year}-${String(month - 1).padStart(2, "0")}`;
-  const yearStart = `${year}-01-01`;
+  const { to: today, previous } = resolvePeriod(ReportingPeriod.THIS_MONTH, now);
+  const yearStart = `${today.slice(0, 4)}-01-01`;
   return {
     today,
     month: today.slice(0, 7),
-    lastMonth,
+    lastMonth: previous.from.slice(0, 7),
+    /** The same days of last month: what this month so far is compared with. */
+    lastMonthWindow: previous,
     yearStart,
     /** Earliest day queried: January, or last December in January. */
-    from: lastMonth < yearStart ? `${lastMonth}-01` : yearStart,
+    from: previous.from < yearStart ? previous.from : yearStart,
     /** A day of tolerance, like expense dates themselves (IST/UTC boundary). */
-    to: new Date(Date.parse(today) + 24 * 60 * 60 * 1000).toISOString().slice(0, 10),
+    to: addDays(today, 1),
   };
 }
 
@@ -54,8 +61,8 @@ const signed = (row: MonthTotal) =>
   row.kind === ExpenseKind.REFUND ? row.total.negated() : row.total;
 const sum = (rows: MonthTotal[]) => rows.reduce((total, row) => total.plus(signed(row)), zero());
 
-/** Distance this year: the highest reading minus the last one before it (or the first one in it). */
-function distanceOf(reading: YearReadings): number | null {
+/** Distance in the window: the highest reading minus the last one before it (or the first in it). */
+export function distanceOf(reading: YearReadings): number | null {
   if (reading.maxInYear === null) return null;
   const start = reading.before ?? (reading.readings >= 2 ? reading.minInYear : null);
   if (start === null) return null;
@@ -72,13 +79,15 @@ export function summarizeExpenses(
   totals: MonthTotal[],
   readings: YearReadings[],
   now: Date,
+  /** Net operating cost over `overviewPeriods(now).lastMonthWindow`. */
+  lastMonthSoFar: Decimal,
 ): Omit<ExpenseSummary, "categories"> & { categories: { categoryId: string; amount: Decimal }[] } {
   const period = overviewPeriods(now);
   const year = period.yearStart.slice(0, 4);
   const operating = totals.filter((row) => row.costClass === CostClass.OPERATING);
   const thisMonthRows = totals.filter((row) => row.month === period.month);
   const opThisMonth = sum(operating.filter((row) => row.month === period.month));
-  const opLastMonth = sum(operating.filter((row) => row.month === period.lastMonth));
+  const opLastMonth = lastMonthSoFar;
   const opYearRows = operating.filter((row) => row.month.startsWith(year));
   const opThisYear = sum(opYearRows);
 
@@ -114,6 +123,7 @@ export function summarizeExpenses(
     operating: {
       thisMonth: opThisMonth.toFixed(2),
       lastMonth: opLastMonth.toFixed(2),
+      lastMonthWindow: period.lastMonthWindow,
       changePercent: opLastMonth.greaterThan(0)
         ? opThisMonth.minus(opLastMonth).div(opLastMonth).times(100).toDecimalPlaces(0).toNumber()
         : null,

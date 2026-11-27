@@ -12,6 +12,7 @@ import { DatePicker } from "@/components/common/date-picker";
 import { FormError } from "@/components/common/form-error";
 import { FormField } from "@/components/common/form-field";
 import { NumberInput } from "@/components/common/number-input";
+import { Segmented } from "@/components/common/segmented";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -27,8 +28,6 @@ import { REFUND_REASON_LABELS } from "@/features/expenses/constants";
 import { useRefundExpense } from "@/features/expenses/hooks/use-expenses";
 import { applyServerErrors } from "@/lib/forms";
 import { formatCurrency } from "@/utils/format";
-
-import { Segmented } from "./segmented";
 
 type RefundForm = { amount: string; date: string; reason: RefundReason; notes: string };
 

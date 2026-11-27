@@ -13,7 +13,7 @@ import {
   useExpenseCategories,
   useUpdateExpense,
 } from "@/features/expenses/hooks/use-expenses";
-import { sourceHref } from "@/features/expenses/utils/expense-helpers";
+import { sourceHref, sourceModule } from "@/features/expenses/utils/expense-helpers";
 import { useVehicles } from "@/features/garage/hooks/use-vehicles";
 
 /** `/expenses/:expenseId/edit`: the add form, filled in. Linked expenses are edited at their source. */
@@ -78,7 +78,7 @@ export function Component() {
         action={
           <Button asChild>
             <Link to={origin ?? "/expenses/transactions"}>
-              {origin ? "Edit in Fuel" : "Back to expenses"}
+              {origin ? `Edit in ${sourceModule(expense.data)}` : "Back to expenses"}
             </Link>
           </Button>
         }

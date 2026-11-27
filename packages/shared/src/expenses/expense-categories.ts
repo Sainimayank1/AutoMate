@@ -190,3 +190,35 @@ export const FINANCE_COMPONENT_BY_KEY: Record<string, FinanceComponent> = Object
     category.subcategories.flatMap((item) => (item.finance ? [[item.key, item.finance]] : [])),
   ),
 );
+
+/** Insurance subcategories whose payments carry a policy period (start and expiry). */
+export const INSURANCE_POLICY_KEYS = [
+  "INSURANCE_LEGAL.COMPREHENSIVE",
+  "INSURANCE_LEGAL.THIRD_PARTY",
+  "INSURANCE_LEGAL.OTHER_INSURANCE",
+] as const;
+
+/**
+ * The five series of spending charts, one colour each (design skill: fixed category mapping):
+ * a top-level system category belongs to one; everything else (custom categories too) is "other".
+ */
+export const SpendGroup = {
+  FUEL: "fuel",
+  MAINTENANCE: "maintenance",
+  INSURANCE: "insurance",
+  LOAN: "loan",
+  OTHER: "other",
+} as const;
+export type SpendGroup = (typeof SpendGroup)[keyof typeof SpendGroup];
+
+const SPEND_GROUP_BY_KEY: Record<string, SpendGroup> = {
+  FUEL: SpendGroup.FUEL,
+  MAINTENANCE: SpendGroup.MAINTENANCE,
+  REPAIRS: SpendGroup.MAINTENANCE,
+  INSURANCE_LEGAL: SpendGroup.INSURANCE,
+  FINANCE: SpendGroup.LOAN,
+};
+
+/** A category's (or subcategory's) chart group, from its system key. */
+export const spendGroupOf = (key: string | null | undefined): SpendGroup =>
+  (key && SPEND_GROUP_BY_KEY[key.split(".")[0]!]) || SpendGroup.OTHER;

@@ -3,7 +3,7 @@ import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it } from "vitest";
 
 import { useSessionStore } from "@/stores/session-store";
-import { fail, mockApi, ok, testSession } from "@/test/mock-api";
+import { fail, mockApi, ok, okPage, testSession } from "@/test/mock-api";
 import { renderApp } from "@/test/render-app";
 
 beforeEach(() => useSessionStore.getState().clearSession());
@@ -96,7 +96,7 @@ describe("registration", () => {
   });
 
   it("creates the account, signs in and opens the dashboard", async () => {
-    mockApi(ok(testSession(), 201));
+    mockApi((config) => (config.url === "/vehicles" ? okPage([]) : ok(testSession(), 201)));
     const router = renderApp("/register");
     const user = userEvent.setup();
 
@@ -106,7 +106,9 @@ describe("registration", () => {
     await user.click(screen.getByRole("checkbox", { name: /I agree to the Terms/ }));
     await user.click(screen.getByRole("button", { name: "Create AutoMate account" }));
 
-    expect(await screen.findByRole("heading", { level: 1, name: "Dashboard" })).toBeInTheDocument();
+    expect(
+      await screen.findByRole("heading", { level: 1, name: /^Good (morning|afternoon|evening)/ }),
+    ).toBeInTheDocument();
     expect(router.state.location.pathname).toBe("/dashboard");
     expect(await screen.findByText("Welcome to AutoMate, Arjun.")).toBeInTheDocument();
   });

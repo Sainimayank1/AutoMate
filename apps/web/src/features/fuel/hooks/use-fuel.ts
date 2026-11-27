@@ -7,9 +7,11 @@ import type {
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 
+import { dashboardKeys } from "@/features/dashboard/hooks/use-dashboard";
 import { expenseKeys } from "@/features/expenses/hooks/use-expenses";
 import { type FuelListParams, fuelService } from "@/features/fuel/services/fuel-service";
 import { vehicleKeys } from "@/features/garage/hooks/use-vehicles";
+import { maintenanceKeys } from "@/features/maintenance/hooks/maintenance-keys";
 import { useActiveVehicleStore } from "@/stores/vehicle-store";
 
 export const fuelKeys = {
@@ -70,6 +72,9 @@ function useSyncFuel() {
       queryClient.invalidateQueries({ queryKey: vehicleKeys.all }),
       queryClient.invalidateQueries({ queryKey: expenseKeys.all }),
       queryClient.invalidateQueries({ queryKey: expenseKeys.categories }),
+      queryClient.invalidateQueries({ queryKey: dashboardKeys.all }),
+      // A fill-up can raise the odometer, which moves maintenance due by distance.
+      queryClient.invalidateQueries({ queryKey: maintenanceKeys.all }),
     ]);
 }
 

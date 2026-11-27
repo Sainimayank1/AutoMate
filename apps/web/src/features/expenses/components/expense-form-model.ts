@@ -8,6 +8,7 @@ import {
   expenseFieldsSchema,
   FINANCE_COMPONENT_BY_KEY,
   type FinanceComponent,
+  INSURANCE_POLICY_KEYS,
   type PaymentMethod,
 } from "@automate/shared";
 import { format } from "date-fns";
@@ -109,10 +110,7 @@ export function categoryKind(
   if (category.costClass === CostClass.FINANCING) return "finance";
   if (category.key === "MAINTENANCE") return "maintenance";
   if (category.key === "REPAIRS") return "repairs";
-  if (
-    subcategory?.key &&
-    /^INSURANCE_LEGAL\.(COMPREHENSIVE|THIRD_PARTY|OTHER_INSURANCE)$/.test(subcategory.key)
-  ) {
+  if (subcategory?.key && (INSURANCE_POLICY_KEYS as readonly string[]).includes(subcategory.key)) {
     return "insurance";
   }
   return null;

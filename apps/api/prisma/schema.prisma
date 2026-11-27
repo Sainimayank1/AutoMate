@@ -22,11 +22,14 @@ model User {
   createdAt       DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt       DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
 
-  sessions          Session[]
-  vehicles          Vehicle[]
-  fuelEntries       FuelEntry[]
-  expenses          Expense[]
-  expenseCategories ExpenseCategory[]
+  sessions             Session[]
+  vehicles             Vehicle[]
+  fuelEntries          FuelEntry[]
+  expenses             Expense[]
+  expenseCategories    ExpenseCategory[]
+  maintenanceSchedules MaintenanceSchedule[]
+  serviceRecords       ServiceRecord[]
+  serviceProviders     ServiceProvider[]
 
   @@map("users")
 }
@@ -117,9 +120,11 @@ model Vehicle {
   createdAt              DateTime        @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt              DateTime        @updatedAt @map("updated_at") @db.Timestamptz(3)
 
-  user        User        @relation(fields: [userId], references: [id], onDelete: Cascade)
-  fuelEntries FuelEntry[]
-  expenses    Expense[]
+  user                 User                  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  fuelEntries          FuelEntry[]
+  expenses             Expense[]
+  maintenanceSchedules MaintenanceSchedule[]
+  serviceRecords       ServiceRecord[]
 
   @@unique([userId, registrationNumber])
   @@index([userId, archivedAt])
@@ -288,4 +293,139 @@ model Expense {
   @@index([sharedGroupId])
   @@index([refundOfId])
   @@map("expenses")
+}
+
+enum MaintenancePriority {
+  LOW
+  NORMAL
+  HIGH
+}
+
+/// A maintenance task (MODULES.md M5) that repeats (every intervalKm and/or intervalMonths) or
+/// happens once (at dueDate and/or dueKm), whichever comes first. Mirrors `createScheduleSchema`.
+/// Next due and status are computed on read (schedule-engine.ts), never stored.
+/// CHECK constraints (repeats xor once, positive intervals) are in the migration SQL.
+model MaintenanceSchedule {
+  id               String              @id @default(uuid(7)) @db.Uuid
+  userId           String              @map("user_id") @db.Uuid
+  vehicleId        String              @map("vehicle_id") @db.Uuid
+  name             String
+  /// One of MAINTENANCE_CATEGORY_KEYS, e.g. "BRAKES.BRAKE_PADS".
+  categoryKey      String              @map("category_key")
+  intervalKm       Int?                @map("interval_km")
+  intervalMonths   Int?                @map("interval_months") @db.SmallInt
+  dueDate          DateTime?           @map("due_date") @db.Date
+  dueKm            Int?                @map("due_km")
+  /// Repeating only: when it was last done before being added, if the user knows.
+  lastDoneDate     DateTime?           @map("last_done_date") @db.Date
+  lastDoneKm       Int?                @map("last_done_km")
+  /// The vehicle's odometer when added: the distance basis until a "last done" or completion.
+  addedOdometerKm  Int                 @map("added_odometer_km")
+  remindersEnabled Boolean             @default(true) @map("reminders_enabled")
+  /// Null: DEFAULT_REMINDER_LEAD. Also sets when the schedule shows as "due soon".
+  leadDays         Int?                @map("lead_days") @db.SmallInt
+  leadKm           Int?                @map("lead_km")
+  priority         MaintenancePriority @default(NORMAL)
+  notes            String?
+  pausedAt         DateTime?           @map("paused_at") @db.Timestamptz(3)
+  createdAt        DateTime            @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt        DateTime            @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  user        User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  vehicle     Vehicle             @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
+  /// Record items that completed it: its history and the basis of its next due.
+  completions ServiceRecordItem[]
+
+  /// Read per vehicle (all of a vehicle's schedules are computed together); serves the cascade.
+  @@index([vehicleId])
+  @@map("maintenance_schedules")
+}
+
+enum ServiceRecordType {
+  ROUTINE_SERVICE
+  PREVENTIVE
+  INSPECTION
+  REPAIR
+  COMPONENT_REPLACEMENT
+  EMERGENCY_REPAIR
+  WARRANTY_REPAIR
+  MODIFICATION
+  OTHER
+}
+
+/// A workshop, dealer or mechanic of the user's, shared by their vehicles. Created from a record's
+/// workshop name; names are unique per user, case-insensitively (index in the migration SQL).
+model ServiceProvider {
+  id        String   @id @default(uuid(7)) @db.Uuid
+  userId    String   @map("user_id") @db.Uuid
+  name      String
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  user    User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  records ServiceRecord[]
+
+  @@index([userId])
+  @@map("service_providers")
+}
+
+/// Work done on a vehicle (MODULES.md M5 D): a service, repair, inspection or replacement, any date
+/// (historical records welcome). Mirrors `createServiceRecordSchema`. Its money, when there is any,
+/// is one linked expense (source MAINTENANCE). CHECK constraints are in the migration SQL.
+model ServiceRecord {
+  id             String            @id @default(uuid(7)) @db.Uuid
+  userId         String            @map("user_id") @db.Uuid
+  vehicleId      String            @map("vehicle_id") @db.Uuid
+  type           ServiceRecordType
+  title          String
+  /// One of MAINTENANCE_CATEGORY_KEYS.
+  categoryKey    String            @map("category_key")
+  serviceDate    DateTime          @map("service_date") @db.Date
+  odometerKm     Int?              @map("odometer_km")
+  providerId     String?           @map("provider_id") @db.Uuid
+  technician     String?
+  description    String?
+  labourAmount   Decimal?          @map("labour_amount") @db.Decimal(12, 2)
+  partsAmount    Decimal?          @map("parts_amount") @db.Decimal(12, 2)
+  otherAmount    Decimal?          @map("other_amount") @db.Decimal(12, 2)
+  taxAmount      Decimal?          @map("tax_amount") @db.Decimal(12, 2)
+  discountAmount Decimal?          @map("discount_amount") @db.Decimal(12, 2)
+  /// Computed by the API (serviceRecordTotal); 0 when nothing was paid.
+  totalAmount    Decimal           @map("total_amount") @db.Decimal(12, 2)
+  paymentMethod  PaymentMethod?    @map("payment_method")
+  warrantyUntil  DateTime?         @map("warranty_until") @db.Date
+  warrantyNotes  String?           @map("warranty_notes")
+  notes          String?
+  createdAt      DateTime          @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt      DateTime          @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  user     User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  vehicle  Vehicle             @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
+  provider ServiceProvider?    @relation(fields: [providerId], references: [id], onDelete: SetNull)
+  items    ServiceRecordItem[]
+
+  /// Histories are read per vehicle in date order; also serves the cascade from vehicles.
+  @@index([vehicleId, serviceDate])
+  @@index([providerId])
+  @@map("service_records")
+}
+
+/// One line of a record's work. With a schedule, it completes that schedule (once per record).
+model ServiceRecordItem {
+  id         String   @id @default(uuid(7)) @db.Uuid
+  recordId   String   @map("record_id") @db.Uuid
+  position   Int      @db.SmallInt
+  name       String
+  partNumber String?  @map("part_number")
+  scheduleId String?  @map("schedule_id") @db.Uuid
+  createdAt  DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt  DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  record   ServiceRecord        @relation(fields: [recordId], references: [id], onDelete: Cascade)
+  /// Deleting a schedule keeps the record; the item just stops pointing at it.
+  schedule MaintenanceSchedule? @relation(fields: [scheduleId], references: [id], onDelete: SetNull)
+
+  @@unique([recordId, scheduleId])
+  @@index([scheduleId])
+  @@map("service_record_items")
 }

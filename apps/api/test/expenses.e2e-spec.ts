@@ -439,7 +439,7 @@ describe("Expenses (e2e)", () => {
     const { today, lastMonth, month } = overviewPeriods(new Date());
     const sameYear = lastMonth.startsWith(month.slice(0, 4));
     await as(arjun)
-      .post(EXPENSES, toll(car.id, { amount: "800", date: `${lastMonth}-15`, odometerKm: 8100 }))
+      .post(EXPENSES, toll(car.id, { amount: "800", date: `${lastMonth}-01`, odometerKm: 8100 }))
       .expect(201);
     await as(arjun)
       .post(EXPENSES, toll(car.id, { amount: "640", date: today, odometerKm: 8600 }))
