@@ -2,6 +2,7 @@ import {
   DashboardMetric,
   DashboardWidget,
   INSIGHT_LIMIT,
+  PaymentState,
   ReportingPeriod,
   SpendGroup,
 } from "@automate/shared";
@@ -105,6 +106,19 @@ export const DASHBOARD_OVERVIEW_SCHEMA: Schema = {
           quantity: { type: "string", example: "68.25" },
           unit: { type: "string", enum: ["L", "kg", "kWh"] },
         }),
+        nextEmi: {
+          type: "object",
+          nullable: true,
+          description: "The next loan EMI, overdue first, whatever the period",
+          properties: {
+            loanId: { type: "string", format: "uuid" },
+            date: day("2026-12-05"),
+            amount: { type: "string", example: "16607.00" },
+            state: { type: "string", enum: Object.values(PaymentState) },
+            number: { type: "integer", example: 21 },
+            of: { type: "integer", example: 60 },
+          },
+        },
       },
     }),
     spending: section({

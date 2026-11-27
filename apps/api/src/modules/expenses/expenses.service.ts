@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 
 import {
+  addMonths,
   type BulkResult,
   CostClass,
   createExpenseSchema,
@@ -16,6 +17,8 @@ import {
   ExpenseSource,
   type ExpenseSummary,
   type ExpenseSummaryQuery,
+  type ExpenseTrend,
+  istToday,
   LINKED_EXPENSE_SOURCES,
   pageMeta,
   splitEqually,
@@ -39,7 +42,12 @@ import { VehiclesService } from "@/modules/vehicles/vehicles.service";
 
 import { ExpenseCategoriesService } from "./expense-categories.service";
 import { ExpenseFiguresService } from "./expense-figures.service";
-import { type MonthTotal, overviewPeriods, summarizeExpenses } from "./expense-summary";
+import {
+  expenseTrend,
+  type MonthTotal,
+  overviewPeriods,
+  summarizeExpenses,
+} from "./expense-summary";
 import { type ExpenseWithCategories, toDbDate, toExpense, toExpenseInput } from "./expenses.mapper";
 
 const NOT_FOUND = "Expense not found";
@@ -98,6 +106,20 @@ export class ExpensesService {
    * The Overview figures for the current IST month and year: two grouped queries (totals by month,
    * vehicle and category; odometer readings by vehicle), then `summarizeExpenses`.
    */
+  /** The Overview's monthly trend (shared ExpenseTrend): 12 months beside the year before. */
+  async trend(userId: string, { vehicleId }: ExpenseSummaryQuery): Promise<ExpenseTrend> {
+    if (vehicleId) await this.vehicles.findOwned(userId, vehicleId);
+    const today = istToday(new Date());
+    const from = addMonths(`${today.slice(0, 7)}-01`, -11);
+    const yearAgo = { from: addMonths(from, -12), to: addMonths(today, -12) };
+    const [rows, before, first] = await Promise.all([
+      this.figures.byCategory(userId, vehicleId, { from, to: today }, true),
+      this.figures.byCategory(userId, vehicleId, yearAgo, true),
+      this.figures.firstDate(userId, vehicleId),
+    ]);
+    return expenseTrend(rows, before, from, first);
+  }
+
   async summary(userId: string, { vehicleId }: ExpenseSummaryQuery): Promise<ExpenseSummary> {
     if (vehicleId) await this.vehicles.findOwned(userId, vehicleId);
     const now = new Date(); // one clock for the queries and the figures (month boundaries)

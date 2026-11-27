@@ -120,6 +120,8 @@ const loan: VehicleLoan = {
   emi: "16607.00",
   outstanding: "563204.00",
   paid: { principal: "236796.00", interest: "95345.00", charges: "0.00", emis: 19 },
+  beforeTracking: { emis: 0, principal: "0.00", interest: "0.00" },
+  repaid: { emis: 19, principal: "236796.00", interest: "95345.00" },
   emisTotal: 60,
   endDate: "2030-03-05",
   totalInterest: "196412.00",

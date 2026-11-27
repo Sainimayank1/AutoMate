@@ -1,4 +1,4 @@
-import type { Trip, TripCategory, TripOverview } from "@automate/shared";
+import type { Trip, TripCategory, TripOverview, TripSummary } from "@automate/shared";
 import {
   Body,
   Controller,
@@ -24,13 +24,21 @@ import { CurrentUser } from "@/modules/auth/decorators/current-user.decorator";
 
 import {
   CreateTripDto,
+  TripBulkDto,
   TripCategoryDto,
   TripCategoryListQueryDto,
+  TripFiltersDto,
   TripListQueryDto,
   TripOverviewQueryDto,
   UpdateTripDto,
 } from "./dto/trips.dto";
-import { TRIP_CATEGORY_SCHEMA, TRIP_OVERVIEW_SCHEMA, TRIP_SCHEMA } from "./trips.constants";
+import {
+  TRIP_BULK_SCHEMA,
+  TRIP_CATEGORY_SCHEMA,
+  TRIP_OVERVIEW_SCHEMA,
+  TRIP_SCHEMA,
+  TRIP_SUMMARY_SCHEMA,
+} from "./trips.constants";
 import { TripsService } from "./trips.service";
 
 @ApiTags("trips")
@@ -50,8 +58,25 @@ export class TripsController {
     return this.trips.overview(user.id, query);
   }
 
+  @Get("trips/summary")
+  @ApiOperation({ summary: "How many trips match the filters and their distance (every page)" })
+  @ApiEnvelopeResponse(TRIP_SUMMARY_SCHEMA)
+  @ApiErrorResponses(400, 401, 404)
+  summary(@CurrentUser() user: AuthUser, @Query() query: TripFiltersDto): Promise<TripSummary> {
+    return this.trips.summary(user.id, query);
+  }
+
+  @Post("trips/bulk")
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: "Delete trips, or move them to another type (all or none)" })
+  @ApiEnvelopeResponse(TRIP_BULK_SCHEMA)
+  @ApiErrorResponses(400, 401, 404, 409)
+  bulk(@CurrentUser() user: AuthUser, @Body() body: TripBulkDto): Promise<{ count: number }> {
+    return this.trips.bulk(user.id, body);
+  }
+
   @Get("trips")
-  @ApiOperation({ summary: "Trips, newest first, a page at a time" })
+  @ApiOperation({ summary: "Trip history: filtered and sorted on the server, a page at a time" })
   @ApiEnvelopeResponse(TRIP_SCHEMA, { paginated: true })
   @ApiErrorResponses(400, 401, 404)
   list(@CurrentUser() user: AuthUser, @Query() query: TripListQueryDto): Promise<Paginated<Trip>> {

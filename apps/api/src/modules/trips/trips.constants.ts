@@ -61,3 +61,69 @@ export const TRIP_OVERVIEW_SCHEMA: Schema = {
     recent: { type: "array", items: TRIP_SCHEMA },
   },
 };
+
+export const TRIP_SUMMARY_SCHEMA: Schema = {
+  type: "object",
+  properties: {
+    trips: { type: "integer", example: 18 },
+    distanceKm: { type: "string", example: "1240.0" },
+  },
+};
+
+export const TRIP_BULK_SCHEMA: Schema = {
+  type: "object",
+  properties: { count: { type: "integer", example: 3 } },
+};
+
+export const TRIP_COST_SCHEMA: Schema = {
+  type: "object",
+  properties: {
+    id: { type: "string", format: "uuid" },
+    tripId: { type: "string", format: "uuid" },
+    vehicleId: { type: "string", format: "uuid" },
+    category: { type: "string", enum: ["TOLL", "PARKING", "FOOD", "ACCOMMODATION", "OTHER"] },
+    amount: { type: "string", example: "240.00" },
+    date: { type: "string", format: "date" },
+    vendor: { type: "string", nullable: true, example: "Kherki Daula plaza" },
+    paymentMethod: { type: "string", nullable: true, example: "UPI" },
+    notes: { type: "string", nullable: true },
+    expenseId: { type: "string", format: "uuid", nullable: true },
+    trip: { type: "object" },
+    createdAt: { type: "string", format: "date-time" },
+    updatedAt: { type: "string", format: "date-time" },
+  },
+};
+
+export const TRIP_FUEL_ENTRY_SCHEMA: Schema = {
+  type: "object",
+  properties: {
+    id: { type: "string", format: "uuid" },
+    filledAt: { type: "string", format: "date-time" },
+    station: { type: "string", nullable: true },
+    quantity: { type: "string", example: "7.60" },
+    totalAmount: { type: "string", example: "800.00" },
+  },
+};
+
+export const TRIP_SPENDING_SCHEMA: Schema = {
+  type: "object",
+  description: "Actual (recorded costs and linked fill-ups) apart from the fuel estimate",
+  properties: {
+    actual: { type: "string", nullable: true },
+    byCategory: { type: "array", items: { type: "object" } },
+    perKm: { type: "string", nullable: true },
+    fuelEntries: { type: "integer" },
+    estimate: { type: "object", nullable: true },
+  },
+};
+
+export const TRIP_COSTS_SUMMARY_SCHEMA: Schema = {
+  type: "object",
+  properties: {
+    period: { type: "object" },
+    vehicleId: { type: "string", format: "uuid", nullable: true },
+    total: { type: "string" },
+    byCategory: { type: "array", items: { type: "object" } },
+    perKm: { type: "string", nullable: true },
+  },
+};

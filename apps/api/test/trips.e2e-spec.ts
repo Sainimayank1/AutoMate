@@ -13,7 +13,11 @@ import {
   type PageMeta,
   type Trip,
   type TripCategory,
+  type TripCost,
+  type TripCostsSummary,
+  type TripFuelEntry,
   type TripOverview,
+  type TripSpending,
   type Vehicle,
 } from "@automate/shared";
 import type { NestExpressApplication } from "@nestjs/platform-express";
@@ -338,6 +342,286 @@ describe("Trips (e2e)", () => {
       await as(arjun).get(`/api/v1/dashboard/activity?vehicleId=${car.id}`).expect(200),
     );
     expect(activity[0]).toMatchObject({ kind: "trip", title: "Gurugram → Jaipur" });
+  });
+
+  it("filters, searches and sorts the history on the server, with its summary", async () => {
+    const car = await vehicle(arjun, 20000);
+    const post = (body: object) => as(arjun).post("/api/v1/trips", body).expect(201);
+    await post(
+      trip(car.id, {
+        date: addDays(today, -20),
+        startKm: 20000,
+        endKm: 20040,
+        categoryId: typeId("COMMUTE"),
+        origin: "DLF Phase 4",
+        destination: "Cyber Hub",
+      }),
+    );
+    await post(
+      trip(car.id, {
+        date: addDays(today, -10),
+        startKm: 20040,
+        endKm: 20308,
+        notes: "Breakfast at Behror",
+      }),
+    );
+    await post({
+      vehicleId: car.id,
+      method: "DISTANCE",
+      categoryId: typeId("ERRANDS"),
+      date: addDays(today, -1),
+      distanceKm: "8",
+      destination: "Sector 29 market",
+    });
+    const list = async (query: string) =>
+      dataOf<Trip[]>(
+        await as(arjun).get(`/api/v1/trips?vehicleId=${car.id}&${query}`).expect(200),
+      ).map((row) => row.distanceKm);
+
+    expect(await list("")).toEqual(["8.0", "268.0", "40.0"]);
+    expect(await list("sort=oldest")).toEqual(["40.0", "268.0", "8.0"]);
+    expect(await list("sort=longest")).toEqual(["268.0", "40.0", "8.0"]);
+    expect(await list("sort=shortest")).toEqual(["8.0", "40.0", "268.0"]);
+    expect(await list("search=behror")).toEqual(["268.0"]);
+    expect(await list("search=cyber")).toEqual(["40.0"]);
+    expect(await list(`categoryId=${typeId("COMMUTE")}`)).toEqual(["40.0"]);
+    expect(await list("method=DISTANCE")).toEqual(["8.0"]);
+    expect(await list("minKm=10&maxKm=100")).toEqual(["40.0"]);
+    expect(await list(`from=${addDays(today, -15)}&to=${addDays(today, -5)}`)).toEqual(["268.0"]);
+    expect(await list("destination=jaipur")).toEqual(["268.0"]);
+    expect(
+      dataOf(
+        await as(arjun).get(`/api/v1/trips/summary?vehicleId=${car.id}&maxKm=100`).expect(200),
+      ),
+    ).toEqual({ trips: 2, distanceKm: "48.0" });
+    await as(arjun).get(`/api/v1/trips?vehicleId=${car.id}&minKm=100&maxKm=10`).expect(400);
+    await as(arjun).get("/api/v1/trips?sort=cheapest").expect(400);
+  });
+
+  it("moves trips to another type or deletes them in bulk, all or none", async () => {
+    const car = await vehicle(arjun, 30000);
+    const ids = [];
+    for (const [startKm, endKm] of [
+      [30000, 30100],
+      [30100, 30250],
+    ] as const) {
+      ids.push(
+        dataOf<Trip>(
+          await as(arjun)
+            .post("/api/v1/trips", trip(car.id, { date: today, startKm, endKm }))
+            .expect(201),
+        ).id,
+      );
+    }
+    expect(await odometerKmOf(arjun, car.id)).toBe(30250);
+    expect(
+      dataOf(
+        await as(arjun)
+          .post("/api/v1/trips/bulk", { action: "category", ids, categoryId: typeId("BUSINESS") })
+          .expect(200),
+      ),
+    ).toEqual({ count: 2 });
+    expect(
+      dataOf<Trip>(await as(arjun).get(`/api/v1/trips/${ids[1]}`).expect(200)).category.key,
+    ).toBe("BUSINESS");
+    await as(arjun).post("/api/v1/trips/bulk", { action: "category", ids }).expect(400);
+    // Someone else's trip in the batch: nothing changes.
+    await as(priya).post("/api/v1/trips/bulk", { action: "delete", ids }).expect(404);
+    await as(arjun)
+      .post("/api/v1/trips/bulk", { action: "delete", ids: [...ids, randomUUID()] })
+      .expect(404);
+    expect(
+      dataOf(await as(arjun).post("/api/v1/trips/bulk", { action: "delete", ids }).expect(200)),
+    ).toEqual({ count: 2 });
+    await as(arjun).get(`/api/v1/trips/${ids[0]}`).expect(404);
+    // Back down to the highest reading left (none from trips: the vehicle's own stays).
+    expect(await odometerKmOf(arjun, car.id)).toBe(30250);
+  });
+
+  describe("costs", () => {
+    const costs = (tripId: string) => `/api/v1/trips/${tripId}/costs`;
+    const expenseOf = async (costId: string) =>
+      prisma.expense.findFirst({
+        where: { source: "TRIP", sourceId: costId },
+        include: { category: true, subcategory: true },
+      });
+
+    it("keeps toll, parking and other in Expenses (read-only there) and food with the trip", async () => {
+      const car = await vehicle(arjun, 40000);
+      const jaipur = dataOf<Trip>(
+        await as(arjun)
+          .post("/api/v1/trips", trip(car.id, { date: today, startKm: 40000, endKm: 40268 }))
+          .expect(201),
+      );
+      const id = randomUUID();
+      const toll = dataOf<TripCost>(
+        await as(arjun)
+          .post(costs(jaipur.id), {
+            id,
+            category: "TOLL",
+            amount: "240",
+            date: today,
+            vendor: "Kherki Daula plaza",
+            paymentMethod: "UPI",
+          })
+          .expect(201),
+      );
+      // A retried save returns the same cost (and one expense).
+      await as(arjun)
+        .post(costs(jaipur.id), { id, category: "TOLL", amount: "240", date: today })
+        .expect(201);
+      expect(toll).toMatchObject({ id, amount: "240.00", trip: { label: "Gurugram → Jaipur" } });
+      const expense = await expenseOf(id);
+      expect(expense).toMatchObject({
+        title: "Toll · Gurugram → Jaipur",
+        vendor: "Kherki Daula plaza",
+        category: { key: "DAILY_USAGE" },
+        subcategory: { key: "DAILY_USAGE.TOLL" },
+      });
+      expect(toll.expenseId).toBe(expense!.id);
+      await as(arjun).patch(`/api/v1/expenses/${expense!.id}`, { title: "x" }).expect(409);
+
+      const food = dataOf<TripCost>(
+        await as(arjun)
+          .post(costs(jaipur.id), { category: "FOOD", amount: "285.50", date: today })
+          .expect(201),
+      );
+      expect(food.expenseId).toBeNull();
+      expect(await expenseOf(food.id)).toBeNull();
+      // Food → parking makes it an expense; toll → accommodation takes its expense away.
+      await as(arjun)
+        .patch(`${costs(jaipur.id)}/${food.id}`, { category: "PARKING" })
+        .expect(200);
+      expect((await expenseOf(food.id))?.subcategory?.key).toBe("DAILY_USAGE.PARKING");
+      await as(arjun)
+        .patch(`${costs(jaipur.id)}/${id}`, { category: "ACCOMMODATION" })
+        .expect(200);
+      expect(await expenseOf(id)).toBeNull();
+
+      await as(arjun)
+        .post(costs(jaipur.id), { category: "TOLL", amount: "0", date: today })
+        .expect(400);
+      await as(priya).get(costs(jaipur.id)).expect(404);
+      await as(priya)
+        .post(costs(jaipur.id), { category: "TOLL", amount: "1", date: today })
+        .expect(404);
+
+      // Deleting the cost deletes its expense; deleting the trip deletes the rest.
+      await as(arjun)
+        .delete(`${costs(jaipur.id)}/${food.id}`)
+        .expect(204);
+      expect(await expenseOf(food.id)).toBeNull();
+      const other = dataOf<TripCost>(
+        await as(arjun)
+          .post(costs(jaipur.id), { category: "OTHER", amount: "50", date: today })
+          .expect(201),
+      );
+      await as(arjun).delete(`/api/v1/trips/${jaipur.id}`).expect(204);
+      expect(await expenseOf(other.id)).toBeNull();
+    });
+
+    it("counts linked fill-ups as the trip's actual fuel, apart from estimates", async () => {
+      const car = await vehicle(arjun, 50000);
+      const other = await vehicle(arjun, 1000);
+      const jaipur = dataOf<Trip>(
+        await as(arjun)
+          .post(
+            "/api/v1/trips",
+            trip(car.id, { date: addDays(today, -1), startKm: 50000, endKm: 50200 }),
+          )
+          .expect(201),
+      );
+      const fill = async (vehicleId: string, odometerKm: number) =>
+        dataOf<{ id: string }>(
+          await as(arjun)
+            .post(`/api/v1/vehicles/${vehicleId}/fuel-entries`, {
+              filledAt: new Date().toISOString(),
+              odometerKm,
+              fuelType: "PETROL",
+              quantity: "7.6",
+              pricePerUnit: "105.26",
+              totalAmount: "800",
+              isFullTank: false,
+              stationName: "IndianOil, Behror",
+            })
+            .expect(201),
+        ).id;
+      const fuelId = await fill(car.id, 50250);
+      const candidates = dataOf<TripFuelEntry[]>(
+        await as(arjun).get(`/api/v1/trips/${jaipur.id}/fuel-candidates`).expect(200),
+      );
+      expect(candidates.map((row) => row.id)).toEqual([fuelId]);
+      await as(arjun)
+        .post(`/api/v1/trips/${jaipur.id}/fuel-entries`, { fuelEntryId: fuelId })
+        .expect(204);
+      await as(arjun)
+        .post(`/api/v1/trips/${jaipur.id}/fuel-entries`, {
+          fuelEntryId: await fill(other.id, 1100),
+        })
+        .expect(404);
+      await as(arjun)
+        .post(costs(jaipur.id), { category: "TOLL", amount: "240", date: today })
+        .expect(201);
+
+      const spending = dataOf<TripSpending>(
+        await as(arjun).get(`/api/v1/trips/${jaipur.id}/spending`).expect(200),
+      );
+      expect(spending).toMatchObject({
+        actual: "1040.00",
+        perKm: "5.20",
+        fuelEntries: 1,
+        byCategory: [
+          { category: "FUEL", amount: "800.00" },
+          { category: "TOLL", amount: "240.00" },
+        ],
+        estimate: null, // no full-tank sequence yet: no mileage to estimate with
+      });
+      expect(
+        dataOf<Trip>(await as(arjun).get(`/api/v1/trips/${jaipur.id}`).expect(200)).actualCost,
+      ).toBe("1040.00");
+
+      // Another trip can't take the same fill-up; unlinking leaves it in Fuel.
+      const second = dataOf<Trip>(
+        await as(arjun)
+          .post("/api/v1/trips", {
+            vehicleId: car.id,
+            method: "DISTANCE",
+            categoryId: typeId("ERRANDS"),
+            date: today,
+            distanceKm: "5",
+          })
+          .expect(201),
+      );
+      await as(arjun)
+        .post(`/api/v1/trips/${second.id}/fuel-entries`, { fuelEntryId: fuelId })
+        .expect(409);
+      await as(arjun).delete(`/api/v1/trips/${jaipur.id}/fuel-entries/${fuelId}`).expect(204);
+      await as(arjun).delete(`/api/v1/trips/${jaipur.id}/fuel-entries/${fuelId}`).expect(404);
+      expect(
+        (await prisma.fuelEntry.findUniqueOrThrow({ where: { id: fuelId } })).tripId,
+      ).toBeNull();
+
+      // The Costs tab and the overview read the same money.
+      await as(arjun)
+        .post(`/api/v1/trips/${jaipur.id}/fuel-entries`, { fuelEntryId: fuelId })
+        .expect(204);
+      const summary = dataOf<TripCostsSummary>(
+        await as(arjun)
+          .get(`/api/v1/trip-costs/summary?vehicleId=${car.id}&period=this_month`)
+          .expect(200),
+      );
+      expect(summary).toMatchObject({ total: "1040.00", perKm: "5.20" });
+      const listed = dataOf<TripCost[]>(
+        await as(arjun).get(`/api/v1/trip-costs?vehicleId=${car.id}&period=this_month`).expect(200),
+      );
+      expect(listed.map((row) => row.category)).toEqual(["TOLL"]);
+      const overview = dataOf<TripOverview>(
+        await as(arjun)
+          .get(`/api/v1/trips/overview?vehicleId=${car.id}&period=this_month`)
+          .expect(200),
+      );
+      expect(overview.cost).toEqual({ total: "1040.00", perKm: "5.20" });
+    });
   });
 
   it("keeps the system trip types and the user's own, unique by name", async () => {

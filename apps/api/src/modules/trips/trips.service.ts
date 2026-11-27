@@ -12,12 +12,17 @@ import {
   SYSTEM_TRIP_CATEGORIES,
   type SystemTripCategoryKey,
   type Trip,
+  type TripBulkValues,
   type TripCategory,
   type TripCategoryValues,
   tripDistance,
+  type TripFilters,
+  tripLabel,
   type TripListQuery,
   type TripOverview,
   type TripOverviewQuery,
+  type TripSort,
+  type TripSummary,
   type UpdateTripValues,
 } from "@automate/shared";
 import {
@@ -32,10 +37,11 @@ import { ZodValidationException } from "nestjs-zod";
 import { pageArgs, Paginated } from "@/common/pagination/paginated";
 import { PrismaService } from "@/database/prisma.service";
 import { Prisma, type Vehicle } from "@/generated/prisma/client";
+import { LinkedExpensesService } from "@/modules/expenses/linked-expenses.service";
 import { OdometerHistoryService } from "@/modules/vehicles/odometer-history.service";
 import { VehiclesService } from "@/modules/vehicles/vehicles.service";
 
-import { asTripInput, isoDate, toDbDate, toTrip, TRIP_INCLUDE } from "./trip.mapper";
+import { asTripInput, isoDate, toDbDate, toTrip, TRIP_INCLUDE, type TripRow } from "./trip.mapper";
 import { bucketStart, bucketStarts, chooseGranularity, tripsPerWeek } from "./trip-overview";
 
 const NOT_FOUND = "Trip not found";
@@ -48,6 +54,17 @@ const ORDER: Prisma.TripOrderByWithRelationInput[] = [
   { createdAt: "desc" },
   { id: "desc" },
 ];
+const SORTS: Record<TripSort, Prisma.TripOrderByWithRelationInput[]> = {
+  newest: ORDER,
+  oldest: [
+    { date: "asc" },
+    { startTime: { sort: "asc", nulls: "first" } },
+    { createdAt: "asc" },
+    { id: "asc" },
+  ],
+  longest: [{ distanceKm: "desc" }, ...ORDER],
+  shortest: [{ distanceKm: "asc" }, ...ORDER],
+};
 
 function assertActive(vehicle: Vehicle) {
   if (vehicle.archivedAt) {
@@ -70,21 +87,68 @@ export class TripsService {
     private readonly prisma: PrismaService,
     private readonly vehicles: VehiclesService,
     private readonly odometer: OdometerHistoryService,
+    private readonly linked: LinkedExpensesService,
   ) {}
 
-  async list(userId: string, { vehicleId, ...page }: TripListQuery): Promise<Paginated<Trip>> {
-    if (vehicleId) await this.vehicles.findOwned(userId, vehicleId);
-    const where: Prisma.TripWhereInput = { userId, ...(vehicleId && { vehicleId }) };
+  /** The history: filtered and sorted on the server, then paged. */
+  async list(userId: string, { sort, page, pageSize, ...filters }: TripListQuery) {
+    const where = await this.tripWhere(userId, filters);
     const [rows, total] = await this.prisma.$transaction([
       this.prisma.trip.findMany({
         where,
         include: TRIP_INCLUDE,
-        orderBy: ORDER,
-        ...pageArgs(page),
+        orderBy: SORTS[sort],
+        ...pageArgs({ page, pageSize }),
       }),
       this.prisma.trip.count({ where }),
     ]);
-    return new Paginated(rows.map(toTrip), pageMeta(page, total));
+    return new Paginated<Trip>(await this.withCosts(rows), pageMeta({ page, pageSize }, total));
+  }
+
+  /** How many trips match the filters and how far they went (every page). */
+  async summary(userId: string, filters: TripFilters): Promise<TripSummary> {
+    const { _count, _sum } = await this.prisma.trip.aggregate({
+      where: await this.tripWhere(userId, filters),
+      _count: true,
+      _sum: { distanceKm: true },
+    });
+    return { trips: _count, distanceKm: (_sum.distanceKm ?? new Prisma.Decimal(0)).toFixed(1) };
+  }
+
+  /**
+   * Deletes trips or moves them to another type, all or none, under their vehicles' locks.
+   * Deleting corrects each vehicle's odometer down to the highest reading left.
+   */
+  async bulk(userId: string, input: TripBulkValues): Promise<{ count: number }> {
+    const ids = [...new Set(input.ids)];
+    const count = await this.prisma.$transaction(async (tx) => {
+      const rows = await tx.trip.findMany({
+        where: { id: { in: ids }, userId },
+        select: { id: true, vehicleId: true, endKm: true },
+      });
+      if (rows.length !== ids.length)
+        throw new NotFoundException("Some of those trips weren't found");
+      const vehicleIds = [...new Set(rows.map((row) => row.vehicleId))].sort();
+      for (const vehicleId of vehicleIds) {
+        assertActive(await this.vehicles.lockOwned(userId, vehicleId, tx));
+      }
+      if (input.action === "category") {
+        const categoryId = input.categoryId!; // required for this action (tripBulkSchema)
+        await this.assertCategory(tx, userId, categoryId);
+        await tx.trip.updateMany({ where: { id: { in: ids } }, data: { categoryId } });
+        return ids.length;
+      }
+      await this.removeCostExpenses(tx, ids);
+      await tx.trip.deleteMany({ where: { id: { in: ids } } });
+      for (const vehicleId of vehicleIds) {
+        const ends = rows.filter((row) => row.vehicleId === vehicleId && row.endKm != null);
+        const highest = Math.max(...ends.map((row) => row.endKm!));
+        if (ends.length) await this.vehicles.correctOdometer(vehicleId, highest, 0, tx);
+      }
+      return ids.length;
+    });
+    this.logger.log(`Bulk ${input.action} of ${count} trips`);
+    return { count };
   }
 
   async get(userId: string, id: string): Promise<Trip> {
@@ -93,7 +157,7 @@ export class TripsService {
       include: TRIP_INCLUDE,
     });
     if (!row) throw new NotFoundException(NOT_FOUND);
-    return toTrip(row);
+    return (await this.withCosts([row]))[0]!;
   }
 
   async create(userId: string, input: CreateTripValues): Promise<Trip> {
@@ -147,6 +211,7 @@ export class TripsService {
   async remove(userId: string, id: string): Promise<void> {
     await this.prisma.$transaction(async (tx) => {
       const { vehicle, row } = await this.locked(tx, userId, id);
+      await this.removeCostExpenses(tx, [id]);
       await tx.trip.delete({ where: { id } });
       if (row.endKm != null) await this.vehicles.correctOdometer(vehicle.id, row.endKm, 0, tx);
     });
@@ -224,7 +289,7 @@ export class TripsService {
       longest: longest && {
         id: longest.id,
         distanceKm: longest.distanceKm.toFixed(1),
-        label: toTrip(longest).title ?? routeLabel(longest),
+        label: tripLabel(longest),
       },
       drivingMinutes: timed!.trips ? timed!.minutes : null,
       timedTrips: timed!.trips,
@@ -241,7 +306,8 @@ export class TripsService {
           };
         }),
       },
-      recent: recent.map(toTrip),
+      cost: await this.costOf(where),
+      recent: await this.withCosts(recent),
     };
   }
 
@@ -292,7 +358,7 @@ export class TripsService {
       this.prisma.trip.findMany({ where, include: TRIP_INCLUDE, orderBy: ORDER, take }),
       this.prisma.trip.count({ where }),
     ]);
-    return { recent: rows.map(toTrip), count };
+    return { recent: await this.withCosts(rows), count };
   }
 
   /** Trips and km per type, most distance first. */
@@ -365,6 +431,101 @@ export class TripsService {
         data: { archivedAt: archived ? new Date() : null },
       }),
     );
+  }
+
+  /** The filters as a query; a vehicle filter must be the user's own. */
+  private async tripWhere(
+    userId: string,
+    {
+      vehicleId,
+      search,
+      from,
+      to,
+      categoryId,
+      method,
+      minKm,
+      maxKm,
+      origin,
+      destination,
+    }: TripFilters,
+  ): Promise<Prisma.TripWhereInput> {
+    if (vehicleId) await this.vehicles.findOwned(userId, vehicleId);
+    const contains = (value: string) => ({ contains: value, mode: "insensitive" as const });
+    return {
+      userId,
+      ...(vehicleId && { vehicleId }),
+      ...(categoryId && { categoryId }),
+      ...(method && { method }),
+      ...((from || to) && {
+        date: { ...(from && { gte: toDbDate(from)! }), ...(to && { lte: toDbDate(to)! }) },
+      }),
+      ...((minKm || maxKm) && {
+        distanceKm: {
+          ...(minKm && { gte: new Prisma.Decimal(minKm) }),
+          ...(maxKm && { lte: new Prisma.Decimal(maxKm) }),
+        },
+      }),
+      ...(origin && { origin: contains(origin) }),
+      ...(destination && { destination: contains(destination) }),
+      ...(search && {
+        OR: [
+          { title: contains(search) },
+          { origin: contains(search) },
+          { destination: contains(search) },
+          { notes: contains(search) },
+        ],
+      }),
+    };
+  }
+
+  // ---- money
+
+  /** Each trip with its actual cost: recorded costs plus linked fill-ups (null when none). */
+  private async withCosts(rows: TripRow[]): Promise<Trip[]> {
+    const ids = rows.map((row) => row.id);
+    const [costs, fuel] = await Promise.all([
+      this.prisma.tripCost.groupBy({
+        by: ["tripId"],
+        where: { tripId: { in: ids } },
+        _sum: { amount: true },
+      }),
+      this.prisma.fuelEntry.groupBy({
+        by: ["tripId"],
+        where: { tripId: { in: ids } },
+        _sum: { totalAmount: true },
+      }),
+    ]);
+    return rows.map((row) => {
+      const cost = costs.find((group) => group.tripId === row.id)?._sum.amount;
+      const fill = fuel.find((group) => group.tripId === row.id)?._sum.totalAmount;
+      const total = cost || fill ? (cost ?? new Prisma.Decimal(0)).plus(fill ?? 0) : null;
+      return toTrip(row, total?.toFixed(2) ?? null);
+    });
+  }
+
+  /** The actual costs of the trips matching `where`; per km over the ones that have a cost. */
+  private async costOf(where: Prisma.TripWhereInput): Promise<TripOverview["cost"]> {
+    const [costs, fuel, distance] = await Promise.all([
+      this.prisma.tripCost.aggregate({ where: { trip: where }, _sum: { amount: true } }),
+      this.prisma.fuelEntry.aggregate({ where: { trip: where }, _sum: { totalAmount: true } }),
+      this.prisma.trip.aggregate({
+        where: { AND: [where, { OR: [{ costs: { some: {} } }, { fuelEntries: { some: {} } }] }] },
+        _sum: { distanceKm: true },
+      }),
+    ]);
+    if (!costs._sum.amount && !fuel._sum.totalAmount) return { total: null, perKm: null };
+    const total = (costs._sum.amount ?? new Prisma.Decimal(0)).plus(fuel._sum.totalAmount ?? 0);
+    const km = distance._sum.distanceKm;
+    return { total: total.toFixed(2), perKm: km?.gt(0) ? total.div(km).toFixed(2) : null };
+  }
+
+  /** A deleted trip's costs take their linked expenses with them (fill-ups are only unlinked). */
+  private async removeCostExpenses(tx: Prisma.TransactionClient, tripIds: string[]) {
+    const costs = await tx.tripCost.findMany({
+      where: { tripId: { in: tripIds } },
+      select: { id: true },
+    });
+    for (const cost of costs) await this.linked.remove(tx, "TRIP", cost.id);
   }
 
   // ---- checks
@@ -480,11 +641,6 @@ function columns(values: CreateTripValues) {
     notes: values.notes ?? null,
   };
 }
-
-const routeLabel = (row: { origin: string | null; destination: string | null }) =>
-  row.origin && row.destination
-    ? `${row.origin} → ${row.destination}`
-    : (row.destination ?? row.origin ?? "Trip");
 
 function toCategory(row: {
   id: string;

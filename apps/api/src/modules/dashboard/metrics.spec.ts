@@ -1,9 +1,9 @@
-import { FuelType } from "@automate/shared";
+import { FuelType, type RecurringPayment } from "@automate/shared";
 import { describe, expect, it } from "vitest";
 
 import { Prisma } from "@/generated/prisma/client";
 
-import { buildMetrics, compare, type WindowFigures } from "./metrics";
+import { buildMetrics, compare, nextEmi, type WindowFigures } from "./metrics";
 
 const D = (value: string) => new Prisma.Decimal(value);
 const window = (overrides: {
@@ -130,5 +130,43 @@ describe("buildMetrics", () => {
     expect(metrics.runningCostPerKm.previous).toBeNull();
     // Whole full-tank cycles still compare.
     expect(metrics.mileage).toMatchObject({ previous: "16.00", changePercent: 6 });
+  });
+});
+
+describe("nextEmi", () => {
+  const payment = (title: string, loan: RecurringPayment["loan"]): RecurringPayment => ({
+    recurringId: "r",
+    vehicleId: "v",
+    title,
+    category: {
+      id: "c",
+      key: "FINANCE",
+      name: "Finance",
+      icon: "landmark",
+      costClass: "FINANCING",
+    },
+    dueDate: "2026-12-05",
+    date: "2026-12-07",
+    amount: "16607.00",
+    state: "SCHEDULED",
+    postponed: true,
+    expenseId: null,
+    loan,
+  });
+
+  it("takes the first loan EMI in the upcoming list, at its postponed date", () => {
+    const emi = { loanId: "l", number: 21, of: 60, principal: "12200.00", interest: "4407.00" };
+    expect(nextEmi([payment("Parking", null), payment("HDFC EMI", emi)])).toEqual({
+      loanId: "l",
+      date: "2026-12-07",
+      amount: "16607.00",
+      state: "SCHEDULED",
+      number: 21,
+      of: 60,
+    });
+  });
+
+  it("is null without a loan", () => {
+    expect(nextEmi([payment("Parking", null)])).toBeNull();
   });
 });

@@ -122,17 +122,18 @@ function LoanCard({ loan }: { loan: VehicleLoan }) {
         </dl>
         <div className="flex flex-col gap-1.5">
           <Progress
-            value={(loan.paid.emis / Math.max(loan.emisTotal, 1)) * 100}
-            aria-label={`${loan.paid.emis} of ${loan.emisTotal} EMIs paid`}
+            value={(loan.repaid.emis / Math.max(loan.emisTotal, 1)) * 100}
+            aria-label={`${loan.repaid.emis} of ${loan.emisTotal} EMIs paid`}
             className="h-1.5"
           />
           <p className="flex flex-wrap justify-between gap-x-4 text-xs text-muted-foreground tabular-nums">
             <span>
-              {loan.paid.emis} of {loan.emisTotal} EMIs paid
+              {loan.repaid.emis} of {loan.emisTotal} EMIs paid
+              {loan.beforeTracking.emis > 0 && ` · ${loan.beforeTracking.emis} before AutoMate`}
             </span>
             <span>
-              Principal repaid {formatCurrency(loan.paid.principal)} · Interest paid{" "}
-              {formatCurrency(loan.paid.interest)}
+              Principal repaid {formatCurrency(loan.repaid.principal)} · Interest paid{" "}
+              {formatCurrency(loan.repaid.interest)}
             </span>
           </p>
         </div>

@@ -11,6 +11,7 @@ import {
 } from "../common/periods.js";
 import type { SpendGroup } from "../expenses/expense-categories.js";
 import type { ExpenseCategoryRef } from "../expenses/expense.schema.js";
+import type { PaymentState } from "../expenses/recurring.schema.js";
 import type { MileagePoint } from "../fuel/fuel.schema.js";
 import type {
   MaintenanceSchedule,
@@ -105,7 +106,7 @@ export interface MetricFigure {
   changePercent: number | null;
 }
 
-/** The five core metrics (docs/architecture/dashboard.md §1). */
+/** The five core metrics (docs/architecture/dashboard.md §1), and the next EMI. */
 export interface DashboardMetrics {
   /** Everything paid, net of refunds, loan principal excluded. `records`: rows in the period. */
   spent: MetricFigure & { records: number };
@@ -117,6 +118,16 @@ export interface DashboardMetrics {
   distance: MetricFigure & { readings: number };
   /** The Fuel category, net of refunds; `quantity` of the primary fuel. */
   fuelSpend: MetricFigure & { quantity: string; unit: "L" | "kg" | "kWh" };
+  /** The vehicle's next loan EMI, overdue first, whatever the period; null without a loan. */
+  nextEmi: {
+    loanId: string;
+    /** When it's due (a postponed EMI's new date). */
+    date: string;
+    amount: string;
+    state: PaymentState;
+    number: number;
+    of: number;
+  } | null;
 }
 
 /** Spending in the period and the months around it (net, loan principal excluded). */
@@ -308,6 +319,7 @@ export const DashboardMetric = {
   MILEAGE: "mileage",
   DISTANCE: "distance",
   FUEL_SPEND: "fuelSpend",
+  NEXT_EMI: "nextEmi",
 } as const satisfies Record<string, keyof DashboardMetrics>;
 export type DashboardMetric = (typeof DashboardMetric)[keyof typeof DashboardMetric];
 

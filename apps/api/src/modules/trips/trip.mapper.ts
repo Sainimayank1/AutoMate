@@ -17,7 +17,8 @@ export const isoDate = (value: Date) => value.toISOString().slice(0, 10);
 export const toDbDate = (value: string | null | undefined) =>
   value ? new Date(`${value}T00:00:00.000Z`) : null;
 
-export function toTrip(row: TripRow): Trip {
+/** `actualCost`: the trip's recorded costs plus linked fill-ups (null when none). */
+export function toTrip(row: TripRow, actualCost: string | null = null): Trip {
   const date = isoDate(row.date);
   const endDate = row.endDate ? isoDate(row.endDate) : null;
   return {
@@ -42,6 +43,7 @@ export function toTrip(row: TripRow): Trip {
     origin: row.origin,
     destination: row.destination,
     notes: row.notes,
+    actualCost,
     createdAt: row.createdAt.toISOString(),
     updatedAt: row.updatedAt.toISOString(),
   };

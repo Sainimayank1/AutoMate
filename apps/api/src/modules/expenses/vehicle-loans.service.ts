@@ -31,6 +31,7 @@ import { VehiclesService } from "@/modules/vehicles/vehicles.service";
 import { toDbDate } from "./expenses.mapper";
 import { amortise, type ScheduleEntry } from "./loan-schedule";
 import { type Acted, stateOf } from "./recurrence";
+import { trackedFrom } from "./tracking";
 
 type Db = Prisma.TransactionClient | PrismaService;
 type LoanRow = Prisma.VehicleLoanGetPayload<{
@@ -38,6 +39,7 @@ type LoanRow = Prisma.VehicleLoanGetPayload<{
 }>;
 
 const NOT_FOUND = "Loan not found";
+const ZERO = new Prisma.Decimal(0);
 const EMI_KEYS = { category: "FINANCE", subcategory: "FINANCE.EMI" } as const;
 const PREPAYMENT_KEY = "FINANCE.PART_PREPAYMENT";
 const day = (value: Date) => value.toISOString().slice(0, 10);
@@ -49,6 +51,8 @@ export type LoanPlan = {
   loan: LoanRow;
   rows: ScheduleEntry[];
   acted: Map<string, Acted>;
+  /** EMIs before this aren't owed here (paid outside AutoMate before the loan was added). */
+  trackedFrom: string;
 };
 
 /**
@@ -107,7 +111,8 @@ export class VehicleLoansService {
           ...scheduleData(values),
           every: 1,
           unit: RecurrenceUnit.MONTH,
-          activeFrom: toDbDate(values.firstEmiDate),
+          // Past EMIs were paid outside AutoMate: they aren't owed here.
+          activeFrom: toDbDate(trackedFrom(values.firstEmiDate)),
         },
       });
       return loan.id;
@@ -161,6 +166,7 @@ export class VehicleLoansService {
     if (!plan) throw new NotFoundException(NOT_FOUND);
     const today = istToday(new Date());
     const reminderDays = plan.loan.recurring?.reminderDays ?? 0;
+    const tracked = plan.trackedFrom;
     const all = plan.rows.map((row) => {
       const acted = plan.acted.get(row.date);
       return {
@@ -173,7 +179,8 @@ export class VehicleLoansService {
         principal: money(row.principal),
         prepayment: money(row.prepayment),
         closingBalance: money(row.closingBalance),
-        state: stateOf(row.date, acted, today, reminderDays),
+        // Before tracking started and not recorded here: its state isn't known.
+        state: !acted && row.date < tracked ? null : stateOf(row.date, acted, today, reminderDays),
         expenseId: acted?.expenseId ?? null,
       };
     });
@@ -271,22 +278,31 @@ export class VehicleLoansService {
             },
           ]),
         );
-        return [loan.id, { loan, rows, acted }];
+        const trackedFrom = loan.recurring
+          ? day(loan.recurring.activeFrom)
+          : day(loan.firstEmiDate);
+        return [loan.id, { loan, rows, acted, trackedFrom }];
       }),
     );
   }
 
-  private async present({ loan, rows, acted }: LoanPlan): Promise<VehicleLoan> {
+  private async present({ loan, rows, acted, trackedFrom }: LoanPlan): Promise<VehicleLoan> {
     const today = istToday(new Date());
     const paid = await this.prisma.expense.aggregate({
       where: { loanId: loan.id, kind: ExpenseKind.EXPENSE },
       _sum: { principalAmount: true, interestAmount: true, chargesAmount: true },
     });
     const done = (row: ScheduleEntry) => {
-      const state = stateOf(row.date, acted.get(row.date), today, 0);
+      const recorded = acted.get(row.date);
+      if (!recorded && row.date < trackedFrom) return true;
+      const state = stateOf(row.date, recorded, today, 0);
       return state === PaymentState.PAID || state === PaymentState.SKIPPED;
     };
-    const past = rows.filter((row) => row.date <= today);
+    // Due by today, or paid early: the balance stands after the last of them.
+    const past = rows.filter((row) => row.date <= today || acted.get(row.date)?.expenseId);
+    const earlier = rows.filter((row) => row.date < trackedFrom && !acted.get(row.date));
+    const earlierPrincipal = earlier.reduce((sum, row) => sum.plus(row.principal), ZERO);
+    const earlierInterest = earlier.reduce((sum, row) => sum.plus(row.interest), ZERO);
     const next = rows.find((row) => !done(row)) ?? null;
     const current = next ?? rows.at(-1);
     const zero = new Prisma.Decimal(0);
@@ -308,6 +324,16 @@ export class VehicleLoansService {
         interest: money(paid._sum.interestAmount ?? zero),
         charges: money(paid._sum.chargesAmount ?? zero),
         emis: [...acted.values()].filter((item) => item.expenseId).length,
+      },
+      beforeTracking: {
+        emis: earlier.length,
+        principal: money(earlierPrincipal),
+        interest: money(earlierInterest),
+      },
+      repaid: {
+        emis: earlier.length + [...acted.values()].filter((item) => item.expenseId).length,
+        principal: money(earlierPrincipal.plus(paid._sum.principalAmount ?? zero)),
+        interest: money(earlierInterest.plus(paid._sum.interestAmount ?? zero)),
       },
       emisTotal: rows.length,
       endDate: rows.at(-1)?.date ?? day(loan.firstEmiDate),

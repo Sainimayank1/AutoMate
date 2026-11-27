@@ -115,10 +115,15 @@ Rules:
 
 **Expense overview (`/expenses`, Stitch "Expenses — Desktop / Mobile", built):**
 
-- Tabs Overview · Transactions · Categories; a vehicle scope (supports All vehicles) and the IST month.
+- Tabs Overview · Transactions · Recurring · Categories; a vehicle scope (supports All vehicles) and the IST month.
 - **KPI strip** (5 `StatCard`s, two across on phones): Operating (Nov) with the change vs last month (cost ↑ `warning`, ↓ `success`), Operating (2026) with its months, Monthly average, Running cost / km with the km it's priced over, Loan EMI outflow "of ₹… paid this month". Then the one-line operating-cost definition.
 - **Category breakdown:** this month's running cost per category, amount, % and a `Progress h-2` bar in the category colour.
 - **Recent expenses:** 5 rows (table on desktop, list on phones), chips for the most used categories, "Showing 5 of N" and "View all" into Transactions with the same scope.
+- **Monthly spending:** the last 12 months as stacked bars in the five chart groups (`SPEND_GROUP_SERIES`, the dashboard's colours; loan principal left out), a dashed muted "Same month last year" line where records cover it, the 12-month total in the header.
+- **Upcoming payments:** the next 4 recurring payments and EMIs (overdue first) with a state badge, date and amount; "View all →" opens the Recurring tab.
+
+**Recurring tab (`/expenses/recurring`, Stitch "Expenses — Recurring", built):** Upcoming / History payments (state badge, the EMI's principal and interest, "Record payment" opens a dialog with the amount filled in, a menu to skip, postpone or reset), a Loans section (a card per loan: outstanding, EMI, rate, end, progress "19 of 60 EMIs paid", "View schedule →") and a Schedules table (frequency, next due, status; pause, resume, cancel, delete). Loan details (`/expenses/loans/:id`): position tiles, rate changes and the amortisation table a page at a time, each row's state; EMIs before tracking read "Before tracking". Add/edit recurring payment and loan are task pages with numbered sections and a summary card.
+
 - Planned with phase 6 (Ownership cost): the **money separation panel** (a Card with 3 `bg-elevated` tiles, always present; definitions in `docs/architecture/expenses.md`):
   1. **Operating cost**: running the vehicle (fuel, servicing, repairs, tolls, parking, washing). Cost per km uses only this;
   2. **Cash outflow**: everything paid, including the full EMI (principal too);

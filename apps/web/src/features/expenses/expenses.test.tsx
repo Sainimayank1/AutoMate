@@ -1,4 +1,11 @@
-import type { Expense, ExpenseCategory, ExpenseDetail, ExpenseSummary } from "@automate/shared";
+import type {
+  Expense,
+  ExpenseCategory,
+  ExpenseDetail,
+  ExpenseSummary,
+  ExpenseTrend,
+  RecurringPayment,
+} from "@automate/shared";
 import { act, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { InternalAxiosRequestConfig } from "axios";
@@ -265,6 +272,73 @@ describe("overview", () => {
       "href",
       `/expenses/transactions?category=${ID(4)}`,
     );
+  });
+
+  it("charts the last 12 months beside last year, and lists what's due next", async () => {
+    const groups = (fuel: string) => ({
+      fuel,
+      maintenance: "0.00",
+      insurance: "0.00",
+      loan: "0.00",
+      other: "0.00",
+    });
+    const trend: ExpenseTrend = {
+      months: [
+        { month: "2026-10", total: "9000.00", groups: groups("9000.00"), lastYear: "8000.00" },
+        { month: "2026-11", total: "7120.00", groups: groups("7120.00"), lastYear: null },
+      ],
+      total: "16120.00",
+      previousTotal: null,
+    };
+    const payment: RecurringPayment = {
+      recurringId: ID(100),
+      vehicleId: victoris.id,
+      title: "Society parking pass",
+      category: ref(daily),
+      dueDate: "2026-11-29",
+      date: "2026-11-29",
+      amount: "1500.00",
+      state: "DUE",
+      postponed: false,
+      expenseId: null,
+      loan: null,
+    };
+    const calls = api({
+      ...base,
+      "GET /expenses/summary": () => ok(summary()),
+      "GET /expenses": () => okPage([expense()]),
+      "GET /expenses/trend": () => ok(trend),
+      "GET /recurring-expenses/payments": () => okPage([payment]),
+    });
+    renderApp("/expenses");
+
+    // The chart re-renders once it's measured, so look it up again each time.
+    await waitFor(() =>
+      expect(
+        screen.getByRole("img", { name: "Spending per month: Oct ₹9,000.00, Nov ₹7,120.00" }),
+      ).toBeInTheDocument(),
+    );
+    expect(
+      screen.getByText(/₹16,120.00 in the last 12 months · loan principal/),
+    ).toBeInTheDocument();
+    // Only once the vehicle scope is known: no unscoped request first.
+    expect(calls.filter((call) => call.url === "/expenses/trend").map(paramsOf)).toEqual([
+      { vehicleId: victoris.id },
+    ]);
+
+    const upcoming = within(
+      screen.getByRole("heading", { name: "Upcoming payments" }).closest("[data-slot=card]")!,
+    );
+    expect(await upcoming.findByText("Society parking pass")).toBeInTheDocument();
+    expect(upcoming.getByText("29/11/2026")).toBeInTheDocument();
+    expect(upcoming.getByText("₹1,500.00")).toBeInTheDocument();
+    expect(upcoming.getByRole("link", { name: "View all →" })).toHaveAttribute(
+      "href",
+      "/expenses/recurring",
+    );
+    expect(
+      paramsOf(calls.find((call) => call.url === "/recurring-expenses/payments")),
+    ).toMatchObject({ view: "upcoming", pageSize: 4, vehicleId: victoris.id });
   });
 });
 

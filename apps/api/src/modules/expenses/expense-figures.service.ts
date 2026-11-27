@@ -137,7 +137,8 @@ export class ExpenseFiguresService {
    */
   async byCategory(
     userId: string,
-    vehicleId: string,
+    /** One vehicle, or every vehicle of the user's when undefined. */
+    vehicleId: string | undefined,
     window: DateWindow,
     monthly: boolean,
   ): Promise<{ month: string | null; category: ExpenseCategoryRef; total: Prisma.Decimal }[]> {
@@ -158,7 +159,8 @@ export class ExpenseFiguresService {
                       ELSE e.amount - coalesce(e.principal_amount, 0) END) AS total
       FROM expenses e
       JOIN expense_categories c ON c.id = e.category_id
-      WHERE e.user_id = ${userId}::uuid AND e.vehicle_id = ${vehicleId}::uuid
+      WHERE e.user_id = ${userId}::uuid
+        ${vehicleId ? Prisma.sql`AND e.vehicle_id = ${vehicleId}::uuid` : Prisma.empty}
         AND e.date >= ${window.from}::date AND e.date <= ${window.to}::date
       GROUP BY 1, 2, 3, 4, 5, 6`;
     return rows.map((row) => ({
@@ -216,9 +218,9 @@ export class ExpenseFiguresService {
   }
 
   /** The date of the vehicle's earliest expense (fill-ups included): records start there. */
-  async firstDate(userId: string, vehicleId: string): Promise<string | null> {
+  async firstDate(userId: string, vehicleId: string | undefined): Promise<string | null> {
     const row = await this.prisma.expense.findFirst({
-      where: { userId, vehicleId },
+      where: { userId, ...(vehicleId ? { vehicleId } : {}) },
       orderBy: { date: "asc" },
       select: { date: true },
     });

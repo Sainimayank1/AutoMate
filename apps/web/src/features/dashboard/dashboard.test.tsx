@@ -59,6 +59,14 @@ const metrics: DashboardMetrics = {
     quantity: "68.25",
     unit: "L",
   },
+  nextEmi: {
+    loanId: "0190d4a2-0000-7000-8000-0000000e0300",
+    date: "2026-11-05",
+    amount: "16607.00",
+    state: "OVERDUE",
+    number: 20,
+    of: 60,
+  },
 };
 
 const zeroGroups = {
@@ -419,6 +427,14 @@ describe("dashboard", () => {
       "href",
       "/fuel",
     );
+    // The next EMI, whatever the period, opening its loan.
+    expect(within(figures).getByText("Overdue since 05/11/2026 · EMI 20 of 60")).toHaveClass(
+      "text-destructive",
+    );
+    expect(within(figures).getByRole("link", { name: "Next EMI" })).toHaveAttribute(
+      "href",
+      "/expenses/loans/0190d4a2-0000-7000-8000-0000000e0300",
+    );
     await user.click(within(figures).getByRole("button", { name: "How spent is worked out" }));
     expect(await screen.findByText(/Loan principal isn't counted/)).toBeInTheDocument();
   });
@@ -589,7 +605,7 @@ describe("dashboard", () => {
       page: 1,
       pageSize: 8,
     });
-    await user.click(screen.getByRole("button", { name: /next/i }));
+    await user.click(screen.getByRole("button", { name: "Next page" }));
     expect(
       await within(table).findByRole("link", { name: /Periodic service/ }),
     ).toBeInTheDocument();
@@ -699,7 +715,7 @@ describe("dashboard", () => {
     await user.click(sheet.getByRole("switch", { name: "Spending" }));
     await user.click(sheet.getByRole("button", { name: "Move Recent activity up" }));
     expect(await sheet.findByText("Recent activity moved to position 7 of 8")).toBeInTheDocument();
-    for (const name of ["Running cost / km", "Average mileage", "Distance"]) {
+    for (const name of ["Running cost / km", "Average mileage", "Distance", "Next EMI"]) {
       await user.click(sheet.getByRole("checkbox", { name }));
     }
     await user.click(sheet.getByRole("checkbox", { name: "Fuel spend" }));

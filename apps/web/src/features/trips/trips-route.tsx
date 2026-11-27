@@ -34,7 +34,7 @@ import { TRIP_PERIODS, type TripPeriod, typeColor } from "@/features/trips/const
 import { useTripOverview, useTrips } from "@/features/trips/hooks/use-trips";
 import { durationText } from "@/features/trips/utils/trip-text";
 import { useActiveVehicle } from "@/hooks/use-active-vehicle";
-import { formatDistance, formatNumber } from "@/utils/format";
+import { formatCurrency, formatDistance, formatNumber } from "@/utils/format";
 
 const ALL = "all";
 const GRANULARITIES: { value: TripGranularity; label: string }[] = [
@@ -244,7 +244,7 @@ function Overview({
   const noneInPeriod = data.trips === 0;
   return (
     <>
-      <section className="grid grid-cols-2 gap-4 lg:grid-cols-4" aria-label="Key figures">
+      <section className="grid grid-cols-2 gap-4 lg:grid-cols-5" aria-label="Key figures">
         <Metric
           label="Distance"
           value={formatDistance(data.distanceKm)}
@@ -267,6 +267,17 @@ function Overview({
             data.timedTrips
               ? `from ${data.timedTrips} ${data.timedTrips === 1 ? "trip" : "trips"} with times`
               : "Add start and end times to see it"
+          }
+        />
+        <Metric
+          label="Trip costs"
+          value={data.cost.total ? formatCurrency(data.cost.total) : "—"}
+          caption={
+            data.cost.total
+              ? data.cost.perKm
+                ? `${formatCurrency(data.cost.perKm)} per km`
+                : "Actual costs recorded"
+              : "Add costs on a trip to see them"
           }
         />
       </section>

@@ -105,8 +105,8 @@ export class VehiclesService {
    * A reading another module raised the odometer to was corrected down: follow it to the highest
    * reading still recorded anywhere (`toKm` or higher: the one odometer history), but only if the
    * vehicle still shows the old reading.
-   * shortcut: can land below a reading typed in Garage when a back-logged record is corrected;
-   * Garage keeps no reading history of its own.
+   * shortcut: can land below a reading typed in Garage when a back-logged record is corrected,
+   * and stays put when no reading is left; Garage keeps no reading history of its own.
    */
   async correctOdometer(
     id: string,
@@ -115,7 +115,8 @@ export class VehiclesService {
     tx: Prisma.TransactionClient,
   ): Promise<void> {
     const highest = Math.max(toKm, (await this.history.highest(tx, id)) ?? 0);
-    if (highest >= fromKm) return;
+    // No reading left anywhere: keep what the vehicle shows rather than guess (never 0).
+    if (highest === 0 || highest >= fromKm) return;
     await tx.vehicle.updateMany({
       where: { id, odometerKm: fromKm },
       data: { odometerKm: highest },

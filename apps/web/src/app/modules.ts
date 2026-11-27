@@ -273,6 +273,21 @@ export const appModules = [
     lazy: () => import("@/features/trips/trips-route"),
     children: [
       {
+        path: "history",
+        lazy: () => import("@/features/trips/history-route"),
+        handle: { title: "History" },
+      },
+      {
+        path: "costs",
+        lazy: () => import("@/features/trips/costs-route"),
+        handle: { title: "Costs" },
+      },
+      {
+        path: "costs/:costId",
+        lazy: () => import("@/features/trips/cost-redirect-route"),
+        handle: { title: "Trip cost" },
+      },
+      {
         path: ":tripId",
         lazy: () => import("@/features/trips/trip-details-route"),
         handle: { title: "Trip" },

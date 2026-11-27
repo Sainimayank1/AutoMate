@@ -47,7 +47,10 @@ export function PaymentsCard({
   initialPay?: { recurringId: string; dueDate: string };
 }) {
   const [view, setView] = useState<"upcoming" | "history">("upcoming");
-  const [page, setPage] = useState(1);
+  // Back to page 1 when the vehicle scope changes (without remounting an open dialog).
+  const [paging, setPaging] = useState({ vehicleId, page: 1 });
+  const page = paging.vehicleId === vehicleId ? paging.page : 1;
+  const setPage = (next: number) => setPaging({ vehicleId, page: next });
   const payments = useRecurringPayments({ vehicleId, view, page, pageSize: PAGE_SIZE });
   const target = useRecurringPayments(
     { vehicleId, recurringId: initialPay?.recurringId, view: "upcoming", pageSize: 100 },

@@ -126,8 +126,14 @@ describe("Recurring payments and loans (e2e)", () => {
         })
         .expect(201),
     );
-    expect(created).toMatchObject({ status: "ACTIVE", overdue: 2, loanId: null });
-    expect(created.next).toMatchObject({ dueDate: start, state: "OVERDUE", amount: "1500.00" });
+    // Dates before it was added were dealt with elsewhere: nothing is overdue yet.
+    expect(created).toMatchObject({ status: "ACTIVE", overdue: 0, loanId: null });
+    expect(created.next).toMatchObject({ dueDate: addMonths(start, 2), state: "DUE" });
+    // As if it had been added two months ago.
+    await prisma.recurringExpense.update({
+      where: { id: created.id },
+      data: { activeFrom: new Date(`${start}T00:00:00.000Z`) },
+    });
 
     const upcoming = await as(arjun).get(`${RECURRING}/payments?vehicleId=${car.id}`).expect(200);
     const due = dataOf<RecurringPayment[]>(upcoming);
@@ -243,19 +249,26 @@ describe("Recurring payments and loans (e2e)", () => {
         })
         .expect(201),
     );
+    // The first EMI fell due before the loan was added: paid elsewhere, not owed here.
     expect(loan).toMatchObject({
       emi: "16607.00",
       emisTotal: 60,
       outstanding: "789393.00", // after the first EMI
-      next: { date: first, principal: "10607.00", interest: "6000.00" },
+      next: { date: addMonths(first, 1) },
       paid: { emis: 0, principal: "0.00" },
+      beforeTracking: { emis: 1, principal: "10607.00", interest: "6000.00" },
     });
     const schedule = await as(arjun).get(`${LOANS}/${loan.id}/schedule?pageSize=100`).expect(200);
     expect(metaOf(schedule)?.total).toBe(60);
     expect(dataOf<LoanScheduleRow[]>(schedule)[0]).toMatchObject({
       number: 1,
       emi: "16607.00",
-      state: "OVERDUE",
+      state: null,
+    });
+    // As if it had been added before its first EMI.
+    await prisma.recurringExpense.update({
+      where: { id: loan.recurringId! },
+      data: { activeFrom: new Date(`${first}T00:00:00.000Z`) },
     });
 
     // Its EMI is a payment like any other, with the split from the schedule.

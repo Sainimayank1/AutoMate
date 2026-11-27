@@ -61,7 +61,6 @@ export function Component() {
         </div>
       </div>
       <PaymentsCard
-        key={vehicleId ?? ALL_VEHICLES}
         vehicleId={vehicleId}
         initialPay={pay && due ? { recurringId: pay, dueDate: due } : undefined}
       />

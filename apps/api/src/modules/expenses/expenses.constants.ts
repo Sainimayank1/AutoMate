@@ -272,6 +272,24 @@ export const VEHICLE_LOAN_SCHEMA: Schema = {
         emis: { type: "integer", example: 19 },
       },
     },
+    beforeTracking: {
+      type: "object",
+      description: "EMIs due before the loan was added here (paid outside AutoMate), per schedule",
+      properties: {
+        emis: { type: "integer", example: 0 },
+        principal: money("0.00"),
+        interest: money("0.00"),
+      },
+    },
+    repaid: {
+      type: "object",
+      description: "Recorded here plus before tracking",
+      properties: {
+        emis: { type: "integer", example: 19 },
+        principal: money("236796.00"),
+        interest: money("95345.00"),
+      },
+    },
     emisTotal: { type: "integer", example: 60 },
     endDate: date("2030-04-05"),
     totalInterest: money("196412.00"),
@@ -316,7 +334,33 @@ export const LOAN_SCHEDULE_ROW_SCHEMA: Schema = {
     principal: money("10607.00"),
     prepayment: money("0.00"),
     closingBalance: money("789393.00"),
-    state: { type: "string", enum: Object.values(PaymentState) },
+    state: {
+      type: "string",
+      nullable: true,
+      enum: Object.values(PaymentState),
+      description: "null: before tracking started (paid outside AutoMate, not recorded here)",
+    },
     expenseId: { type: "string", format: "uuid", nullable: true },
+  },
+};
+
+/** OpenAPI shape of `ExpenseTrend` (@automate/shared). */
+export const EXPENSE_TREND_SCHEMA: Schema = {
+  type: "object",
+  properties: {
+    months: {
+      type: "array",
+      items: {
+        type: "object",
+        properties: {
+          month: { type: "string", example: "2026-11" },
+          total: money("11840.00"),
+          groups: { type: "object", additionalProperties: money("0.00") },
+          lastYear: money("9920.00", true),
+        },
+      },
+    },
+    total: money("118430.00"),
+    previousTotal: money("96210.00", true),
   },
 };

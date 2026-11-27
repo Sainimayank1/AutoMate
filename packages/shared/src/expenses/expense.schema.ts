@@ -13,7 +13,12 @@ import {
 import { PaymentMethod } from "../common/payment-method.js";
 import type { DateWindow } from "../common/periods.js";
 import { ODOMETER_MAX_KM } from "../vehicles/vehicle.schema.js";
-import { CostClass, EXPENSE_ICONS, type ExpenseIcon } from "./expense-categories.js";
+import {
+  CostClass,
+  EXPENSE_ICONS,
+  type ExpenseIcon,
+  type SpendGroup,
+} from "./expense-categories.js";
 
 /** Expense contract (module 4) shared by apps/api (validation) and apps/web (forms). */
 
@@ -400,6 +405,23 @@ export interface BulkResult {
 /** `GET /expenses/summary`: one vehicle, or every vehicle when omitted. */
 export const expenseSummaryQuerySchema = z.object({ vehicleId: z.uuid().optional() });
 export type ExpenseSummaryQuery = z.output<typeof expenseSummaryQuerySchema>;
+
+/**
+ * `GET /expenses/trend` (Overview): the last 12 IST months by chart group, net of refunds and
+ * without loan principal, each beside the same month a year earlier (the current month: the same
+ * days). A year-earlier month before the first record has no comparison (null), never a zero.
+ */
+export interface ExpenseTrend {
+  months: {
+    month: string;
+    total: string;
+    groups: Record<SpendGroup, string>;
+    lastYear: string | null;
+  }[];
+  total: string;
+  /** The 12 months before, only when records cover all of them. */
+  previousTotal: string | null;
+}
 
 /**
  * The Overview tab's figures (Stitch "Expenses"), computed by the API for the current IST month

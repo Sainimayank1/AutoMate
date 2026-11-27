@@ -13,6 +13,7 @@ import type {
   ExpenseCategory,
   ExpenseDetail,
   ExpenseSummary,
+  ExpenseTrend,
   PageMeta,
   Vehicle,
 } from "@automate/shared";
@@ -664,5 +665,44 @@ describe("Expenses (e2e)", () => {
     await as(arjun).post(EXPENSES, toll(car.id)).expect(409);
     await as(arjun).patch(`${EXPENSES}/${expense.id}`, { title: "x" }).expect(409);
     await as(arjun).get(`${EXPENSES}/${expense.id}`).expect(200);
+  });
+
+  it("shows the monthly trend by chart group, net and without loan principal", async () => {
+    const car = await vehicle(arjun);
+    const today = new Date(Date.now() + 5.5 * 3600e3).toISOString().slice(0, 10);
+    await as(arjun)
+      .post(EXPENSES, {
+        allocation: { mode: "single", vehicleId: car.id },
+        categoryId: id("DAILY_USAGE"),
+        subcategoryId: id("DAILY_USAGE.TOLL"),
+        title: "Toll",
+        amount: "640",
+        date: today,
+      })
+      .expect(201);
+    await as(arjun)
+      .post(EXPENSES, {
+        allocation: { mode: "single", vehicleId: car.id },
+        categoryId: id("FINANCE"),
+        subcategoryId: id("FINANCE.EMI"),
+        title: "EMI",
+        amount: "16607",
+        principalAmount: "10607",
+        interestAmount: "6000",
+        date: today,
+      })
+      .expect(201);
+    const trend = dataOf<ExpenseTrend>(
+      await as(arjun).get(`${EXPENSES}/trend?vehicleId=${car.id}`).expect(200),
+    );
+    expect(trend.months).toHaveLength(12);
+    expect(trend.months.at(-1)).toMatchObject({
+      month: today.slice(0, 7),
+      total: "6640.00",
+      groups: { other: "640.00", loan: "6000.00" },
+      lastYear: null,
+    });
+    expect(trend.previousTotal).toBeNull();
+    await as(priya).get(`${EXPENSES}/trend?vehicleId=${car.id}`).expect(404);
   });
 });

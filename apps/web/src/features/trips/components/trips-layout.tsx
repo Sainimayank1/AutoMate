@@ -5,8 +5,12 @@ import { PageContainer } from "@/components/common/page-container";
 import { PageHeader } from "@/components/common/page-header";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
-/** Tabs that exist today; History, Planner, Costs and Analytics arrive in later phases. */
-const TABS = [{ value: "overview", label: "Overview", path: "/trips" }] as const;
+/** Tabs that exist today; Planner and Analytics arrive in later phases. */
+const TABS = [
+  { value: "overview", label: "Overview", path: "/trips" },
+  { value: "history", label: "History", path: "/trips/history" },
+  { value: "costs", label: "Costs", path: "/trips/costs" },
+] as const;
 
 /** Stitch "Trips Overview": one header and the module's tabs (each a route) above every tab. */
 export function TripsLayout({

@@ -1,10 +1,14 @@
 import {
   addDays,
+  addMonths,
   CostClass,
   ExpenseKind,
   type ExpenseSummary,
+  type ExpenseTrend,
   ReportingPeriod,
   resolvePeriod,
+  SpendGroup,
+  spendGroupOf,
 } from "@automate/shared";
 
 import { Prisma } from "@/generated/prisma/client";
@@ -139,4 +143,45 @@ export function summarizeExpenses(
     cashOutflowThisMonth: sum(thisMonthRows).toFixed(2),
     categories,
   };
+}
+
+type GroupRow = { month: string | null; category: { key: string | null }; total: Prisma.Decimal };
+
+/**
+ * The 12 months from `from` by chart group, each with the same month a year earlier; a year-earlier
+ * month that starts before the first record (`first`) isn't compared (null).
+ */
+export function expenseTrend(
+  rows: GroupRow[],
+  before: GroupRow[],
+  from: string,
+  first: string | null,
+): ExpenseTrend {
+  const zero = new Prisma.Decimal(0);
+  const sum = (items: GroupRow[]) => items.reduce((total, row) => total.plus(row.total), zero);
+  let total = zero;
+  let previous: Prisma.Decimal | null = zero;
+  const months = Array.from({ length: 12 }, (_, i) => {
+    const month = addMonths(from, i).slice(0, 7);
+    const earlier = addMonths(`${month}-01`, -12).slice(0, 7);
+    const own = rows.filter((row) => row.month === month);
+    const groups = Object.fromEntries(
+      Object.values(SpendGroup).map((group) => [
+        group,
+        sum(own.filter((row) => spendGroupOf(row.category.key) === group)).toFixed(2),
+      ]),
+    ) as Record<SpendGroup, string>;
+    const monthTotal = sum(own);
+    total = total.plus(monthTotal);
+    const covered = first !== null && first.slice(0, 7) <= earlier;
+    const lastYear = covered ? sum(before.filter((row) => row.month === earlier)) : null;
+    previous = previous && lastYear ? previous.plus(lastYear) : null;
+    return {
+      month,
+      total: monthTotal.toFixed(2),
+      groups,
+      lastYear: lastYear?.toFixed(2) ?? null,
+    };
+  });
+  return { months, total: total.toFixed(2), previousTotal: previous?.toFixed(2) ?? null };
 }

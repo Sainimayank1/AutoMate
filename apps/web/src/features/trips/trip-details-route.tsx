@@ -1,3 +1,4 @@
+import { tripLabel } from "@automate/shared";
 import { ArrowLeft, Copy, MoreVertical, Pencil, SearchX, Trash2 } from "lucide-react";
 import { type ReactNode, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router";
@@ -17,9 +18,10 @@ import {
 import { Skeleton } from "@/components/ui/skeleton";
 import { vehicleName } from "@/features/garage/constants";
 import { useVehicles } from "@/features/garage/hooks/use-vehicles";
+import { CostsCard, FuelCard, SpendingCard } from "@/features/trips/components/trip-money";
 import { METHOD_LABELS } from "@/features/trips/constants";
 import { useDeleteTrip, useTrip } from "@/features/trips/hooks/use-trips";
-import { durationText, tripLabel } from "@/features/trips/utils/trip-text";
+import { durationText } from "@/features/trips/utils/trip-text";
 import { formatDate, formatDateTime, formatDistance, formatNumber } from "@/utils/format";
 
 /**
@@ -66,6 +68,8 @@ export function Component() {
   }
 
   const vehicle = vehicles.find((item) => item.id === trip.vehicleId);
+  // An archived vehicle's trips are read-only (the API refuses changes).
+  const readOnly = !!vehicle?.archivedAt;
   const speed =
     trip.durationMinutes && trip.durationMinutes > 0
       ? Math.round(Number(trip.distanceKm) / (trip.durationMinutes / 60))
@@ -149,34 +153,40 @@ export function Component() {
         </Stat>
       </section>
 
+      <SpendingCard trip={trip} />
+
       <div className="grid items-start gap-6 lg:grid-cols-12">
-        <Card className="lg:col-span-8">
-          <CardHeader>
-            <CardTitle>Journey</CardTitle>
-          </CardHeader>
-          <CardContent className="flex flex-col gap-4">
-            <ol className="relative flex flex-col gap-6 border-l pl-6">
-              <JourneyPoint
-                label={trip.origin ?? "Start not recorded"}
-                detail={[formatDate(trip.date), trip.startTime].filter(Boolean).join(" · ")}
-                tone="muted"
-              />
-              <li className="-ml-6 pl-6 text-sm text-muted-foreground tabular-nums">
-                {formatDistance(trip.distanceKm)}
-              </li>
-              <JourneyPoint
-                label={trip.destination ?? "End not recorded"}
-                detail={[formatDate(trip.endDate ?? trip.date), trip.endTime]
-                  .filter(Boolean)
-                  .join(" · ")}
-                tone="primary"
-              />
-            </ol>
-            <p className="text-xs text-muted-foreground">
-              Route maps arrive later; no route is drawn without real route data.
-            </p>
-          </CardContent>
-        </Card>
+        <div className="flex flex-col gap-6 lg:col-span-8">
+          <Card>
+            <CardHeader>
+              <CardTitle>Journey</CardTitle>
+            </CardHeader>
+            <CardContent className="flex flex-col gap-4">
+              <ol className="relative flex flex-col gap-6 border-l pl-6">
+                <JourneyPoint
+                  label={trip.origin ?? "Start not recorded"}
+                  detail={[formatDate(trip.date), trip.startTime].filter(Boolean).join(" · ")}
+                  tone="muted"
+                />
+                <li className="-ml-6 pl-6 text-sm text-muted-foreground tabular-nums">
+                  {formatDistance(trip.distanceKm)}
+                </li>
+                <JourneyPoint
+                  label={trip.destination ?? "End not recorded"}
+                  detail={[formatDate(trip.endDate ?? trip.date), trip.endTime]
+                    .filter(Boolean)
+                    .join(" · ")}
+                  tone="primary"
+                />
+              </ol>
+              <p className="text-xs text-muted-foreground">
+                Route maps arrive later; no route is drawn without real route data.
+              </p>
+            </CardContent>
+          </Card>
+          <CostsCard trip={trip} readOnly={readOnly} />
+          <FuelCard trip={trip} readOnly={readOnly} />
+        </div>
         <div className="flex flex-col gap-6 lg:col-span-4">
           <Card>
             <CardHeader>

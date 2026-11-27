@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import { Prisma } from "@/generated/prisma/client";
 
 import {
+  expenseTrend,
   type MonthTotal,
   overviewPeriods,
   summarizeExpenses,
@@ -157,5 +158,43 @@ describe("summarizeExpenses", () => {
       distanceKm: null,
       categories: [],
     });
+  });
+});
+
+describe("expenseTrend", () => {
+  const D = (value: string) => new Prisma.Decimal(value);
+  const row = (month: string, key: string | null, total: string) => ({
+    month,
+    category: { key },
+    total: D(total),
+  });
+
+  it("groups 12 months for the chart, beside the same months a year earlier", () => {
+    const trend = expenseTrend(
+      [
+        row("2026-11", "FUEL", "6718.21"),
+        row("2026-11", "MAINTENANCE", "2650"),
+        row("2026-01", "DAILY_USAGE", "500"),
+      ],
+      [row("2025-11", "FUEL", "5000")],
+      "2025-12-01",
+      "2024-06-10",
+    );
+    expect(trend.months).toHaveLength(12);
+    expect(trend.months[0]).toMatchObject({ month: "2025-12", total: "0.00", lastYear: "0.00" });
+    expect(trend.months.at(-1)).toMatchObject({
+      month: "2026-11",
+      total: "9368.21",
+      groups: { fuel: "6718.21", maintenance: "2650.00", other: "0.00" },
+      lastYear: "5000.00",
+    });
+    expect(trend.total).toBe("9868.21");
+    expect(trend.previousTotal).toBe("5000.00");
+  });
+
+  it("doesn't compare a year-earlier month from before the first record", () => {
+    const trend = expenseTrend([row("2026-11", "FUEL", "100")], [], "2025-12-01", "2026-03-15");
+    expect(trend.months[0]!.lastYear).toBeNull(); // Dec 2024: nothing was recorded yet
+    expect(trend.previousTotal).toBeNull();
   });
 });

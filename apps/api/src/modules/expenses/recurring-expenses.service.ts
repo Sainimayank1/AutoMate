@@ -36,6 +36,7 @@ import { toDbDate, toRef } from "./expenses.mapper";
 import { ExpensesService } from "./expenses.service";
 import type { ScheduleEntry } from "./loan-schedule";
 import { type Acted, dueDates, type Recurrence, stateOf } from "./recurrence";
+import { trackedFrom } from "./tracking";
 import { type LoanPlan, VehicleLoansService } from "./vehicle-loans.service";
 
 type Db = Prisma.TransactionClient | PrismaService;
@@ -106,7 +107,11 @@ export class RecurringExpensesService {
       await this.activeVehicle(userId, values.vehicleId, tx);
       await this.checkCategory(userId, values, true, tx);
       const created = await tx.recurringExpense.create({
-        data: { userId, ...scheduleData(values), activeFrom: toDbDate(values.startDate) },
+        data: {
+          userId,
+          ...scheduleData(values),
+          activeFrom: toDbDate(trackedFrom(values.startDate)),
+        },
       });
       return created.id;
     });

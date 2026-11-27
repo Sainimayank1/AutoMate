@@ -23,6 +23,8 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { ExpenseAmount } from "@/features/expenses/components/expense-amount";
 import { ExpenseTitle } from "@/features/expenses/components/expense-title";
 import { ExpensesLayout } from "@/features/expenses/components/expenses-layout";
+import { MonthlyTrend } from "@/features/expenses/components/monthly-trend";
+import { UpcomingPayments } from "@/features/expenses/components/upcoming-payments";
 import { categoryTone } from "@/features/expenses/constants";
 import { ALL_VEHICLES, useExpenseFilters } from "@/features/expenses/hooks/use-expense-filters";
 import {
@@ -167,6 +169,8 @@ export function Component() {
             Operating cost is running the vehicle: fuel, servicing, repairs, tolls, parking,
             washing. Loan EMIs, insurance and accessories aren't in it; refunds are subtracted.
           </p>
+
+          <MonthlyTrend vehicleId={vehicleId} ready={filters.ready} />
 
           <div className="grid grid-cols-1 gap-6 lg:grid-cols-12">
             <section
@@ -319,6 +323,9 @@ export function Component() {
                 </>
               )}
             </section>
+          </div>
+          <div className="grid grid-cols-1 gap-6 lg:grid-cols-12">
+            <UpcomingPayments vehicleId={vehicleId} ready={filters.ready} />
           </div>
         </>
       )}

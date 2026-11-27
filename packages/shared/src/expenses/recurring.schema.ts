@@ -232,8 +232,8 @@ export interface LoanScheduleRow {
   /** Prepayments recorded since the previous EMI (they reduce the balance after this one). */
   prepayment: string;
   closingBalance: string;
-  /** From the EMI schedule: paid, skipped, due… */
-  state: PaymentState;
+  /** From the EMI schedule: paid, skipped, due…; null before tracking started (not known). */
+  state: PaymentState | null;
   expenseId: string | null;
 }
 
@@ -262,6 +262,10 @@ export interface VehicleLoan {
   outstanding: string;
   /** From the EMIs and prepayments actually recorded. */
   paid: { principal: string; interest: string; charges: string; emis: number };
+  /** EMIs that fell due before the loan was added here (paid outside AutoMate), per schedule. */
+  beforeTracking: { emis: number; principal: string; interest: string };
+  /** Both together: what the loan has had repaid so far. */
+  repaid: { emis: number; principal: string; interest: string };
   emisTotal: number;
   /** The last EMI's date per the schedule (it moves with prepayments and rate changes). */
   endDate: string;

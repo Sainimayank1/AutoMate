@@ -20,6 +20,7 @@ export const expenseKeys = {
   lists: () => ["expenses", "list"] as const,
   list: (params: ExpenseListParams) => ["expenses", "list", params] as const,
   summary: (vehicleId: string | undefined) => ["expenses", "summary", vehicleId ?? "all"] as const,
+  trend: (vehicleId: string | undefined) => ["expenses", "trend", vehicleId ?? "all"] as const,
   detail: (id: string) => ["expenses", "detail", id] as const,
   categories: ["expense-categories"] as const,
 };
@@ -44,6 +45,14 @@ export function useExpenseSummary(vehicleId: string | undefined, { enabled = tru
   return useQuery({
     queryKey: expenseKeys.summary(vehicleId),
     queryFn: () => expenseService.summary({ vehicleId }),
+    enabled,
+  });
+}
+
+export function useExpenseTrend(vehicleId: string | undefined, { enabled = true } = {}) {
+  return useQuery({
+    queryKey: expenseKeys.trend(vehicleId),
+    queryFn: () => expenseService.trend({ vehicleId }),
     enabled,
   });
 }

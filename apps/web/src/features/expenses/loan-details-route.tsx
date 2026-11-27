@@ -152,7 +152,7 @@ function Position({ loan }: { loan: VehicleLoan }) {
     {
       label: "Outstanding",
       value: formatCurrency(loan.outstanding),
-      note: `${loan.emisTotal - loan.paid.emis} EMIs to go`,
+      note: `${loan.emisTotal - loan.repaid.emis} EMIs to go`,
     },
     { label: "Current EMI", value: formatCurrency(loan.emi), note: rate(loan.annualRate) },
     {
@@ -182,17 +182,18 @@ function Position({ loan }: { loan: VehicleLoan }) {
       <Card className="py-4">
         <CardContent className="flex flex-col gap-2">
           <Progress
-            value={(loan.paid.emis / Math.max(loan.emisTotal, 1)) * 100}
-            aria-label={`${loan.paid.emis} of ${loan.emisTotal} EMIs paid`}
+            value={(loan.repaid.emis / Math.max(loan.emisTotal, 1)) * 100}
+            aria-label={`${loan.repaid.emis} of ${loan.emisTotal} EMIs paid`}
             className="h-1.5"
           />
           <p className="flex flex-wrap justify-between gap-x-4 gap-y-1 text-xs text-muted-foreground tabular-nums">
             <span>
-              {loan.paid.emis} of {loan.emisTotal} EMIs paid
+              {loan.repaid.emis} of {loan.emisTotal} EMIs paid
+              {loan.beforeTracking.emis > 0 && ` · ${loan.beforeTracking.emis} before AutoMate`}
             </span>
             <span>
-              Principal repaid {formatCurrency(loan.paid.principal)} · Interest paid{" "}
-              {formatCurrency(loan.paid.interest)} · Total interest{" "}
+              Principal repaid {formatCurrency(loan.repaid.principal)} · Interest paid{" "}
+              {formatCurrency(loan.repaid.interest)} · Total interest{" "}
               {formatCurrency(loan.totalInterest)}
             </span>
           </p>
@@ -385,7 +386,7 @@ function Schedule({ loan }: { loan: VehicleLoan }) {
               </TableHeader>
               <TableBody className="tabular-nums">
                 {rows.map((row) => {
-                  const state = PAYMENT_STATE[row.state];
+                  const state = row.state ? PAYMENT_STATE[row.state] : null;
                   return (
                     <TableRow key={row.number}>
                       <TableCell className="text-muted-foreground">{row.number}</TableCell>
@@ -400,7 +401,12 @@ function Schedule({ loan }: { loan: VehicleLoan }) {
                       </TableCell>
                       <TableCell className="text-right">{money(row.closingBalance)}</TableCell>
                       <TableCell>
-                        <StatusBadge tone={state.tone} icon={state.icon} label={state.label} />
+                        {state ? (
+                          <StatusBadge tone={state.tone} icon={state.icon} label={state.label} />
+                        ) : (
+                          // Fell due before the loan was added here: paid outside AutoMate.
+                          <span className="text-xs text-muted-foreground">Before tracking</span>
+                        )}
                       </TableCell>
                     </TableRow>
                   );

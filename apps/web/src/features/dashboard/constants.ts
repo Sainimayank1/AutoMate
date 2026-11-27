@@ -43,4 +43,5 @@ export const METRIC_LABELS: Record<DashboardMetric, string> = {
   [DashboardMetric.MILEAGE]: "Average mileage",
   [DashboardMetric.DISTANCE]: "Distance",
   [DashboardMetric.FUEL_SPEND]: "Fuel spend",
+  [DashboardMetric.NEXT_EMI]: "Next EMI",
 };

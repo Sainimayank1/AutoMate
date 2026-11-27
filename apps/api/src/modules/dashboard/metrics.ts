@@ -1,4 +1,9 @@
-import { type DashboardMetrics, FUEL_UNIT, type MetricFigure } from "@automate/shared";
+import {
+  type DashboardMetrics,
+  FUEL_UNIT,
+  type MetricFigure,
+  type RecurringPayment,
+} from "@automate/shared";
 
 import { Prisma } from "@/generated/prisma/client";
 import type { PeriodTotals, Usage } from "@/modules/expenses/expense-figures.service";
@@ -38,7 +43,7 @@ export function buildMetrics(
   now: WindowFigures,
   before: WindowFigures,
   covered = true,
-): DashboardMetrics {
+): Omit<DashboardMetrics, "nextEmi"> {
   const unit = FUEL_UNIT[now.fuel.fuelType];
   const hadFuel = !before.totals.fuel.isZero() || !before.fuel.quantity.isZero();
   return {
@@ -66,4 +71,12 @@ export function buildMetrics(
       unit,
     },
   };
+}
+
+/** The first loan EMI among the upcoming payments (they come overdue first, then soonest). */
+export function nextEmi(upcoming: RecurringPayment[]): DashboardMetrics["nextEmi"] {
+  const emi = upcoming.find((payment) => payment.loan);
+  if (!emi?.loan) return null;
+  const { loanId, number, of } = emi.loan;
+  return { loanId, date: emi.date, amount: emi.amount, state: emi.state, number, of };
 }

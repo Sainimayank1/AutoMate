@@ -173,3 +173,12 @@ export const LOAN_METHOD_LABELS: Record<LoanMethod, string> = {
   [LoanMethod.REDUCING]: "Reducing balance",
   [LoanMethod.FLAT]: "Flat rate",
 };
+
+/** The five chart series (shared `SpendGroup`) in the expense colours: Overview and dashboard. */
+export const SPEND_GROUP_SERIES = {
+  [SpendGroup.FUEL]: { label: "Fuel", color: "var(--chart-1)" },
+  [SpendGroup.MAINTENANCE]: { label: "Maintenance & repairs", color: "var(--chart-2)" },
+  [SpendGroup.INSURANCE]: { label: "Insurance & legal", color: "var(--chart-3)" },
+  [SpendGroup.LOAN]: { label: "Loan interest & charges", color: "var(--chart-4)" },
+  [SpendGroup.OTHER]: { label: "Everything else", color: "var(--chart-5)" },
+} as const;

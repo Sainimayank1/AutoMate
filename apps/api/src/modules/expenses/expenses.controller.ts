@@ -1,4 +1,10 @@
-import type { BulkResult, Expense, ExpenseDetail, ExpenseSummary } from "@automate/shared";
+import type {
+  BulkResult,
+  Expense,
+  ExpenseDetail,
+  ExpenseSummary,
+  ExpenseTrend,
+} from "@automate/shared";
 import {
   Body,
   Controller,
@@ -36,6 +42,7 @@ import {
   EXPENSE_DETAIL_SCHEMA,
   EXPENSE_SCHEMA,
   EXPENSE_SUMMARY_SCHEMA,
+  EXPENSE_TREND_SCHEMA,
 } from "./expenses.constants";
 import { ExpensesService } from "./expenses.service";
 
@@ -75,6 +82,17 @@ export class ExpensesController {
     @Query() query: ExpenseSummaryQueryDto,
   ): Promise<ExpenseSummary> {
     return this.expenses.summary(user.id, query);
+  }
+
+  @Get("trend")
+  @ApiOperation({ summary: "The last 12 months by chart group, beside the same months a year ago" })
+  @ApiEnvelopeResponse(EXPENSE_TREND_SCHEMA)
+  @ApiErrorResponses(400, 401, 404)
+  trend(
+    @CurrentUser() user: AuthUser,
+    @Query() query: ExpenseSummaryQueryDto,
+  ): Promise<ExpenseTrend> {
+    return this.expenses.trend(user.id, query);
   }
 
   @Post("bulk/delete")

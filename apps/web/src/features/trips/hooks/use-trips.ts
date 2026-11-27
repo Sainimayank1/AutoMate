@@ -1,18 +1,28 @@
 import type {
+  CreateTripCostValues,
   CreateTripValues,
   Page,
   Trip,
+  TripBulkValues,
   TripCategoryValues,
+  UpdateTripCostValues,
   UpdateTripValues,
 } from "@automate/shared";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 
 import { dashboardKeys } from "@/features/dashboard/hooks/use-dashboard";
+import { expenseKeys } from "@/features/expenses/hooks/use-expenses";
 import { vehicleKeys } from "@/features/garage/hooks/use-vehicles";
 import { maintenanceKeys } from "@/features/maintenance/hooks/maintenance-keys";
 import { tripsKeys } from "@/features/trips/hooks/trips-keys";
-import type { TripListParams, TripOverviewParams } from "@/features/trips/services/trips-service";
+import type {
+  TripCostListParams,
+  TripCostSummaryParams,
+  TripFilterParams,
+  TripListParams,
+  TripOverviewParams,
+} from "@/features/trips/services/trips-service";
 import { tripsService } from "@/features/trips/services/trips-service";
 
 export function useTripOverview(params: TripOverviewParams, enabled = true) {
@@ -30,6 +40,29 @@ export function useTrips(params: TripListParams = {}) {
     queryKey: tripsKeys.list(params),
     queryFn: () => tripsService.list(params),
     placeholderData: (previous) => previous,
+  });
+}
+
+export function useTripSummary(params: TripFilterParams = {}) {
+  return useQuery({
+    queryKey: tripsKeys.summary(params),
+    queryFn: () => tripsService.summary(params),
+    placeholderData: (previous) => previous,
+  });
+}
+
+export function useBulkTrips() {
+  const sync = useSyncTrips();
+  return useMutation({
+    mutationFn: (values: TripBulkValues) => tripsService.bulk(values),
+    onSuccess: async ({ count }, { action }) => {
+      await sync();
+      toast.success(
+        action === "delete"
+          ? `${count} ${count === 1 ? "trip" : "trips"} deleted.`
+          : `${count} ${count === 1 ? "trip" : "trips"} moved.`,
+      );
+    },
   });
 }
 
@@ -138,5 +171,118 @@ export function useArchiveTripCategory() {
     mutationFn: ({ id, archived }: { id: string; archived: boolean }) =>
       tripsService.setCategoryArchived(id, archived),
     onSuccess: sync,
+  });
+}
+
+// ---- a trip's money
+
+export function useTripCosts(tripId: string) {
+  return useQuery({ queryKey: tripsKeys.costs(tripId), queryFn: () => tripsService.costs(tripId) });
+}
+
+export function useTripSpending(tripId: string) {
+  return useQuery({
+    queryKey: tripsKeys.spending(tripId),
+    queryFn: () => tripsService.spending(tripId),
+  });
+}
+
+export function useTripFuel(tripId: string) {
+  return useQuery({
+    queryKey: tripsKeys.fuel(tripId),
+    queryFn: () => tripsService.fuelEntries(tripId),
+  });
+}
+
+export function useFuelCandidates(tripId: string, enabled: boolean) {
+  return useQuery({
+    queryKey: tripsKeys.candidates(tripId),
+    queryFn: () => tripsService.fuelCandidates(tripId),
+    enabled,
+  });
+}
+
+export function useTripCost(id: string) {
+  return useQuery({
+    queryKey: tripsKeys.cost(id),
+    queryFn: () => tripsService.cost(id),
+    enabled: !!id,
+  });
+}
+
+export function useAllTripCosts(params: TripCostListParams) {
+  return useQuery({
+    queryKey: tripsKeys.allCosts(params),
+    queryFn: () => tripsService.allCosts(params),
+    placeholderData: (previous) => previous,
+  });
+}
+
+export function useTripCostsSummary(params: TripCostSummaryParams) {
+  return useQuery({
+    queryKey: tripsKeys.costsSummary(params),
+    queryFn: () => tripsService.costsSummary(params),
+    placeholderData: (previous) => previous,
+  });
+}
+
+/**
+ * A cost write changes the trip's money and, for toll, parking and other, an expense: refresh
+ * trips (lists show actual cost), expenses and the dashboard.
+ */
+function useSyncMoney() {
+  const queryClient = useQueryClient();
+  return () =>
+    Promise.all([
+      queryClient.invalidateQueries({ queryKey: tripsKeys.all }),
+      queryClient.invalidateQueries({ queryKey: expenseKeys.all }),
+      queryClient.invalidateQueries({ queryKey: dashboardKeys.all }),
+    ]);
+}
+
+export function useSaveTripCost(tripId: string) {
+  const sync = useSyncMoney();
+  return useMutation({
+    mutationFn: ({
+      id,
+      values,
+    }: {
+      id?: string;
+      values: CreateTripCostValues | UpdateTripCostValues;
+    }) =>
+      id
+        ? tripsService.updateCost(tripId, id, values)
+        : tripsService.createCost(tripId, values as CreateTripCostValues),
+    onSuccess: async (_, { id }) => {
+      await sync();
+      toast.success(id ? "Cost updated." : "Cost added.");
+    },
+    onError: handledByForm,
+  });
+}
+
+export function useDeleteTripCost(tripId: string) {
+  const sync = useSyncMoney();
+  return useMutation({
+    mutationFn: (id: string) => tripsService.removeCost(tripId, id),
+    onSuccess: async () => {
+      await sync();
+      toast.success("Cost deleted.");
+    },
+  });
+}
+
+/** Linking only changes Trips' view of the fill-up; Fuel's figures stay the same. */
+export function useLinkFuel(tripId: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ fuelEntryId, linked }: { fuelEntryId: string; linked: boolean }) =>
+      linked
+        ? tripsService.linkFuel(tripId, fuelEntryId)
+        : tripsService.unlinkFuel(tripId, fuelEntryId),
+    onSuccess: async (_, { linked }) => {
+      await queryClient.invalidateQueries({ queryKey: tripsKeys.all });
+      toast.success(linked ? "Fill-up linked." : "Fill-up unlinked.");
+    },
   });
 }

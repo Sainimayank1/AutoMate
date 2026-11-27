@@ -47,12 +47,19 @@ export function sourceHref(expense: Expense): string | null {
   if (expense.source === ExpenseSource.MAINTENANCE && expense.sourceId) {
     return `/maintenance/records/${expense.vehicleId}/${expense.sourceId}`;
   }
+  if (expense.source === ExpenseSource.TRIP && expense.sourceId) {
+    return `/trips/costs/${expense.sourceId}`;
+  }
   return null;
 }
 
 /** The module a linked expense is edited in ("Edit in Fuel"). */
 export const sourceModule = (expense: Expense) =>
-  expense.source === ExpenseSource.MAINTENANCE ? "Maintenance" : "Fuel";
+  expense.source === ExpenseSource.MAINTENANCE
+    ? "Maintenance"
+    : expense.source === ExpenseSource.TRIP
+      ? "Trips"
+      : "Fuel";
 
 /** Money can come back for an expense (not a loan payment or a refund) until it's all back. */
 export const canRefund = (expense: Expense) =>

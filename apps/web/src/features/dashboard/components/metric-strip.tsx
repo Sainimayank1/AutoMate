@@ -3,6 +3,7 @@ import {
   type DashboardMetrics,
   type DateWindow,
   type MetricFigure,
+  PaymentState,
   type PeriodWindow,
 } from "@automate/shared";
 import { cn } from "cn";
@@ -10,6 +11,7 @@ import {
   Fuel,
   Gauge,
   Info,
+  Landmark,
   type LucideIcon,
   Milestone,
   ReceiptIndianRupee,
@@ -23,6 +25,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { METRIC_LABELS } from "@/features/dashboard/constants";
 import {
   formatCurrency,
+  formatDate,
   formatDateRange,
   formatDistance,
   formatEfficiency,
@@ -72,7 +75,8 @@ function comparison(
 
 /**
  * Stitch "Dashboard" metric strip: the period's five core figures, each compared like for like,
- * each with its definition and a link to the module behind it. Every number comes from the API.
+ * each with its definition and a link to the module behind it, and the next EMI when there's a
+ * loan. Every number comes from the API.
  */
 export function MetricStrip({
   metrics,
@@ -84,10 +88,11 @@ export function MetricStrip({
   /** The key figures the user chose (Customise), in their fixed order. */
   shown?: DashboardMetric[];
 }) {
-  const { spent, runningCostPerKm, mileage, distance, fuelSpend } = metrics;
+  const { spent, runningCostPerKm, mileage, distance, fuelSpend, nextEmi } = metrics;
   const previous = period.previous;
   const range = formatDateRange(period);
-  const cards: Record<DashboardMetric, Omit<MetricCardProps, "label" | "className">> = {
+  // A figure without data (no loan, no EMI) isn't shown at all.
+  const cards: Record<DashboardMetric, Omit<MetricCardProps, "label" | "className"> | null> = {
     spent: {
       icon: ReceiptIndianRupee,
       href: "/expenses",
@@ -141,20 +146,34 @@ export function MetricStrip({
       otherwise: formatVolume(fuelSpend.quantity, fuelSpend.unit),
       extra: formatVolume(fuelSpend.quantity, fuelSpend.unit),
     },
+    nextEmi: nextEmi && {
+      icon: Landmark,
+      href: `/expenses/loans/${nextEmi.loanId}`,
+      info: "Your loan's next EMI, whatever the period. Only its interest counts as a cost: the principal pays the loan down.",
+      value: formatCurrency(nextEmi.amount),
+      compared: null,
+      otherwise: (
+        <span className={nextEmi.state === PaymentState.OVERDUE ? "text-destructive" : undefined}>
+          {nextEmi.state === PaymentState.OVERDUE ? "Overdue since" : "Due"}{" "}
+          {formatDate(nextEmi.date)} · EMI {nextEmi.number} of {nextEmi.of}
+        </span>
+      ),
+    },
   };
+  const visible = shown.filter((metric) => cards[metric]);
   return (
     <section
       aria-label="Key figures"
-      className={cn("grid grid-cols-2 gap-4", COLUMNS[shown.length])}
+      className={cn("grid grid-cols-2 gap-4", COLUMNS[visible.length])}
     >
-      {shown.map((metric, index) => (
+      {visible.map((metric, index) => (
         <MetricCard
           key={metric}
           label={METRIC_LABELS[metric]}
-          {...cards[metric]}
+          {...cards[metric]!}
           // Two across on phones: an odd one out at the end takes the whole row.
           className={
-            index === shown.length - 1 && shown.length % 2 === 1
+            index === visible.length - 1 && visible.length % 2 === 1
               ? "col-span-2 lg:col-span-1"
               : undefined
           }
@@ -164,7 +183,7 @@ export function MetricStrip({
   );
 }
 
-/** One column per figure on desktop (Tailwind needs the class names in full). */
+/** One column per figure on desktop, six in two rows (Tailwind needs the class names in full). */
 const COLUMNS = [
   "",
   "lg:grid-cols-1",
@@ -172,6 +191,7 @@ const COLUMNS = [
   "lg:grid-cols-3",
   "lg:grid-cols-4",
   "lg:grid-cols-5",
+  "lg:grid-cols-3",
 ];
 
 type MetricCardProps = {
@@ -222,7 +242,7 @@ function MetricCard({
               <PopoverTrigger asChild>
                 <button
                   type="button"
-                  aria-label={`How ${label.toLowerCase()} is worked out`}
+                  aria-label={`How ${label.charAt(0).toLowerCase()}${label.slice(1)} is worked out`}
                   className="relative z-10 -m-2 shrink-0 rounded-full p-2 outline-none hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring max-md:-m-3.5 max-md:p-3.5"
                 >
                   <Info className="size-3.5" aria-hidden />

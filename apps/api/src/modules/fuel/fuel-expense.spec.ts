@@ -8,6 +8,7 @@ const row = (overrides: Partial<FuelEntry> = {}): FuelEntry => ({
   id: "0190d4a2-0000-7000-8000-00000000f001",
   userId: "0190d4a2-0000-7000-8000-000000000001",
   vehicleId: "0190d4a2-0000-7000-8000-00000000a001",
+  tripId: null,
   filledAt: new Date("2026-11-24T08:30:00.000Z"),
   odometerKm: 8412,
   fuelType: "PETROL",

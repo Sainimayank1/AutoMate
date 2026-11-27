@@ -397,10 +397,15 @@ describe("Dashboard (e2e)", () => {
       unit: "YEAR",
       startDate: due,
     }).expect(201);
+    const id = dataOf<{ id: string }>(schedule).id;
+    // As if it had been added before that due date (earlier ones aren't owed).
+    await app.get(PrismaService).recurringExpense.update({
+      where: { id },
+      data: { activeFrom: new Date(`${due}T00:00:00.000Z`) },
+    });
     const overview = dataOf<DashboardOverview>(
       await get(arjun, `${OVERVIEW}?vehicleId=${car.id}`).expect(200),
     );
-    const id = dataOf<{ id: string }>(schedule).id;
     expect(overview.status).toMatchObject({
       state: "ok",
       data: {
@@ -414,6 +419,43 @@ describe("Dashboard (e2e)", () => {
             action: { label: "Record payment", href: `/expenses/recurring?pay=${id}&due=${due}` },
           },
         ],
+      },
+    });
+
+    // A loan's next EMI is a key figure, whatever the period (once there are figures).
+    const first = addMonths(istToday(new Date()), 1);
+    const loan = dataOf<{ id: string }>(
+      await post(arjun, "/api/v1/vehicle-loans", {
+        vehicleId: car.id,
+        lender: "HDFC Bank",
+        principal: "120000",
+        annualRate: "9",
+        tenureMonths: 12,
+        firstEmiDate: first,
+      }).expect(201),
+    );
+    await post(arjun, "/api/v1/expenses", {
+      allocation: { mode: "single", vehicleId: car.id },
+      categoryId: keyed.get("DAILY_USAGE"),
+      subcategoryId: keyed.get("DAILY_USAGE.TOLL"),
+      title: "Toll",
+      amount: "100",
+      date: istToday(new Date()),
+    }).expect(201);
+    const after = dataOf<DashboardOverview>(
+      await get(arjun, `${OVERVIEW}?vehicleId=${car.id}`).expect(200),
+    );
+    expect(after.metrics).toMatchObject({
+      state: "ok",
+      data: {
+        nextEmi: {
+          loanId: loan.id,
+          date: first,
+          amount: "10494.00",
+          state: "SCHEDULED",
+          number: 1,
+          of: 12,
+        },
       },
     });
   });

@@ -38,6 +38,7 @@ const jaipur: Trip = {
   origin: "Gurugram",
   destination: "Jaipur",
   notes: "Breakfast stop near Behror.",
+  actualCost: null,
   createdAt: "2026-11-22T05:00:00.000Z",
   updatedAt: "2026-11-22T05:00:00.000Z",
 };
@@ -91,6 +92,7 @@ const overview = (overrides: Partial<TripOverview> = {}): TripOverview => ({
       { start: "2026-11-25", distanceKm: "12.5", trips: 1 },
     ],
   },
+  cost: { total: null, perKm: null },
   recent: [errand, jaipur],
   ...overrides,
 });
@@ -288,5 +290,232 @@ describe("trip details", () => {
     expect(dialog).toHaveTextContent("odometer stays at its highest remaining reading");
     await user.click(within(dialog).getByRole("button", { name: "Delete" }));
     await waitFor(() => expect(calls.some((call) => call.method === "delete")).toBe(true));
+  });
+});
+
+describe("trip history", () => {
+  it(
+    "shows a timeline by month, filters and sorts through the API, and switches to a list",
+    { timeout: 15_000 },
+    async () => {
+      const calls = api({
+        "GET /vehicles": () => okPage([victoris]),
+        "GET /trip-categories": () => okPage(types),
+        "GET /trips": () => okPage([errand, jaipur]),
+        "GET /trips/summary": () => ok({ trips: 2, distanceKm: "280.5" }),
+      });
+      renderApp("/trips/history");
+      const user = userEvent.setup();
+
+      expect(await screen.findByRole("heading", { name: "November 2026" })).toBeInTheDocument();
+      expect(screen.getByText("2 trips · 280.5 km")).toBeInTheDocument();
+      const last = () => calls.filter((call) => call.url === "/trips").at(-1)!.params;
+      expect(last()).toMatchObject({ vehicleId: victoris.id, sort: "newest", page: 1 });
+
+      await user.type(screen.getByRole("searchbox", { name: "Search trips" }), "jaipur");
+      await waitFor(() => expect(last()).toMatchObject({ search: "jaipur" }));
+      await user.click(screen.getByRole("combobox", { name: "Sort" }));
+      await user.click(await screen.findByRole("option", { name: "Longest" }));
+      await waitFor(() => expect(last()).toMatchObject({ sort: "longest" }));
+
+      await user.click(screen.getByRole("button", { name: /Filters/ }));
+      await user.type(await screen.findByLabelText("Over"), "50");
+      await user.click(screen.getByRole("button", { name: "Apply" }));
+      await waitFor(() => expect(last()).toMatchObject({ minKm: "50" }));
+      expect(screen.getByRole("button", { name: "Remove filter: Over 50 km" })).toBeInTheDocument();
+
+      await user.click(screen.getByRole("radio", { name: "List" }));
+      expect(screen.queryByRole("heading", { name: "November 2026" })).not.toBeInTheDocument();
+    },
+  );
+
+  it(
+    "changes the type of selected trips and deletes them together",
+    { timeout: 15_000 },
+    async () => {
+      const calls = api({
+        "GET /vehicles": () => okPage([victoris]),
+        "GET /trip-categories": () => okPage(types),
+        "GET /trips": () => okPage([errand, jaipur]),
+        "GET /trips/summary": () => ok({ trips: 2, distanceKm: "280.5" }),
+        "POST /trips/bulk": (config) => ok({ count: (bodyOf(config).ids as string[]).length }),
+      });
+      renderApp("/trips/history");
+      const user = userEvent.setup();
+
+      await user.click(await screen.findByRole("checkbox", { name: "Select Gurugram → Jaipur" }));
+      await user.click(screen.getByRole("checkbox", { name: "Select Sector 29 market" }));
+      const bar = screen.getByRole("region", { name: "Selected trips" });
+      expect(within(bar).getByText("2 selected")).toBeInTheDocument();
+      await user.click(within(bar).getByRole("combobox", { name: "Change type" }));
+      await user.click(await screen.findByRole("option", { name: "Commute" }));
+      await waitFor(() =>
+        expect(bodyOf(calls.find((call) => call.method === "post"))).toEqual({
+          action: "category",
+          ids: [jaipur.id, errand.id],
+          categoryId: types[1]!.id,
+        }),
+      );
+
+      await user.click(await screen.findByRole("checkbox", { name: "Select Gurugram → Jaipur" }));
+      await user.click(
+        within(screen.getByRole("region", { name: "Selected trips" })).getByRole("button", {
+          name: "Delete",
+        }),
+      );
+      const dialog = await screen.findByRole("alertdialog");
+      expect(dialog).toHaveTextContent("Delete 1 trip?");
+      await user.click(within(dialog).getByRole("button", { name: "Delete" }));
+      await waitFor(() =>
+        expect(bodyOf(calls.filter((call) => call.method === "post").at(-1))).toEqual({
+          action: "delete",
+          ids: [jaipur.id],
+        }),
+      );
+    },
+  );
+
+  it("separates a filtered empty result from an empty history", async () => {
+    api({
+      "GET /vehicles": () => okPage([victoris]),
+      "GET /trip-categories": () => okPage(types),
+      "GET /trips": () => okPage([]),
+      "GET /trips/summary": () => ok({ trips: 0, distanceKm: "0.0" }),
+    });
+    renderApp("/trips/history?q=goa");
+    expect(await screen.findByText("No trips match")).toBeInTheDocument();
+    await userEvent.setup().click(screen.getByRole("button", { name: "Clear filters" }));
+    expect(await screen.findByText("No trips yet")).toBeInTheDocument();
+  });
+});
+
+describe("trip costs", () => {
+  const toll = {
+    id: "0190d4a2-0000-7000-8000-0000000e0001",
+    tripId: jaipur.id,
+    vehicleId: victoris.id,
+    category: "TOLL" as const,
+    amount: "240.00",
+    date: "2026-11-22",
+    vendor: "Kherki Daula plaza",
+    paymentMethod: "UPI" as const,
+    notes: null,
+    expenseId: "0190d4a2-0000-7000-8000-0000000f0001",
+    trip: { id: jaipur.id, label: "Gurugram → Jaipur", date: "2026-11-22" },
+    createdAt: "2026-11-22T05:00:00.000Z",
+    updatedAt: "2026-11-22T05:00:00.000Z",
+  };
+  const food = {
+    ...toll,
+    id: "0190d4a2-0000-7000-8000-0000000e0002",
+    category: "FOOD" as const,
+    amount: "285.00",
+    vendor: null,
+    expenseId: null,
+  };
+  const spending = {
+    actual: "1325.00",
+    byCategory: [
+      { category: "FUEL", amount: "800.00" },
+      { category: "FOOD", amount: "285.00" },
+      { category: "TOLL", amount: "240.00" },
+    ],
+    perKm: "4.94",
+    fuelEntries: 1,
+    estimate: {
+      fuelType: "PETROL",
+      quantity: "12.5",
+      cost: "1304.00",
+      mileage: "21.4",
+      price: "104.32",
+    },
+  };
+  const fill = {
+    id: "0190d4a2-0000-7000-8000-0000000a0101",
+    filledAt: "2026-11-22T03:30:00.000Z",
+    station: "IndianOil, Behror",
+    quantity: "7.60",
+    totalAmount: "800.00",
+  };
+
+  it(
+    "shows actual spending apart from the estimate and adds a toll",
+    { timeout: 15_000 },
+    async () => {
+      const calls = api({
+        "GET /vehicles": () => okPage([victoris]),
+        [`GET /trips/${jaipur.id}`]: () => ok({ ...jaipur, actualCost: "1325.00" }),
+        [`GET /trips/${jaipur.id}/spending`]: () => ok(spending),
+        [`GET /trips/${jaipur.id}/costs`]: () => okPage([toll, food]),
+        [`GET /trips/${jaipur.id}/fuel-entries`]: () => okPage([fill]),
+        [`POST /trips/${jaipur.id}/costs`]: () => ok(toll, 201),
+      });
+      renderApp(`/trips/${jaipur.id}`);
+      const user = userEvent.setup();
+
+      expect(await screen.findByText("₹1,325.00")).toBeInTheDocument();
+      expect(screen.getByText(/₹4.94 per km/)).toBeInTheDocument();
+      expect(screen.getByText(/~12.5 L · ~₹1,304.00/)).toBeInTheDocument();
+      expect(screen.getByText(/Not counted as spending/)).toBeInTheDocument();
+      expect(await screen.findByText("In Expenses")).toBeInTheDocument();
+      expect(screen.getByText("Trip only")).toBeInTheDocument();
+      expect(screen.getByText(/IndianOil, Behror/)).toBeInTheDocument();
+
+      await user.click(screen.getByRole("button", { name: "Add cost" }));
+      const dialog = await screen.findByRole("dialog");
+      expect(within(dialog).getByText("Also added to your vehicle's expenses")).toBeInTheDocument();
+      await user.type(within(dialog).getByLabelText("Amount"), "240");
+      await user.type(within(dialog).getByLabelText(/Where/), "Kherki Daula plaza");
+      await user.click(within(dialog).getByRole("button", { name: "Save cost" }));
+      await waitFor(() => expect(calls.some((call) => call.method === "post")).toBe(true));
+      const body = bodyOf(calls.find((call) => call.method === "post"));
+      expect(body).toMatchObject({
+        category: "TOLL",
+        amount: "240",
+        date: jaipur.date,
+        vendor: "Kherki Daula plaza",
+      });
+      expect(body.id).toEqual(expect.any(String));
+    },
+  );
+
+  it("totals the period's trip costs by category and opens each trip", async () => {
+    const calls = api({
+      "GET /vehicles": () => okPage([victoris]),
+      "GET /trip-costs/summary": () =>
+        ok({
+          ...(overview().period && { period: overview().period }),
+          vehicleId: victoris.id,
+          total: "1325.00",
+          byCategory: spending.byCategory,
+          perKm: "4.94",
+        }),
+      "GET /trip-costs": () => okPage([toll, food]),
+    });
+    renderApp("/trips/costs");
+    const user = userEvent.setup();
+
+    expect(await screen.findByText("₹1,325.00")).toBeInTheDocument();
+    expect(screen.getByText(/₹4.94 per km/)).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /Toll.*Kherki Daula plaza/ })).toHaveAttribute(
+      "href",
+      `/trips/${jaipur.id}`,
+    );
+    await user.click(screen.getByRole("button", { name: "Parking" }));
+    await waitFor(() =>
+      expect(calls.filter((call) => call.url === "/trip-costs").at(-1)!.params).toMatchObject({
+        category: "PARKING",
+      }),
+    );
+  });
+
+  it("opens the trip of a cost from its expense link", async () => {
+    api({
+      "GET /vehicles": () => okPage([victoris]),
+      [`GET /trip-costs/${toll.id}`]: () => ok(toll),
+      [`GET /trips/${jaipur.id}`]: () => ok(jaipur),
+    });
+    renderApp(`/trips/costs/${toll.id}`);
+    expect(await screen.findByRole("heading", { name: "Gurugram → Jaipur" })).toBeInTheDocument();
   });
 });

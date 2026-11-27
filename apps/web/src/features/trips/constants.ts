@@ -1,4 +1,10 @@
-import { ReportingPeriod, type SystemTripCategoryKey, type TripMethod } from "@automate/shared";
+import {
+  ReportingPeriod,
+  type SystemTripCategoryKey,
+  TRIP_COST_EXPENSE,
+  type TripCostCategory,
+  type TripMethod,
+} from "@automate/shared";
 
 /** The trip types' colours (color-system.md "Charts"); the user's own share the neutral one. */
 const TYPE_COLORS: Record<SystemTripCategoryKey, string> = {
@@ -30,3 +36,24 @@ export const TRIP_PERIODS = [
   ReportingPeriod.ALL_TIME,
 ] as const;
 export type TripPeriod = (typeof TRIP_PERIODS)[number];
+
+export const COST_LABELS: Record<TripCostCategory | "FUEL", string> = {
+  FUEL: "Fuel",
+  TOLL: "Toll",
+  PARKING: "Parking",
+  FOOD: "Food",
+  ACCOMMODATION: "Accommodation",
+  OTHER: "Other",
+};
+
+export const COST_COLORS: Record<TripCostCategory | "FUEL", string> = {
+  FUEL: "var(--chart-1)",
+  TOLL: "var(--chart-2)",
+  PARKING: "var(--chart-3)",
+  FOOD: "var(--chart-4)",
+  ACCOMMODATION: "var(--chart-5)",
+  OTHER: "var(--muted-foreground)",
+};
+
+/** Whether a cost of this kind is also one of the vehicle's expenses. */
+export const isVehicleCost = (category: TripCostCategory) => !!TRIP_COST_EXPENSE[category];

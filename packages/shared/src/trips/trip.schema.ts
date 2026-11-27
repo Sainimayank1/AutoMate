@@ -2,14 +2,17 @@ import { z } from "zod";
 
 import { paginationQuerySchema } from "../api/pagination.js";
 import {
+  blankToNull,
   latestAllowedDate,
   optionalDate,
   optionalDecimal,
   optionalInt,
   optionalText,
+  positiveDecimal,
 } from "../common/fields.js";
+import { PaymentMethod } from "../common/payment-method.js";
 import { checkPeriodQuery, type PeriodWindow, periodQueryFields } from "../common/periods.js";
-import { ODOMETER_MAX_KM } from "../vehicles/vehicle.schema.js";
+import { type FuelType, ODOMETER_MAX_KM } from "../vehicles/vehicle.schema.js";
 
 /** Trips contract (module 7). Rules: docs/architecture/trips.md. */
 
@@ -120,6 +123,18 @@ export function tripDistance(values: {
   return values.distanceKm && /[1-9]/.test(values.distanceKm) ? values.distanceKm : null;
 }
 
+/** The title when set, else "From → To", else whichever end is known, else "<Type> trip". */
+export function tripLabel(trip: {
+  title: string | null;
+  origin: string | null;
+  destination: string | null;
+  category: { name: string };
+}): string {
+  if (trip.title) return trip.title;
+  if (trip.origin && trip.destination) return `${trip.origin} → ${trip.destination}`;
+  return trip.destination ?? trip.origin ?? `${trip.category.name} trip`;
+}
+
 const minutesOf = (time: string) => Number(time.slice(0, 2)) * 60 + Number(time.slice(3, 5));
 
 /** Minutes from start to end, across days; null unless both times are known. */
@@ -141,9 +156,61 @@ export const createTripSchema = tripFieldsSchema.superRefine(checkTrip);
 /** PATCH: the vehicle can't change (delete and log it again). The API re-checks the whole trip. */
 export const updateTripSchema = tripFieldsSchema.omit({ id: true, vehicleId: true }).partial();
 
-export const tripListQuerySchema = paginationQuerySchema.extend({
+export const TripSort = {
+  NEWEST: "newest",
+  OLDEST: "oldest",
+  LONGEST: "longest",
+  SHORTEST: "shortest",
+} as const;
+export type TripSort = (typeof TripSort)[keyof typeof TripSort];
+
+const distanceFilter = optionalDecimal(5, 1, "Enter a distance in km, e.g. 100");
+
+/** History filters, applied on the server before paging (the list and its summary). */
+export const tripFilterFields = {
   vehicleId: z.uuid().optional(),
-});
+  /** Title, origin, destination and notes. */
+  search: z.string().trim().max(80).optional(),
+  from: z.iso.date("Enter a valid date").optional(),
+  to: z.iso.date("Enter a valid date").optional(),
+  categoryId: z.uuid().optional(),
+  method: z.enum(TripMethod).optional(),
+  minKm: distanceFilter,
+  maxKm: distanceFilter,
+  origin: z.string().trim().max(120).optional(),
+  destination: z.string().trim().max(120).optional(),
+};
+
+function checkTripFilters(
+  value: { from?: string; to?: string; minKm?: string | null; maxKm?: string | null },
+  ctx: z.RefinementCtx,
+) {
+  if (value.from && value.to && value.from > value.to) {
+    ctx.addIssue({ code: "custom", path: ["to"], message: "Ends before it starts" });
+  }
+  if (value.minKm && value.maxKm && Number(value.minKm) > Number(value.maxKm)) {
+    ctx.addIssue({ code: "custom", path: ["maxKm"], message: "Below the minimum" });
+  }
+}
+
+export const tripFiltersSchema = z.object(tripFilterFields).superRefine(checkTripFilters);
+export const tripListQuerySchema = paginationQuerySchema
+  .extend({ ...tripFilterFields, sort: z.enum(TripSort).default(TripSort.NEWEST) })
+  .superRefine(checkTripFilters);
+
+/** `POST /trips/bulk`: delete trips, or move them to another type, all or none. */
+export const tripBulkSchema = z
+  .object({
+    action: z.enum(["delete", "category"]),
+    ids: z.array(z.uuid()).min(1, "Choose trips").max(100, "Up to 100 at a time"),
+    /** The type to move them to (action "category"). */
+    categoryId: z.uuid("Choose a trip type").optional(),
+  })
+  .superRefine((value, ctx) => {
+    if (value.action === "category" && !value.categoryId) {
+      ctx.addIssue({ code: "custom", path: ["categoryId"], message: "Choose a trip type" });
+    }
+  });
 
 export const TripGranularity = { DAY: "day", WEEK: "week", MONTH: "month" } as const;
 export type TripGranularity = (typeof TripGranularity)[keyof typeof TripGranularity];
@@ -161,9 +228,69 @@ export const tripCategoryFieldsSchema = z.object({
   name: z.string().trim().min(1, "Enter a name").max(40, "Use 40 characters or fewer"),
 });
 
+// ---- trip costs
+
+export const TripCostCategory = {
+  TOLL: "TOLL",
+  PARKING: "PARKING",
+  FOOD: "FOOD",
+  ACCOMMODATION: "ACCOMMODATION",
+  OTHER: "OTHER",
+} as const;
+export type TripCostCategory = (typeof TripCostCategory)[keyof typeof TripCostCategory];
+
+/**
+ * Costs that are also the vehicle's expenses (linked, source TRIP), and their expense category.
+ * Food and accommodation stay with the trip: they aren't costs of owning the vehicle.
+ */
+export const TRIP_COST_EXPENSE: Partial<
+  Record<TripCostCategory, { categoryKey: string; subcategoryKey: string | null }>
+> = {
+  TOLL: { categoryKey: "DAILY_USAGE", subcategoryKey: "DAILY_USAGE.TOLL" },
+  PARKING: { categoryKey: "DAILY_USAGE", subcategoryKey: "DAILY_USAGE.PARKING" },
+  OTHER: { categoryKey: "OTHER", subcategoryKey: "OTHER.MISC" },
+};
+
+export const tripCostFieldsSchema = z.object({
+  /** Optional client-generated id: a retried save returns the same cost. */
+  id: z.uuid("Invalid id").optional(),
+  category: z.enum(TripCostCategory, { error: "Choose what it was for" }),
+  amount: positiveDecimal(10, 2, "Enter the amount, e.g. 240"),
+  date: z.iso
+    .date("Enter the date")
+    .refine((date) => date <= latestAllowedDate(), "This date is in the future"),
+  vendor: optionalText(120),
+  paymentMethod: z
+    .preprocess(blankToNull, z.enum(PaymentMethod, { error: "Choose a payment method" }).nullable())
+    .optional(),
+  notes: optionalText(500),
+});
+export const createTripCostSchema = tripCostFieldsSchema;
+export const updateTripCostSchema = tripCostFieldsSchema.omit({ id: true }).partial();
+export const linkFuelEntrySchema = z.object({ fuelEntryId: z.uuid("Choose a fill-up") });
+
+/** `GET /trip-costs`: costs across trips by their date, newest first. */
+export const tripCostListQuerySchema = paginationQuerySchema
+  .extend({
+    vehicleId: z.uuid().optional(),
+    ...periodQueryFields,
+    category: z.enum(TripCostCategory).optional(),
+  })
+  .superRefine(checkPeriodQuery);
+export const tripCostSummaryQuerySchema = z
+  .object({ vehicleId: z.uuid().optional(), ...periodQueryFields })
+  .superRefine(checkPeriodQuery);
+
+export type CreateTripCostValues = z.output<typeof createTripCostSchema>;
+export type UpdateTripCostValues = z.output<typeof updateTripCostSchema>;
+export type TripCostListQuery = z.output<typeof tripCostListQuerySchema>;
+export type TripCostSummaryQuery = z.output<typeof tripCostSummaryQuerySchema>;
+
 export type CreateTripValues = z.output<typeof createTripSchema>;
 export type UpdateTripValues = z.output<typeof updateTripSchema>;
 export type TripListQuery = z.output<typeof tripListQuerySchema>;
+export type TripFilters = z.output<typeof tripFiltersSchema>;
+export type TripBulkValues = z.output<typeof tripBulkSchema>;
 export type TripOverviewQuery = z.output<typeof tripOverviewQuerySchema>;
 export type TripCategoryValues = z.output<typeof tripCategoryFieldsSchema>;
 
@@ -196,8 +323,72 @@ export interface Trip {
   origin: string | null;
   destination: string | null;
   notes: string | null;
+  /** Recorded costs plus linked fill-ups; null when none is recorded (never 0 for "unknown"). */
+  actualCost: string | null;
   createdAt: string;
   updatedAt: string;
+}
+
+export interface TripCost {
+  id: string;
+  tripId: string;
+  vehicleId: string;
+  category: TripCostCategory;
+  amount: string;
+  date: string;
+  vendor: string | null;
+  paymentMethod: PaymentMethod | null;
+  notes: string | null;
+  /** Its linked expense (toll, parking, other); null for trip-only costs. */
+  expenseId: string | null;
+  /** The trip it belongs to (for lists across trips). */
+  trip: { id: string; label: string; date: string };
+  createdAt: string;
+  updatedAt: string;
+}
+
+/** A fill-up linked to a trip: its actual fuel. Fuel owns it; Trips only shows it. */
+export interface TripFuelEntry {
+  id: string;
+  filledAt: string;
+  station: string | null;
+  quantity: string;
+  totalAmount: string;
+}
+
+/** A trip's money: actual (recorded costs and linked fill-ups) apart from the estimate. */
+export interface TripSpending {
+  /** Null when nothing is recorded. */
+  actual: string | null;
+  /** "FUEL" is the linked fill-ups. Largest first. */
+  byCategory: { category: TripCostCategory | "FUEL"; amount: string }[];
+  /** Only when both the actual cost and the distance are known. */
+  perKm: string | null;
+  fuelEntries: number;
+  /** From the Fuel module's average mileage and price; never counted as spending. */
+  estimate: {
+    fuelType: FuelType;
+    quantity: string;
+    cost: string | null;
+    mileage: string;
+    price: string | null;
+  } | null;
+}
+
+/** The Costs tab: actual trip costs in a period (by their date), linked fuel included. */
+export interface TripCostsSummary {
+  period: PeriodWindow;
+  vehicleId: string | null;
+  total: string;
+  byCategory: { category: TripCostCategory | "FUEL"; amount: string }[];
+  /** Over the trips (in the period) that have a cost. */
+  perKm: string | null;
+}
+
+/** The filtered history's count and distance (every page). */
+export interface TripSummary {
+  trips: number;
+  distanceKm: string;
 }
 
 export interface TripOverview {
@@ -224,5 +415,7 @@ export interface TripOverview {
     granularity: TripGranularity;
     points: { start: string; distanceKm: string; trips: number }[];
   };
+  /** Actual costs of the period's trips; per km over the trips that have a cost. */
+  cost: { total: string | null; perKm: string | null };
   recent: Trip[];
 }

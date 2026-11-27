@@ -12,6 +12,7 @@ import {
   istToday,
   pageMeta,
   type PeriodWindow,
+  type RecurringPayment,
   ReportingPeriod,
   resolvePeriod,
   type Vehicle,
@@ -30,7 +31,7 @@ import { VehiclesService } from "@/modules/vehicles/vehicles.service";
 
 import { expenseActivity, mergeNewest, serviceActivity, tripActivity } from "./activity";
 import { buildInsights, type InsightInputs } from "./insights";
-import { buildMetrics, type WindowFigures } from "./metrics";
+import { buildMetrics, nextEmi, type WindowFigures } from "./metrics";
 import { drivingOverview, fuelOverview, spendingOverview, trendMonths } from "./spending";
 import { expiryDates, type InsuranceOnRecord, vehicleStatus } from "./vehicle-status";
 
@@ -82,13 +83,25 @@ export class DashboardService {
     const upkeep = this.maintenance.snapshot(userId, vehicle.id);
     const figures = this.windowFigures(userId, vehicle, window, since);
     const spent = this.spendingRows(userId, vehicle, window, since);
+    // Overdue first; the first page holds everything due soon for one vehicle (status and the EMI).
+    const payments = this.recurring.payments(userId, {
+      vehicleId: vehicle.id,
+      view: "upcoming",
+      page: 1,
+      pageSize: 100,
+    });
     const [status, metrics, spending, fuel, maintenance, expiries, driving, insights] =
       await Promise.all([
-        this.section("status", () => this.status(userId, vehicle, insurance, upkeep, today)),
+        this.section("status", () => this.status(vehicle, insurance, upkeep, payments, today)),
         this.section("metrics", async () => {
-          const both = await figures;
+          const [both, upcoming] = await Promise.all([figures, payments]);
           // Compared only once records cover the whole earlier window (dashboard.md §1).
-          return both && buildMetrics(both.now, both.before, both.since <= window.previous.from);
+          return (
+            both && {
+              ...buildMetrics(both.now, both.before, both.since <= window.previous.from),
+              nextEmi: nextEmi(upcoming.items),
+            }
+          );
         }),
         this.section("spending", async () => {
           const rows = await spent;
@@ -172,28 +185,18 @@ export class DashboardService {
   }
 
   private async status(
-    userId: string,
     vehicle: Vehicle,
     insurance: Promise<InsuranceOnRecord | null>,
     upkeep: Promise<Snapshot>,
+    payments: Promise<Paginated<RecurringPayment>>,
     today: string,
   ): Promise<VehicleStatus> {
-    const [policy, maintenance, payments] = await Promise.all([
-      insurance,
-      upkeep,
-      // Overdue come first; the first page holds everything due soon for one vehicle.
-      this.recurring.payments(userId, {
-        vehicleId: vehicle.id,
-        view: "upcoming",
-        page: 1,
-        pageSize: 100,
-      }),
-    ]);
+    const [policy, maintenance, upcoming] = await Promise.all([insurance, upkeep, payments]);
     return vehicleStatus({
       vehicle,
       insurance: policy,
       maintenance: maintenance.status,
-      payments: payments.items,
+      payments: upcoming.items,
       today,
     });
   }

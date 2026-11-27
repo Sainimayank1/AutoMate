@@ -4,6 +4,7 @@ import {
   ExpenseSource,
   type ServiceRecord,
   type Trip,
+  tripLabel,
 } from "@automate/shared";
 
 import type { ExpenseWithCategories } from "@/modules/expenses/expenses.mapper";
@@ -72,11 +73,7 @@ export function tripActivity(trip: Trip): Dated {
     id: `trip:${trip.id}`,
     kind: "trip",
     date: trip.date,
-    title:
-      trip.title ??
-      (trip.origin && trip.destination
-        ? `${trip.origin} → ${trip.destination}`
-        : (trip.destination ?? trip.origin ?? `${trip.category.name} trip`)),
+    title: tripLabel(trip),
     detail: `${trip.category.name} · ${Number(trip.distanceKm).toLocaleString("en-IN")} km`,
     amount: null,
     odometerKm: trip.endKm,
