@@ -106,4 +106,4 @@ The voice is that of a precise, calm co-pilot. Short, factual and helpful.
 - Empty states are encouraging, not cute: "No fuel entries yet. Add your first fill-up to start tracking mileage."
 - Use no exclamation marks except in onboarding completion (one, at most), no emoji, no slang, no ALL CAPS sentences.
 - Address the user as "you". Use their first name in the dashboard greeting only: "Good morning, Aarav" (morning < 12:00, afternoon < 17:00, otherwise evening).
-- AI copy is clearly attributed: "Suggested by AutoMate AI". Recorded figures say where they come from: "From 6 full-tank fills".
+- AI copy is clearly attributed: "Suggested by AutoMate AI". Recorded figures say where they come from: "From 12 full-tank fills".

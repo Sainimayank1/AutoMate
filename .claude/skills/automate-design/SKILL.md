@@ -69,6 +69,7 @@ Apply each item the first time a task touches that area, in the same change, and
 | New tokens | none | `elevated`, `insight`, `chart-1…5` palette, `hero-glow` / `edge-highlight` utilities | same file |
 | Default theme | `system` | `dark` (the user can still pick light or system) | `app/providers/app-providers.tsx` and the fallback in `index.html` |
 | Nav groups | overview / vehicle / insights / account | Overview / My vehicles / Management / Intelligence / Personal | `NAV_GROUP_LABELS` and `navGroup` in `app/modules.ts` |
+| Mobile bottom nav | none; phones only get the sidebar drawer | `BottomNav` + `QuickAddSheet` as specified in `application-navigation.md` | new `components/layout/bottom-nav.tsx`, rendered in `AppShell` |
 | Favicon | car clipart | Gauge mark | `apps/web/public/favicon.svg` (SVG in `brand-identity.md`) |
 | Missing primitives | none | `chart` (Recharts), `drawer` (vaul), `command` (cmdk), `progress`, `toggle-group`, `scroll-area` | Add with the shadcn CLI when first needed |
 | Compact currency | none | `formatCurrencyCompact` (₹1.2L, ₹45K) for chart axes | `utils/format.ts`, with a test |

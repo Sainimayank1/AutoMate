@@ -9,6 +9,7 @@ Stack locked. Current phase: **Phase 0 — Infrastructure** (monorepo, web + api
 - `docs/MODULES.md` — what to build: 12 modules, cross-module rules (§13), priority (§14). Read the relevant module before working on it.
 - `docs/TECH_STACK.md` — how to build it: packages, folder structure (§12), DB rules (§3), hosting (§10).
 - `docs/architecture/frontend.md` + `design-system.md` — web conventions: module registry, API/query/form patterns, tokens. Follow them in `apps/web`.
+- `docs/architecture/backend.md` + `database.md`, `api-conventions.md`, `security.md` — api conventions: module layout, Prisma/migrations, response envelope + error codes, auth/ownership rules. Follow them in `apps/api`.
 
 ## Stack (summary)
 pnpm + Turborepo monorepo · TypeScript strict

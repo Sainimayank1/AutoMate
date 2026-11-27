@@ -8,5 +8,6 @@ export default defineConfig({
   test: {
     environment: "node",
     include: ["**/*.spec.ts", "**/*.e2e-spec.ts"],
+    setupFiles: ["test/setup-env.ts"],
   },
 });

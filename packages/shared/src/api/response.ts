@@ -45,5 +45,4 @@ export interface ApiErrorResponse {
 }
 
 export type ApiResponse<TData, TMeta = Record<string, unknown>> =
-  | ApiSuccessResponse<TData, TMeta>
-  | ApiErrorResponse;
+  ApiSuccessResponse<TData, TMeta> | ApiErrorResponse;

@@ -8,7 +8,7 @@ The seven brand attributes, and what each one means on screen:
 
 | Attribute | On screen |
 | --- | --- |
-| Intelligence | Insights explain themselves ("17.8 km/L · from 6 full-tank fills"). AI content is clearly labelled in teal. Smart defaults in forms. |
+| Intelligence | Insights explain themselves ("17.8 km/L · from 12 full-tank fills"). AI content is clearly labelled in teal. Smart defaults in forms. |
 | Precision | Tabular numbers, right-aligned columns, exact units, 1 px hairlines, a consistent 4 px grid. |
 | Trust | Honest data states (partial mileage shown as partial), visible record origins, confirmations before destructive actions, a secure-feeling document vault. |
 | Luxury | Generous outer whitespace, photography, restrained colour, smooth 150–250 ms motion, no clutter. |
@@ -19,7 +19,7 @@ The seven brand attributes, and what each one means on screen:
 ## Principles
 
 1. **One hero per screen.** Each screen has a single dominant element: the vehicle hero, one hero metric or the primary chart. Everything else is subordinate in size and contrast.
-2. **Instruments, not widgets.** A metric is an overline label, a large tabular value with a muted unit, and a one-line context ("vs Oct", "6 fills"). Don't add decorative icons in coloured circles.
+2. **Instruments, not widgets.** A metric is an overline label, a large tabular value with a muted unit, and a one-line context ("vs Oct", "12 fills"). Don't add decorative icons in coloured circles.
 3. **Depth through surfaces, not shadows.** Step `background → card → elevated → popover`. Use hairline borders. Dark mode has no drop shadows on cards.
 4. **Light is a signal.** Cyan means "act here", "selected" or "in focus". Status colours mean status. Teal means AI. Nothing is coloured just to look nice.
 5. **Photography is the emotion.** The user's own vehicle photo is the most premium element. Give it space in the Dashboard hero, Garage cards and vehicle detail.

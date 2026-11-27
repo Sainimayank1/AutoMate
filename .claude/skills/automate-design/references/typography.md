@@ -59,7 +59,7 @@ Numbers are the product. Treat them like instrument read-outs.
 6. **Compact values** (₹1.2L, ₹45K) are for chart axes and tight mobile chips only, using `formatCurrencyCompact` (to be added to `utils/format.ts` with a test, using `Intl` `notation: "compact"` with `en-IN`). Never use compact values in tables or details.
 7. **Never truncate a number.** Let it wrap the layout or shrink the size step. Labels may truncate; values may not.
 8. **No count-up animations on financial values.** They show wrong intermediate numbers.
-9. Deltas use a sign and a unit: `+₹1,240.00 vs Oct` or `−0.6 km/L`. Use the real minus sign (U+2212) for display.
+9. Deltas use a sign and a unit: `+₹1,240.00 vs Oct` or `−0.6 km/L`.
 
 ## Text conventions
 

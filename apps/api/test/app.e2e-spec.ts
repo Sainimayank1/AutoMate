@@ -2,6 +2,7 @@
  * Boots the real AppModule through the same configureApp() as main.ts.
  * Needs PostgreSQL running (docker compose up -d) and DATABASE_URL in apps/api/.env or the environment.
  */
+import type { ApiErrorResponse, ApiSuccessResponse } from "@automate/shared";
 import { Body, Controller, Get, Module, Post } from "@nestjs/common";
 import { JwtService } from "@nestjs/jwt";
 import type { NestExpressApplication } from "@nestjs/platform-express";
@@ -11,6 +12,8 @@ import request from "supertest";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { z } from "zod";
 
+import { AppModule } from "@/app.module";
+import { configureApp } from "@/app.setup";
 import { JWT_AUDIENCE, JWT_ISSUER } from "@/modules/auth/auth.constants";
 import type { AuthUser } from "@/modules/auth/auth.types";
 import { CurrentUser } from "@/modules/auth/decorators/current-user.decorator";
@@ -38,12 +41,6 @@ describe("API (e2e)", () => {
   let jwt: JwtService;
 
   beforeAll(async () => {
-    process.env.LOG_LEVEL = "silent";
-    process.env.JWT_ACCESS_SECRET = "e2e-access-secret-".padEnd(48, "x");
-    // Imported after env is set: ConfigModule validates env when AppModule is evaluated.
-    const { AppModule } = await import("@/app.module");
-    const { configureApp } = await import("@/app.setup");
-
     @Module({ imports: [AppModule], controllers: [E2eController] })
     class TestAppModule {}
 
@@ -62,6 +59,8 @@ describe("API (e2e)", () => {
   });
 
   const http = () => request(app.getHttpServer());
+  const errorOf = (res: request.Response) => (res.body as ApiErrorResponse).error;
+  const dataOf = (res: request.Response) => (res.body as ApiSuccessResponse<unknown>).data;
 
   it("GET /api/v1/health reports the database as up inside the success envelope", async () => {
     const res = await http().get("/api/v1/health").expect(200);
@@ -88,13 +87,13 @@ describe("API (e2e)", () => {
 
   it("routes are protected by default", async () => {
     const res = await http().get("/api/v1/e2e/me").expect(401);
-    expect(res.body.error.code).toBe("UNAUTHORIZED");
+    expect(errorOf(res).code).toBe("UNAUTHORIZED");
   });
 
   it("accepts a valid access token and exposes the user", async () => {
     const token = jwt.sign({ sub: "user-123" });
     const res = await http().get("/api/v1/e2e/me").auth(token, { type: "bearer" }).expect(200);
-    expect(res.body.data).toEqual({ id: "user-123" });
+    expect(dataOf(res)).toEqual({ id: "user-123" });
   });
 
   it("rejects a token signed with another secret", async () => {
@@ -107,8 +106,8 @@ describe("API (e2e)", () => {
 
   it("validates bodies with Zod and reports field errors", async () => {
     const res = await http().post("/api/v1/e2e/odometer").send({ odometer: -1 }).expect(400);
-    expect(res.body.error.code).toBe("VALIDATION_ERROR");
-    expect(res.body.error.details).toEqual([
+    expect(errorOf(res).code).toBe("VALIDATION_ERROR");
+    expect(errorOf(res).details).toEqual([
       { field: "odometer", message: expect.any(String) as string },
     ]);
   });
@@ -123,7 +122,7 @@ describe("API (e2e)", () => {
       .post("/api/v1/e2e/odometer")
       .send({ padding: "a".repeat(200_000) })
       .expect(413);
-    expect(res.body.error.code).toBe("PAYLOAD_TOO_LARGE");
-    expect(res.body.error.requestId).toBe(res.headers["x-request-id"]);
+    expect(errorOf(res).code).toBe("PAYLOAD_TOO_LARGE");
+    expect(errorOf(res).requestId).toBe(res.headers["x-request-id"]);
   });
 });

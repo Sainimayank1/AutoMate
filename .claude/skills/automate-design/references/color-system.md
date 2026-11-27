@@ -19,11 +19,11 @@ Opacity modifiers on tokens are fine (`bg-primary/10`, `border-border/60`).
 | `background` | App canvas (level 0) | graphite-black `#0b0d10` | cool off-white `#f9fafb` | `bg-background` |
 | `sidebar` | Sidebar surface, between the canvas and cards | `#0e1114` | `#f5f7f9` | `bg-sidebar` |
 | `card` | Cards, panels, table containers (level 1) | `#121519` | white | `bg-card` |
-| `elevated` **(new)** | Raised areas inside cards: nested metric tiles, selected rows, hero inner panels (level 2) | `#1a1d22` | `#f7f8fa` | `bg-elevated` |
+| `elevated` **(new)** | Raised areas inside cards: nested metric tiles, selected rows, hero inner panels (level 2) | `#1a1d22` | `#f6f7f9` | `bg-elevated` |
 | `popover` | Menus, popovers, dialogs, sheets (level 3) | `#1a1d22` | white | `bg-popover` |
 | `muted` / `secondary` / `accent` | Quiet fills, hover backgrounds, segmented-control track | `#22262b` | `#eef0f3` | `bg-muted`, `hover:bg-accent` |
-| `border` | Hairlines and dividers | white at 8% | `#e3e6ea` | `border`, `divide-y` |
-| `input` | Field borders | white at 12% | `#d6dade` | primitive default |
+| `border` | Hairlines and dividers | white at 8% | `#e1e3e6` | `border`, `divide-y` |
+| `input` | Field borders | white at 12% | `#d5d8db` | primitive default |
 | `foreground` | Primary text, key numbers | `#f2f3f5` | `#101419` | `text-foreground` |
 | `muted-foreground` | Secondary text, labels, units, axes | `#9da2a9` | `#5e646b` | `text-muted-foreground` |
 | `primary` | **Brand accent (electric cyan):** primary buttons, active nav, selection, focus ring, focus chart series, links | `#50d9ef` | `#00769c` | `bg-primary`, `text-primary` |
@@ -67,7 +67,7 @@ Badge (create once as `StatusBadge`):
 ```
 
 Inline accent for a list row or card: `border-l-2 border-l-warning pl-3`.
-Progress fill: `[&>[data-slot=progress-indicator]]:bg-warning` or the component's `indicatorClassName`.
+Progress fill: `[&>[data-slot=progress-indicator]]:bg-warning` (shadcn `Progress` exposes no indicator prop).
 
 ### Status mappings (use exactly these)
 
