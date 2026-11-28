@@ -2,6 +2,7 @@ import { z } from "zod";
 
 import { paginationQuerySchema } from "../api/pagination.js";
 import { blankToNull, optionalText } from "../common/fields.js";
+import { addDays, addMonths } from "../common/periods.js";
 
 /**
  * Notifications (M10, docs/architecture/notifications.md): one in-app inbox fed by the modules'
@@ -83,7 +84,17 @@ export type ReadAllNotificationsValues = z.output<typeof readAllNotificationsSch
 
 export const REMINDER_LEAD_MAX_DAYS = 365;
 
+export const ReminderRepeat = {
+  NONE: "NONE",
+  WEEKLY: "WEEKLY",
+  MONTHLY: "MONTHLY",
+  YEARLY: "YEARLY",
+} as const;
+export type ReminderRepeat = (typeof ReminderRepeat)[keyof typeof ReminderRepeat];
+
 const reminderFields = {
+  /** Done on a repeating reminder moves it to its next date. */
+  repeat: z.enum(ReminderRepeat, { error: "Choose how often it repeats" }),
   vehicleId: z.preprocess(blankToNull, z.uuid("Choose a vehicle").nullable()).optional(),
   title: z
     .string({ error: "Enter what to remind you about" })
@@ -105,6 +116,7 @@ export const createReminderSchema = z.object({
   id: z.uuid().optional(),
   ...reminderFields,
   remindDaysBefore: reminderFields.remindDaysBefore.default(1),
+  repeat: reminderFields.repeat.default(ReminderRepeat.NONE),
 });
 export type CreateReminderInput = z.input<typeof createReminderSchema>;
 export type CreateReminderValues = z.output<typeof createReminderSchema>;
@@ -133,6 +145,7 @@ export interface Reminder {
   title: string;
   dueDate: string;
   remindDaysBefore: number;
+  repeat: ReminderRepeat;
   notes: string | null;
   doneAt: string | null;
   state: ReminderState;
@@ -155,4 +168,42 @@ export function reminderState(
   const left = daysBetween(today, reminder.dueDate);
   if (left < 0) return ReminderState.OVERDUE;
   return left <= reminder.remindDaysBefore ? ReminderState.DUE : ReminderState.UPCOMING;
+}
+
+/** A repeating reminder's next date after `dueDate`, past `today` (missed ones are skipped). */
+export function nextReminderDate(dueDate: string, repeat: ReminderRepeat, today: string): string {
+  if (repeat === ReminderRepeat.NONE) return dueDate;
+  const step = (times: number) =>
+    repeat === ReminderRepeat.WEEKLY
+      ? addDays(dueDate, 7 * times)
+      : addMonths(dueDate, (repeat === ReminderRepeat.MONTHLY ? 1 : 12) * times);
+  let times = 1;
+  let next = step(times);
+  while (next < today) next = step(++times);
+  return next;
+}
+
+// ── Web Push ──────────────────────────────────────────────────────────────────
+
+/** `GET /notifications/push/config`: the server's public key, or null when push isn't set up. */
+export interface PushConfig {
+  publicKey: string | null;
+}
+
+/** The browser's PushSubscription, as `toJSON()` gives it. */
+export const pushSubscriptionSchema = z.object({
+  endpoint: z.url({ protocol: /^https$/ }).max(2000),
+  keys: z.object({ p256dh: z.string().min(1).max(200), auth: z.string().min(1).max(100) }),
+});
+export type PushSubscriptionValues = z.output<typeof pushSubscriptionSchema>;
+
+export const pushUnsubscribeSchema = z.object({ endpoint: z.url().max(2000) });
+export type PushUnsubscribeValues = z.output<typeof pushUnsubscribeSchema>;
+
+/** What a push carries to the service worker. */
+export interface PushPayload {
+  title: string;
+  body: string | null;
+  href: string;
+  tag: string;
 }

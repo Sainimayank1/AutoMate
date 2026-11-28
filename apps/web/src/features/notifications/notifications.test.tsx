@@ -47,6 +47,7 @@ const reminder = (overrides: Partial<Reminder>): Reminder => ({
   title: "Get the tyres rotated",
   dueDate: "2026-11-30",
   remindDaysBefore: 3,
+  repeat: "NONE",
   notes: null,
   doneAt: null,
   state: "DUE",

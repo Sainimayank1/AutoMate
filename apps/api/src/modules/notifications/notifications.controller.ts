@@ -1,9 +1,10 @@
-import type { NotificationItem, NotificationSummary } from "@automate/shared";
+import type { NotificationItem, NotificationSummary, PushConfig } from "@automate/shared";
 import {
   Body,
   Controller,
   Delete,
   Get,
+  Headers,
   HttpCode,
   HttpStatus,
   Param,
@@ -24,19 +25,25 @@ import { CurrentUser } from "@/modules/auth/decorators/current-user.decorator";
 
 import {
   NotificationListQueryDto,
+  PushSubscriptionDto,
+  PushUnsubscribeDto,
   ReadAllNotificationsDto,
   SnoozeNotificationDto,
   UpdateNotificationDto,
 } from "./dto/notifications.dto";
 import { NOTIFICATION_SCHEMA, NOTIFICATION_SUMMARY_SCHEMA } from "./notifications.constants";
 import { NotificationsService } from "./notifications.service";
+import { PushService } from "./push.service";
 
 /** The in-app inbox: brought up to date from the records whenever it's read. */
 @ApiTags("notifications")
 @ApiBearerAuth()
 @Controller("notifications")
 export class NotificationsController {
-  constructor(private readonly notifications: NotificationsService) {}
+  constructor(
+    private readonly notifications: NotificationsService,
+    private readonly push: PushService,
+  ) {}
 
   @Get()
   @ApiOperation({ summary: "The inbox, newest first (or snoozed ones, soonest back first)" })
@@ -64,6 +71,37 @@ export class NotificationsController {
   @ApiErrorResponses(401)
   refresh(@CurrentUser() user: AuthUser): Promise<NotificationSummary> {
     return this.notifications.summary(user.id, { force: true });
+  }
+
+  @Get("push/config")
+  @ApiOperation({ summary: "The server's Web Push public key (null while push isn't set up)" })
+  @ApiEnvelopeResponse({
+    type: "object",
+    properties: { publicKey: { type: "string", nullable: true } },
+  })
+  @ApiErrorResponses(401)
+  pushConfig(): PushConfig {
+    return this.push.config();
+  }
+
+  @Post("push/subscriptions")
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @ApiOperation({ summary: "Send this device push notifications (its PushSubscription)" })
+  @ApiErrorResponses(400, 401, 503)
+  subscribe(
+    @CurrentUser() user: AuthUser,
+    @Body() body: PushSubscriptionDto,
+    @Headers("user-agent") userAgent: string | undefined,
+  ): Promise<void> {
+    return this.push.subscribe(user.id, body, userAgent ?? null);
+  }
+
+  @Post("push/unsubscribe")
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @ApiOperation({ summary: "Stop push notifications to this device" })
+  @ApiErrorResponses(400, 401)
+  unsubscribe(@CurrentUser() user: AuthUser, @Body() body: PushUnsubscribeDto): Promise<void> {
+    return this.push.unsubscribe(user.id, body.endpoint);
   }
 
   @Post("read-all")

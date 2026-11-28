@@ -71,8 +71,27 @@ export interface NotificationPreferences {
   monthlySummary: boolean;
 }
 
+const clock = z
+  .string({ error: "Use HH:MM, e.g. 22:00" })
+  .regex(/^([01]\d|2[0-3]):[0-5]\d$/, "Use HH:MM, e.g. 22:00");
+
+/** No pushes between `start` and `end` (India time; may cross midnight). */
+export interface QuietHours {
+  start: string;
+  end: string;
+}
+
 export const updatePreferencesSchema = z.object({
   theme: z.enum(ThemePreference).optional(),
+  /** null: no quiet hours. */
+  quietHours: z
+    .object({ start: clock, end: clock })
+    .refine((value) => value.start !== value.end, {
+      path: ["end"],
+      message: "Choose an end different from the start",
+    })
+    .nullable()
+    .optional(),
   defaultVehicleId: z.uuid("Choose a vehicle").nullable().optional(),
   notifications: z
     .object({
@@ -104,6 +123,7 @@ export interface UserPreferences {
   defaultVehicleId: string | null;
   notifications: NotificationPreferences;
   regional: typeof REGIONAL_FORMAT;
+  quietHours: QuietHours | null;
 }
 
 export interface SessionInfo {
@@ -116,4 +136,11 @@ export interface SessionInfo {
   persistent: boolean;
   /** The device this request came from. */
   current: boolean;
+}
+
+/** Whether `time` ("HH:MM", India time) falls in quiet hours (start included, end not). */
+export function inQuietHours(quiet: QuietHours | null, time: string): boolean {
+  if (!quiet) return false;
+  const { start, end } = quiet;
+  return start < end ? time >= start && time < end : time >= start || time < end;
 }

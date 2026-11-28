@@ -31,6 +31,6 @@ import { ServiceRecordsService } from "./service-records.service";
     ProvidersService,
   ],
   // The dashboard reads maintenance figures and service records from here (dashboard.md §6).
-  exports: [MaintenanceService, ServiceRecordsService],
+  exports: [MaintenanceService, ServiceRecordsService, ComponentsService],
 })
 export class MaintenanceModule {}

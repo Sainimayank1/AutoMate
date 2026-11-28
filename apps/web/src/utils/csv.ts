@@ -15,7 +15,7 @@ export const toCsv = (rows: CsvValue[][]) =>
   rows.map((row) => row.map(cell).join(",")).join("\r\n");
 
 /** Saves text as a file through the browser (no upload, nothing leaves the device). */
-export function downloadFile(filename: string, parts: string[], type: string) {
+export function downloadFile(filename: string, parts: BlobPart[], type: string) {
   const url = URL.createObjectURL(new Blob(parts, { type }));
   const link = Object.assign(document.createElement("a"), { href: url, download: filename });
   link.click();

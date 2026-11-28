@@ -1,0 +1,61 @@
+# Render Blueprint for the API (docs/architecture/deployment.md). Values marked `sync: false`
+# are entered in the Render dashboard when the Blueprint is created; nothing secret lives here.
+services:
+  - type: web
+    name: automate-api
+    runtime: node
+    plan: free
+    region: singapore
+    autoDeploy: true
+    # Dev dependencies (Nest CLI, Prisma CLI) are needed to build and to migrate on start.
+    buildCommand: >-
+      corepack enable &&
+      NODE_ENV=development pnpm install --frozen-lockfile &&
+      pnpm --filter @automate/api build
+    # Migrations run on every start (idempotent); the free plan has no pre-deploy step.
+    startCommand: pnpm --filter @automate/api prisma:deploy && pnpm --filter @automate/api start
+    healthCheckPath: /api/v1/health
+    envVars:
+      - key: NODE_VERSION
+        value: "24"
+      - key: NODE_ENV
+        value: production
+      # Neon: the pooled connection string, with ?sslmode=require.
+      - key: DATABASE_URL
+        sync: false
+      - key: JWT_ACCESS_SECRET
+        generateValue: true
+      # The Cloudflare Pages origin(s), comma-separated, e.g. https://automate.pages.dev
+      - key: FRONTEND_URL
+        sync: false
+      # The web app and the API are on different sites, so the refresh cookie must be
+      # SameSite=None (it is then always Secure).
+      - key: REFRESH_COOKIE_SAMESITE
+        value: none
+      # Render's proxy sits in front of the app: trust one hop for client IPs and rate limits.
+      - key: TRUST_PROXY
+        value: "1"
+      # Cloudflare R2 (S3-compatible) for documents, photos and receipts.
+      - key: STORAGE_PROVIDER
+        value: r2
+      - key: STORAGE_ENDPOINT
+        sync: false
+      - key: STORAGE_BUCKET
+        sync: false
+      - key: STORAGE_REGION
+        value: auto
+      - key: STORAGE_ACCESS_KEY
+        sync: false
+      - key: STORAGE_SECRET_KEY
+        sync: false
+      # Web Push (optional; all three or none): `npx web-push generate-vapid-keys`, and a
+      # mailto: contact for push services.
+      - key: PUSH_VAPID_PUBLIC_KEY
+        sync: false
+      - key: PUSH_VAPID_PRIVATE_KEY
+        sync: false
+      - key: PUSH_CONTACT
+        sync: false
+      # The same value as the GitHub secret AUTOMATE_DISPATCH_SECRET (`openssl rand -base64 48`).
+      - key: DISPATCH_SECRET
+        sync: false

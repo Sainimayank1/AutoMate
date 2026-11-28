@@ -163,6 +163,10 @@ export class SettingsService {
       notifyTrips: notifications.trips,
       notifyFuel: notifications.fuel,
       notifyMonthlySummary: notifications.monthlySummary,
+      ...(values.quietHours !== undefined && {
+        quietStart: values.quietHours?.start ?? null,
+        quietEnd: values.quietHours?.end ?? null,
+      }),
     };
     const row = await this.prisma.userPreference.upsert({
       where: { userId },
@@ -287,5 +291,7 @@ function toPreferences(row: UserPreference | null): UserPreferences {
         }
       : DEFAULT_NOTIFICATIONS,
     regional: REGIONAL_FORMAT,
+    quietHours:
+      row?.quietStart && row.quietEnd ? { start: row.quietStart, end: row.quietEnd } : null,
   };
 }

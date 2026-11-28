@@ -14,6 +14,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
   Select,
@@ -27,6 +28,7 @@ import { Switch } from "@/components/ui/switch";
 import { useLogout } from "@/features/auth/hooks/use-auth";
 import { vehicleName } from "@/features/garage/constants";
 import { useVehicles } from "@/features/garage/hooks/use-vehicles";
+import { usePushDevice } from "@/features/notifications/hooks/use-push";
 import {
   ChangePasswordDialog,
   DeleteAccountDialog,
@@ -352,8 +354,89 @@ function RemindersCard() {
             Notifications are off: no reminders at all.
           </p>
         )}
+        <div className="mt-3 flex flex-col divide-y rounded-lg border bg-elevated">
+          <PushRow disabled={!notifications.enabled} />
+          <QuietHoursRow />
+        </div>
       </CardContent>
     </Card>
+  );
+}
+
+/** This browser or phone: push on or off (needs the server's keys and the browser's permission). */
+function PushRow({ disabled }: { disabled: boolean }) {
+  const push = usePushDevice();
+  const reason = !push.supported
+    ? "This browser can't receive push notifications."
+    : !push.configured
+      ? "Push isn't set up on the server yet."
+      : push.blocked
+        ? "Blocked for AutoMate in this browser's site settings."
+        : "Reminders arrive here even when AutoMate is closed.";
+  const unavailable = !push.supported || !push.configured || push.blocked;
+  return (
+    <div className="flex items-center justify-between gap-4 px-4 py-3">
+      <div>
+        <p className="text-sm font-medium">Push to this device</p>
+        <p className="text-xs text-muted-foreground">{reason}</p>
+      </div>
+      <Switch
+        checked={push.on}
+        disabled={disabled || unavailable || push.pending}
+        onCheckedChange={(on) => (on ? push.enable() : push.disable())}
+        aria-label="Push to this device"
+      />
+    </div>
+  );
+}
+
+/** No pushes between two times (India time); they arrive when it ends. */
+function QuietHoursRow() {
+  const { quietHours } = usePreferences().data!;
+  const update = useUpdatePreferences();
+  const save = (start: string, end: string) => {
+    if (start && end && start !== end) update.mutate({ quietHours: { start, end } });
+  };
+  return (
+    <div className="flex flex-col gap-3 px-4 py-3">
+      <div className="flex items-center justify-between gap-4">
+        <div>
+          <p className="text-sm font-medium">Quiet hours</p>
+          <p className="text-xs text-muted-foreground">
+            No pushes in between; they arrive when it ends.
+          </p>
+        </div>
+        <Switch
+          checked={!!quietHours}
+          onCheckedChange={(on) =>
+            update.mutate({ quietHours: on ? { start: "22:00", end: "07:00" } : null })
+          }
+          aria-label="Quiet hours"
+        />
+      </div>
+      {quietHours && (
+        <div className="grid grid-cols-2 gap-3 sm:max-w-xs">
+          <Label className="flex flex-col items-start gap-1.5 text-xs font-normal text-muted-foreground">
+            From
+            <Input
+              type="time"
+              defaultValue={quietHours.start}
+              className="h-10"
+              onBlur={(event) => save(event.target.value, quietHours.end)}
+            />
+          </Label>
+          <Label className="flex flex-col items-start gap-1.5 text-xs font-normal text-muted-foreground">
+            Until
+            <Input
+              type="time"
+              defaultValue={quietHours.end}
+              className="h-10"
+              onBlur={(event) => save(quietHours.start, event.target.value)}
+            />
+          </Label>
+        </div>
+      )}
+    </div>
   );
 }
 

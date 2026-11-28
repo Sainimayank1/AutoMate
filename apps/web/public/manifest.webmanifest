@@ -1,0 +1,11 @@
+{
+  "name": "AutoMate",
+  "short_name": "AutoMate",
+  "description": "Your vehicles' fuel, expenses, maintenance, documents and trips in one place.",
+  "start_url": "/dashboard",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#101419",
+  "theme_color": "#101419",
+  "icons": [{ "src": "/favicon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" }]
+}

@@ -24,6 +24,7 @@ import { FuelModule } from "./modules/fuel/fuel.module";
 import { GeocodingModule } from "./modules/geocoding/geocoding.module";
 import { MaintenanceModule } from "./modules/maintenance/maintenance.module";
 import { NotificationsModule } from "./modules/notifications/notifications.module";
+import { SearchModule } from "./modules/search/search.module";
 import { SettingsModule } from "./modules/settings/settings.module";
 import { TripsModule } from "./modules/trips/trips.module";
 import { UsersModule } from "./modules/users/users.module";
@@ -56,6 +57,7 @@ import { StorageModule } from "./storage/storage.module";
     BackupModule,
     NotificationsModule,
     AttachmentsModule,
+    SearchModule,
     SettingsModule,
     StorageModule,
     DashboardModule,

@@ -7,6 +7,7 @@ import type {
 } from "@automate/shared";
 
 import { request, requestAllPages } from "@/lib/api-client";
+import { shrinkImage } from "@/utils/image";
 
 /** Files on expenses, service records, tracked parts and inspections (`/attachments`). */
 export const attachmentsService = {
@@ -16,7 +17,8 @@ export const attachmentsService = {
   link: (id: string) => request<FileLink>({ url: `/attachments/${id}/link` }),
   remove: (id: string) => request<void>({ method: "DELETE", url: `/attachments/${id}` }),
   /** Announce, PUT straight to storage, confirm. */
-  async upload(owner: AttachmentOwner, ownerId: string, file: File): Promise<Attachment> {
+  async upload(owner: AttachmentOwner, ownerId: string, original: File): Promise<Attachment> {
+    const file = await shrinkImage(original);
     const announced: CreateAttachmentUploadValues = {
       owner,
       ownerId,

@@ -21,24 +21,29 @@ One in-app inbox for everything that needs attention, raised from the records th
 - **Text uses absolute dates** ("expires on 10 Dec 2026"), so a stored notification stays true.
 - **Read / snooze / dismiss.** Opening a notification marks it read. Snoozing (1 day, 3 days, 1 week; up to 90 days) hides it and brings it back unread at that time. Dismissing hides it while it still applies; a later stage (due soon → overdue) is new and shows. "Delete" is the same as dismiss: the row is kept only so the reminder isn't raised again. Master switch off: nothing is raised and current reminders go (events stay).
 - **Your reminders**: a title, a date, how many days before (0–365, default 1), an optional vehicle and notes. Mark done (its notification goes), reopen, edit, delete. A reminder change brings the inbox up to date on its next read.
+- **Repeating reminders**: none, weekly, monthly or yearly. Done on a repeating one moves it to its next date (missed dates skipped) instead of closing it (`nextReminderDate`).
+- **Web Push** (`PushService`): a device subscribes from Settings ("Push to this device": permission, the service worker `public/sw.js`, the browser's PushSubscription). An hourly job (`.github/workflows/notify.yml` calls `POST /internal/notifications/dispatch` with `Authorization: Bearer <DISPATCH_SECRET>`) brings each subscribed user's inbox up to date and pushes new high and medium priority notifications, each once (`pushed_at`), and only those that appeared after the user's first device subscribed (no backlog flood). More than three at once arrive as one summary. A device the push service has dropped (404/410) is removed. Off until the VAPID keys are configured; the click opens the notification's link.
+- **Quiet hours** (Settings, India time, may cross midnight; `inQuietHours`): no pushes in between; they go with the first run after. The inbox itself isn't affected.
 - **Dashboard** (dashboard.md §6): a vehicle's due and overdue reminders are action-centre items ("Open reminder"); information-only items (severity `info`, such as a valid warranty) can be dismissed per vehicle (`user_preferences.dashboard_dismissed`), never anything to do; the hero has "Add reminder".
 
 ## 2. API
 
-| Endpoint                                                                                                     | Notes                                                                                    |
-| ------------------------------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------- |
-| `GET /notifications`                                                                                         | Paginated; `filter` (`all`, `unread`, `snoozed`), `category`, `vehicleId`. Newest first. |
-| `GET /notifications/summary`                                                                                 | The bell: unread count and the latest six, unread first.                                 |
-| `POST /notifications/refresh`                                                                                | Up to date now, then the summary.                                                        |
-| `POST /notifications/read-all`                                                                               | Optional `category`; `{ updated }`.                                                      |
-| `PATCH /notifications/:id`                                                                                   | `{ read }`.                                                                              |
-| `POST /notifications/:id/snooze`                                                                             | `{ until }` (ISO, future, ≤ 90 days).                                                    |
-| `DELETE /notifications/:id`                                                                                  | Dismiss; `204`.                                                                          |
-| `GET` / `POST /reminders`, `GET` / `PATCH` / `DELETE /reminders/:id`, `POST /reminders/:id/done`, `…/reopen` | The user's reminders; the list is paginated, `status` `open` or `done`.                  |
-| `POST /dashboard/dismissals`                                                                                 | `{ vehicleId, itemId }`: hide an information-only action-centre item.                    |
+| Endpoint                                                                                                           | Notes                                                                                    |
+| ------------------------------------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------- |
+| `GET /notifications`                                                                                               | Paginated; `filter` (`all`, `unread`, `snoozed`), `category`, `vehicleId`. Newest first. |
+| `GET /notifications/summary`                                                                                       | The bell: unread count and the latest six, unread first.                                 |
+| `POST /notifications/refresh`                                                                                      | Up to date now, then the summary.                                                        |
+| `POST /notifications/read-all`                                                                                     | Optional `category`; `{ updated }`.                                                      |
+| `PATCH /notifications/:id`                                                                                         | `{ read }`.                                                                              |
+| `POST /notifications/:id/snooze`                                                                                   | `{ until }` (ISO, future, ≤ 90 days).                                                    |
+| `DELETE /notifications/:id`                                                                                        | Dismiss; `204`.                                                                          |
+| `GET` / `POST /reminders`, `GET` / `PATCH` / `DELETE /reminders/:id`, `POST /reminders/:id/done`, `…/reopen`       | The user's reminders; the list is paginated, `status` `open` or `done`.                  |
+| `GET /notifications/push/config`, `POST /notifications/push/subscriptions`, `POST /notifications/push/unsubscribe` | The VAPID public key (null while push is off); add or remove this device.                |
+| `POST /internal/notifications/dispatch`                                                                            | The hourly job only (bearer `DISPATCH_SECRET`); not found without one.                   |
+| `POST /dashboard/dismissals`                                                                                       | `{ vehicleId, itemId }`: hide an information-only action-centre item.                    |
 
-Tested in `test/notifications.e2e-spec.ts`, `vehicle-status.spec.ts` and `notifications.test.tsx`.
+Tested in `test/notifications.e2e-spec.ts`, `test/push.e2e-spec.ts`, `vehicle-status.spec.ts` and `notifications.test.tsx`.
 
 ## 3. Not built
 
-Push (web push needs a service worker and keys) and local (mobile app) notifications, email digests (no email provider), quiet hours, per-category lead times beyond each record's own (documents' reminder days, schedules' leads, payments' reminder windows), repeating custom reminders, a details sheet (the card holds the whole message) and insurance or PUC renewal from the notification itself (it opens the document).
+Local notifications from a native app (there is none: Web Push covers phones, on iPhone from the home-screen app), email digests (no email provider), per-category lead times beyond each record's own (documents' reminder days, schedules' leads, payments' reminder windows), a details sheet (the card holds the whole message) and insurance or PUC renewal from the notification itself (it opens the document).

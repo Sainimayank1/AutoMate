@@ -3,12 +3,15 @@
  * restored into another (previewed first), duplicates left out, and bad files refused.
  */
 import { randomUUID } from "node:crypto";
+import { rm } from "node:fs/promises";
+import { resolve } from "node:path";
 
 import {
   addDays,
   type ApiErrorResponse,
   type ApiSuccessResponse,
   type Backup,
+  type BackupFileLink,
   type BackupRestoreReport,
   type Expense,
   type FuelEntry,
@@ -16,6 +19,7 @@ import {
   type ServiceRecord,
   type Trip,
   type TripCategory,
+  type UploadSlot,
   type Vehicle,
   type VehicleDocument,
 } from "@automate/shared";
@@ -31,6 +35,9 @@ import { AuthService } from "@/modules/auth/auth.service";
 import { seedSystemExpenseCategories } from "@/modules/expenses/expense-categories.seed";
 
 const DOMAIN = "backup.e2e.automate.test";
+const PNG = Buffer.from([
+  0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0, 0, 0, 13, 0x49, 0x48, 0x44, 0x52,
+]);
 
 describe("Backup (e2e)", () => {
   let app: NestExpressApplication;
@@ -54,6 +61,13 @@ describe("Backup (e2e)", () => {
   });
 
   afterAll(async () => {
+    const users = await prisma?.user.findMany({
+      where: { email: { endsWith: `@${DOMAIN}` } },
+      select: { id: true },
+    });
+    for (const user of users ?? []) {
+      await rm(resolve(".storage/users", user.id), { recursive: true, force: true });
+    }
     await prisma?.user.deleteMany({ where: { email: { endsWith: `@${DOMAIN}` } } });
     await app?.close();
   });
@@ -242,7 +256,18 @@ describe("Backup (e2e)", () => {
     expect(preview.vehicles).toEqual([
       expect.objectContaining({
         status: "NEW",
-        counts: { fuel: 2, services: 1, expenses: 2, trips: 1, documents: 1 },
+        counts: {
+          fuel: 2,
+          services: 1,
+          expenses: 2,
+          trips: 1,
+          documents: 1,
+          components: 0,
+          schedules: 0,
+          loans: 0,
+          recurring: 0,
+          budgets: 0,
+        },
         issueCount: 0,
       }),
     ]);
@@ -261,7 +286,18 @@ describe("Backup (e2e)", () => {
     const [outcome] = restored.vehicles;
     expect(outcome).toMatchObject({
       status: "RESTORED",
-      counts: { fuel: 2, services: 1, expenses: 2, trips: 1, documents: 1 },
+      counts: {
+        fuel: 2,
+        services: 1,
+        expenses: 2,
+        trips: 1,
+        documents: 1,
+        components: 0,
+        schedules: 0,
+        loans: 0,
+        recurring: 0,
+        budgets: 0,
+      },
       issues: [],
     });
     expect(restored.documents).toEqual({ count: 1, issues: [] });
@@ -317,6 +353,155 @@ describe("Backup (e2e)", () => {
       count: 0,
       issues: [{ section: "documents", index: 0, message: "Already in your documents" }],
     });
+  });
+
+  it("brings back parts, schedules, loans with their EMIs, recurring payments, budgets and files", async () => {
+    const { token, car } = await arjunsGarage();
+    const post = (url: string, body: object) => as(token).post(url, body);
+    const battery = dataOf<{ id: string }>(
+      await post(`/api/v1/vehicles/${car.id}/components`, {
+        kind: "BATTERY",
+        name: "Amaron battery",
+        installedAt: addDays(today, -200),
+        installedKm: 6000,
+      }).expect(201),
+    );
+    await post(`/api/v1/vehicles/${car.id}/maintenance-schedules`, {
+      name: "Battery check",
+      categoryKey: "ELECTRICAL.BATTERY_REPLACEMENT",
+      intervalMonths: 6,
+      componentId: battery.id,
+    }).expect(201);
+    const loan = dataOf<{ id: string }>(
+      await post("/api/v1/vehicle-loans", {
+        vehicleId: car.id,
+        lender: "HDFC Bank",
+        principal: "800000",
+        annualRate: "9",
+        tenureMonths: 60,
+        firstEmiDate: addDays(today, -40),
+      }).expect(201),
+    );
+    const emi = dataOf<{ id: string }>(
+      await post("/api/v1/expenses", {
+        allocation: { mode: "single", vehicleId: car.id },
+        categoryId: keyed.get("FINANCE"),
+        subcategoryId: keyed.get("FINANCE.EMI"),
+        title: "HDFC Auto Loan",
+        amount: "16684",
+        principalAmount: "10950",
+        interestAmount: "5734",
+        loanId: loan.id,
+        date: addDays(today, -10),
+      }).expect(201),
+    );
+    await post("/api/v1/recurring-expenses", {
+      vehicleId: car.id,
+      title: "Society parking pass",
+      amount: "1500",
+      categoryId: keyed.get("DAILY_USAGE"),
+      subcategoryId: keyed.get("DAILY_USAGE.PARKING"),
+      every: 1,
+      unit: "MONTH",
+      startDate: addDays(today, -60),
+    }).expect(201);
+    await post("/api/v1/expense-budgets", { vehicleId: car.id, amount: "20000" }).expect(201);
+    // A receipt on the EMI, a file on a document, and a profile photo.
+    const send = async (announce: string, body: object) => {
+      const slot = dataOf<UploadSlot>(await post(announce, body).expect(201));
+      await request(app.getHttpServer())
+        .put(new URL(slot.url).pathname)
+        .set(slot.headers)
+        .send(PNG)
+        .expect(200);
+      return slot.fileId;
+    };
+    const receipt = await send("/api/v1/attachments/uploads", {
+      owner: "expense",
+      ownerId: emi.id,
+      fileName: "emi-receipt.png",
+      contentType: "image/png",
+      size: PNG.length,
+    });
+    await post(`/api/v1/attachments/uploads/${receipt}/confirm`, {}).expect(200);
+    const scan = await send("/api/v1/documents/uploads", {
+      fileName: "rc.png",
+      contentType: "image/png",
+      size: PNG.length,
+    });
+    await post(`/api/v1/documents/uploads/${scan}/confirm`, {}).expect(200);
+    await post("/api/v1/documents", {
+      vehicleId: car.id,
+      type: "REGISTRATION",
+      name: "Registration certificate",
+      expiryDate: addDays(today, 3000),
+      fileIds: [scan],
+    }).expect(201);
+    const photo = await send("/api/v1/users/me/avatar/uploads", {
+      contentType: "image/png",
+      size: PNG.length,
+    });
+    await post(`/api/v1/users/me/avatar/uploads/${photo}/confirm`, {}).expect(200);
+
+    const backup = dataOf<Backup>(await as(token).get("/api/v1/backup").expect(200));
+    const [entry] = backup.vehicles;
+    expect(entry!.components).toHaveLength(1);
+    expect(entry!.schedules[0]).toMatchObject({
+      name: "Battery check",
+      componentBackupId: battery.id,
+    });
+    expect(entry!.loans[0]).toMatchObject({ backupId: loan.id, lender: "HDFC Bank" });
+    expect(entry!.recurring).toHaveLength(1);
+    expect(entry!.budgets[0]).toMatchObject({ category: null, amount: "20000.00" });
+    const emiRow = entry!.expenses.find((expense) => expense.title === "HDFC Auto Loan")!;
+    expect(emiRow).toMatchObject({
+      loanBackupId: loan.id,
+      files: [{ fileName: "emi-receipt.png" }],
+    });
+    expect(backup.profilePhoto).toMatchObject({
+      path: "files/profile-photo",
+      contentType: "image/png",
+    });
+    const links = dataOf<BackupFileLink[]>(await as(token).get("/api/v1/backup/files").expect(200));
+    expect(links.map((link) => link.path).sort()).toEqual(
+      [
+        emiRow.files[0]!.path,
+        entry!.documents.find((doc) => doc.name === "Registration certificate")!.files[0]!.path,
+        "files/profile-photo",
+      ].sort(),
+    );
+
+    const priya = await signUp();
+    const preview = dataOf<BackupRestoreReport>(
+      await as(priya).post("/api/v1/backup/restore/preview", backup).expect(200),
+    );
+    expect(preview.fileCount).toBe(3);
+    const restored = dataOf<BackupRestoreReport>(
+      await as(priya).post("/api/v1/backup/restore", backup).expect(200),
+    );
+    const outcome = restored.vehicles[0]!;
+    expect(outcome).toMatchObject({
+      status: "RESTORED",
+      counts: { components: 1, schedules: 1, loans: 1, recurring: 1, budgets: 1 },
+      issues: [],
+    });
+    expect(restored.files.map((file) => file.kind).sort()).toEqual([
+      "avatar",
+      "document",
+      "expense",
+    ]);
+    const newLoan = await prisma.vehicleLoan.findFirstOrThrow({
+      where: { vehicleId: outcome.vehicleId! },
+    });
+    const newEmi = await prisma.expense.findFirstOrThrow({
+      where: { vehicleId: outcome.vehicleId!, title: "HDFC Auto Loan" },
+    });
+    expect(newEmi.loanId).toBe(newLoan.id);
+    expect(restored.files.find((file) => file.kind === "expense")?.id).toBe(newEmi.id);
+    const newSchedule = await prisma.maintenanceSchedule.findFirstOrThrow({
+      where: { vehicleId: outcome.vehicleId!, name: "Battery check" },
+    });
+    expect(newSchedule.componentId).not.toBeNull();
   });
 
   it("restores one vehicle's archive, skipping rows that fail their checks", async () => {

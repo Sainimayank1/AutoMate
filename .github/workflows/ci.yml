@@ -1,0 +1,78 @@
+# Every push to main and every pull request: format, lint, types, unit and e2e tests (against a
+# throwaway Postgres), web tests and the production builds. Mirrors the local checks.
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  checks:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: automate_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d automate_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      # CI-only database in the job's own container; no real credentials anywhere.
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/automate_test
+      NODE_ENV: test
+    steps:
+      - uses: actions/checkout@v4
+
+      # Version from package.json "packageManager".
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - name: Install
+        run: pnpm install --frozen-lockfile
+
+      - name: Shared package and Prisma client
+        run: pnpm --filter @automate/api codegen
+
+      - name: Format
+        run: pnpm format:check
+
+      - name: Lint
+        run: pnpm -r lint
+
+      - name: Types
+        run: pnpm -r typecheck
+
+      - name: API unit tests
+        run: pnpm --filter @automate/api test
+
+      - name: Migrate the test database
+        run: pnpm --filter @automate/api prisma:deploy
+
+      - name: API e2e tests
+        run: pnpm --filter @automate/api test:e2e
+
+      - name: Web tests
+        run: pnpm --filter @automate/web test
+
+      - name: Build
+        run: pnpm -r build

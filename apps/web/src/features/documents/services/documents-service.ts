@@ -11,6 +11,7 @@ import type {
 } from "@automate/shared";
 
 import { request, requestPage } from "@/lib/api-client";
+import { shrinkImage } from "@/utils/image";
 
 /** Documents and their files (M6). Files go straight to storage; the API only signs the way. */
 export const documentsService = {
@@ -28,7 +29,8 @@ export const documentsService = {
     request<FileLink>({ url: `/documents/${id}/files/${fileId}/link` }),
 
   /** Announce, PUT straight to storage (no API credentials go there), confirm. */
-  async upload(file: File): Promise<DocumentFile> {
+  async upload(original: File): Promise<DocumentFile> {
+    const file = await shrinkImage(original);
     const announced: CreateUploadValues = {
       fileName: file.name,
       contentType: file.type as CreateUploadValues["contentType"],

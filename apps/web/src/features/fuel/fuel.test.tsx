@@ -208,11 +208,12 @@ describe("fuel history paging", () => {
     const table = await screen.findByRole("table");
     expect(await within(table).findByText("IndianOil XP95 · Full")).toBeInTheDocument();
     expect(screen.getByText("25 fill-ups")).toBeInTheDocument();
-    expect(screen.getByText("Page 1 of 2")).toBeInTheDocument();
+    expect(await screen.findByText("Page 1 of 2")).toBeInTheDocument();
 
     await user.click(screen.getByRole("button", { name: "Next page" }));
     expect(await within(table).findByText("HP Power95 · Full")).toBeInTheDocument();
-    expect(screen.getByText("Page 2 of 2")).toBeInTheDocument();
+    // The pager's label can settle a render after the rows under a loaded machine.
+    expect(await screen.findByText("Page 2 of 2")).toBeInTheDocument();
 
     await user.type(screen.getByRole("searchbox", { name: "Search fill-ups" }), "shell");
     expect(await within(table).findByText("Shell V-Power · Partial")).toBeInTheDocument();

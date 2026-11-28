@@ -21,6 +21,7 @@ export * from "./maintenance/inspection.schema.js";
 export * from "./maintenance/maintenance.schema.js";
 export * from "./maintenance/maintenance-categories.js";
 export * from "./maintenance/provider.schema.js";
+export * from "./search/search.schema.js";
 export * from "./settings/settings.schema.js";
 export * from "./maps/maps.schema.js";
 export * from "./notifications/notification.schema.js";

@@ -22,7 +22,7 @@ import { vehicleName } from "@/features/garage/constants";
 import { useVehicles } from "@/features/garage/hooks/use-vehicles";
 import { NotificationsLayout } from "@/features/notifications/components/notifications-layout";
 import { ReminderDialog } from "@/features/notifications/components/reminder-dialog";
-import { REMINDER_STATE } from "@/features/notifications/constants";
+import { REMINDER_STATE, REPEAT_LABELS } from "@/features/notifications/constants";
 import {
   useDeleteReminder,
   useReminderDone,
@@ -142,6 +142,9 @@ export function Component() {
                   <p className="text-xs text-muted-foreground tabular-nums">
                     {[
                       `${formatDate(reminder.dueDate)} · ${lead(reminder.remindDaysBefore)}`,
+                      reminder.repeat !== "NONE"
+                        ? REPEAT_LABELS[reminder.repeat].toLowerCase()
+                        : null,
                       vehicle,
                     ]
                       .filter(Boolean)

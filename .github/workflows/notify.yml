@@ -1,0 +1,29 @@
+# Hourly: asks the API to bring every push-subscribed user's inbox up to date and push what's new
+# (docs/architecture/notifications.md). Does nothing until both repository secrets are set.
+name: Push reminders
+
+on:
+  schedule:
+    - cron: "17 * * * *"
+  workflow_dispatch:
+
+permissions: {}
+
+jobs:
+  dispatch:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Send what's due as pushes
+        env:
+          API_URL: ${{ secrets.AUTOMATE_API_URL }}
+          DISPATCH_SECRET: ${{ secrets.AUTOMATE_DISPATCH_SECRET }}
+        run: |
+          if [ -z "$API_URL" ] || [ -z "$DISPATCH_SECRET" ]; then
+            echo "Push dispatch isn't configured (AUTOMATE_API_URL, AUTOMATE_DISPATCH_SECRET)."
+            exit 0
+          fi
+          # A sleeping free Render service can take a minute to wake: allow for it.
+          curl --fail-with-body --silent --show-error --max-time 180 --retry 2 --retry-delay 30 \
+            -X POST "$API_URL/api/v1/internal/notifications/dispatch" \
+            -H "Authorization: Bearer $DISPATCH_SECRET"

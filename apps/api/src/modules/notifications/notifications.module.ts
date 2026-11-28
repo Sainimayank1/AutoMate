@@ -8,8 +8,10 @@ import { SettingsModule } from "@/modules/settings/settings.module";
 import { TripsModule } from "@/modules/trips/trips.module";
 import { VehiclesModule } from "@/modules/vehicles/vehicles.module";
 
+import { DispatchController } from "./dispatch.controller";
 import { NotificationsController } from "./notifications.controller";
 import { NotificationsService } from "./notifications.service";
+import { PushService } from "./push.service";
 import { RemindersController } from "./reminders.controller";
 import { RemindersService } from "./reminders.service";
 
@@ -23,8 +25,8 @@ import { RemindersService } from "./reminders.service";
     TripsModule,
     FuelModule,
   ],
-  controllers: [NotificationsController, RemindersController],
-  providers: [NotificationsService, RemindersService],
+  controllers: [NotificationsController, RemindersController, DispatchController],
+  providers: [NotificationsService, RemindersService, PushService],
   // The dashboard's action centre shows due reminders.
   exports: [RemindersService],
 })

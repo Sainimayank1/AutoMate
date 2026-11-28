@@ -5,7 +5,7 @@ import type {
   Reminder,
   VehicleDocument,
 } from "@automate/shared";
-import { reminderState } from "@automate/shared";
+import { inQuietHours, nextReminderDate, reminderState } from "@automate/shared";
 import { describe, expect, it } from "vitest";
 
 import { Prisma } from "@/generated/prisma/client";
@@ -246,5 +246,25 @@ describe("reminders", () => {
       ["reminder:m1:2026-11-29:DUE", "MEDIUM", "Get the tyres rotated is due on 29 Nov 2026"],
       ["reminder:m1:2026-11-20:OVERDUE", "HIGH", "Get the tyres rotated was due on 20 Nov 2026"],
     ]);
+  });
+});
+
+describe("quiet hours and repeating reminders", () => {
+  it("knows quiet hours, including ones that cross midnight", () => {
+    const night = { start: "22:00", end: "07:00" };
+    expect(inQuietHours(night, "23:30")).toBe(true);
+    expect(inQuietHours(night, "06:59")).toBe(true);
+    expect(inQuietHours(night, "07:00")).toBe(false);
+    expect(inQuietHours(night, "12:00")).toBe(false);
+    expect(inQuietHours({ start: "13:00", end: "15:00" }, "14:00")).toBe(true);
+    expect(inQuietHours(null, "03:00")).toBe(false);
+  });
+
+  it("moves a repeating reminder to its next date, skipping missed ones", () => {
+    expect(nextReminderDate("2026-11-30", "MONTHLY", TODAY)).toBe("2026-12-30");
+    expect(nextReminderDate("2026-01-31", "MONTHLY", "2026-01-20")).toBe("2026-02-28");
+    expect(nextReminderDate("2026-11-21", "WEEKLY", TODAY)).toBe("2026-11-28");
+    expect(nextReminderDate("2024-03-15", "YEARLY", TODAY)).toBe("2027-03-15");
+    expect(nextReminderDate("2026-11-30", "NONE", TODAY)).toBe("2026-11-30");
   });
 });

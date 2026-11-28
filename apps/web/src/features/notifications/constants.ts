@@ -1,4 +1,9 @@
-import { NotificationCategory, NotificationPriority, ReminderState } from "@automate/shared";
+import {
+  NotificationCategory,
+  NotificationPriority,
+  ReminderRepeat,
+  ReminderState,
+} from "@automate/shared";
 import { formatDistanceToNowStrict } from "date-fns";
 import {
   CalendarClock,
@@ -47,6 +52,13 @@ export const REMINDER_STATE: Record<ReminderState, { tone: StatusTone; tile: str
 };
 
 /** "Remind me" choices in days before. */
+export const REPEAT_LABELS: Record<ReminderRepeat, string> = {
+  [ReminderRepeat.NONE]: "Doesn't repeat",
+  [ReminderRepeat.WEEKLY]: "Every week",
+  [ReminderRepeat.MONTHLY]: "Every month",
+  [ReminderRepeat.YEARLY]: "Every year",
+};
+
 export const LEAD_OPTIONS = [
   { days: 0, label: "On the day" },
   { days: 1, label: "1 day before" },

@@ -2,6 +2,7 @@ import type { BackupRestoreReport, FuelEntry } from "@automate/shared";
 import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { InternalAxiosRequestConfig } from "axios";
+import { strToU8, zipSync } from "fflate";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { useSessionStore } from "@/stores/session-store";
@@ -41,7 +42,18 @@ const fill: FuelEntry = {
   createdAt: "2026-11-20T03:30:00.000Z",
   updatedAt: "2026-11-20T03:30:00.000Z",
 };
-const counts = { fuel: 2, services: 1, expenses: 2, trips: 1, documents: 1 };
+const counts = {
+  fuel: 2,
+  services: 1,
+  expenses: 2,
+  trips: 1,
+  documents: 1,
+  components: 0,
+  schedules: 0,
+  loans: 0,
+  recurring: 0,
+  budgets: 0,
+};
 const report = (status: "NEW" | "RESTORED"): BackupRestoreReport => ({
   exportedAt: "2026-11-28T05:12:00.000Z",
   vehicles: [
@@ -61,12 +73,25 @@ const report = (status: "NEW" | "RESTORED"): BackupRestoreReport => ({
       registrationNumber: "HR26DQ1190",
       status: "EXISTS",
       vehicleId: null,
-      counts: { fuel: 0, services: 0, expenses: 0, trips: 0, documents: 0 },
+      counts: {
+        fuel: 0,
+        services: 0,
+        expenses: 0,
+        trips: 0,
+        documents: 0,
+        components: 0,
+        schedules: 0,
+        loans: 0,
+        recurring: 0,
+        budgets: 0,
+      },
       issues: [],
       issueCount: 0,
     },
   ],
   documents: { count: 0, issues: [] },
+  fileCount: 0,
+  files: [],
 });
 const backupFile = {
   format: "automate-backup",
@@ -81,6 +106,8 @@ function api(routes: Routes) {
     return routes[key]?.(config) ?? fail(404, "NOT_FOUND", "Not found");
   });
 }
+const body = (config?: InternalAxiosRequestConfig) =>
+  typeof config?.data === "string" ? (JSON.parse(config.data) as unknown) : config?.data;
 const base: Routes = { "GET /vehicles": () => okPage([victoris]) };
 
 beforeEach(() => {
@@ -109,7 +136,7 @@ describe("backup & export", () => {
     expect(header).toMatch(/^Filled at,Odometer \(km\),Fuel,/);
     expect(first).toContain("8100,Petrol,30.000,104.320,3129.60,Full");
 
-    await user.click(screen.getByRole("button", { name: "Download backup" }));
+    await user.click(screen.getByRole("button", { name: "Records only (.json)" }));
     await waitFor(() => expect(downloads).toHaveLength(2));
     expect(downloads[1]!.filename).toMatch(/^automate-backup-.*\.json$/);
     expect(JSON.parse(downloads[1]!.text)).toMatchObject({ format: "automate-backup" });
@@ -186,5 +213,77 @@ describe("backup & export", () => {
     expect(
       await screen.findByText("Made by a newer version of AutoMate: update the app, then restore"),
     ).toBeInTheDocument();
+  });
+
+  it("restores a ZIP backup, then puts each file back on its record", async () => {
+    const receipt = new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
+    const zipped = zipSync({
+      "backup.json": strToU8(JSON.stringify(backupFile)),
+      "files/f1/emi-receipt.png": receipt,
+    });
+    const restored: BackupRestoreReport = {
+      ...report("RESTORED"),
+      fileCount: 1,
+      files: [
+        {
+          path: "files/f1/emi-receipt.png",
+          fileName: "emi-receipt.png",
+          contentType: "image/png",
+          kind: "expense",
+          id: "0190d4a2-0000-7000-8000-0000000e00aa",
+        },
+      ],
+    };
+    const puts: string[] = [];
+    vi.stubGlobal("fetch", (url: string, init?: RequestInit) => {
+      if (init?.method === "PUT") puts.push(url);
+      return Promise.resolve(new Response(null, { status: 200 }));
+    });
+    const calls = api({
+      ...base,
+      "POST /backup/restore/preview": () => ok({ ...report("NEW"), fileCount: 1 }),
+      "POST /backup/restore": () => ok(restored),
+      "POST /attachments/uploads": () =>
+        ok(
+          {
+            fileId: "0190d4a2-0000-7000-8000-0000000f00aa",
+            url: "http://storage.test/put",
+            headers: {},
+            expiresAt: "2026-11-28T12:00:00.000Z",
+          },
+          201,
+        ),
+      "POST /attachments/uploads/0190d4a2-0000-7000-8000-0000000f00aa/confirm": () =>
+        ok({
+          id: "0190d4a2-0000-7000-8000-0000000f00aa",
+          fileName: "emi-receipt.png",
+          contentType: "image/png",
+          size: 8,
+          createdAt: "2026-11-28T12:00:00.000Z",
+        }),
+    });
+    renderApp("/backup");
+    const user = userEvent.setup();
+
+    await user.upload(
+      await screen.findByLabelText("Backup file"),
+      new File([zipped as Uint8Array<ArrayBuffer>], "automate-backup.zip", {
+        type: "application/zip",
+      }),
+    );
+    const preview = within(await screen.findByRole("region", { name: "In this backup" }));
+    expect(
+      preview.getByText("1 file (photos, receipts, document scans) will be restored too."),
+    ).toBeInTheDocument();
+    await user.click(preview.getByRole("button", { name: "Restore 1 vehicle" }));
+    expect(await screen.findByText("1 file restored.")).toBeInTheDocument();
+    expect(body(calls.find((call) => call.url === "/attachments/uploads"))).toMatchObject({
+      owner: "expense",
+      ownerId: "0190d4a2-0000-7000-8000-0000000e00aa",
+      fileName: "emi-receipt.png",
+      size: 8,
+    });
+    expect(puts).toEqual(["http://storage.test/put"]);
+    vi.unstubAllGlobals();
   });
 });

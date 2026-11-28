@@ -29,6 +29,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { RestoreCard } from "@/features/backup/components/restore-card";
 import { useDownload } from "@/features/backup/hooks/use-backup";
 import { backupService } from "@/features/backup/services/backup-service";
+import { buildArchive } from "@/features/backup/utils/archive";
 import { fillsToCsv, serviceRecordsToCsv, vehicleToCsv } from "@/features/backup/utils/exports";
 import { expenseService } from "@/features/expenses/services/expense-service";
 import { expensesToCsv } from "@/features/expenses/utils/csv";
@@ -98,7 +99,8 @@ export function Component() {
             Data management
           </CardTitle>
           <CardDescription>
-            Moving a vehicle to another account isn&apos;t available yet.
+            To move a vehicle to another account, download its archive (ZIP) above, restore it from
+            Backup &amp; Export in the other account, then archive or delete it here.
           </CardDescription>
         </CardHeader>
         <CardContent className="flex flex-wrap items-center gap-x-6 gap-y-3 text-sm font-medium">
@@ -185,13 +187,14 @@ function ExportCard({ vehicle }: { vehicle: Vehicle }) {
         />
         <ExportRow
           icon={Braces}
-          title="Vehicle archive (JSON)"
-          detail="This vehicle with everything recorded for it, ready to restore"
+          title="Vehicle archive (ZIP)"
+          detail="This vehicle with everything recorded for it and its files, ready to restore or to move to another account"
           label="Download"
           run={async () =>
-            downloadJson(
-              `automate-${vehicle.registrationNumber}-${today()}.json`,
-              await backupService.backup(vehicle.id),
+            downloadFile(
+              `automate-${vehicle.registrationNumber}-${today()}.zip`,
+              [await buildArchive(vehicle.id)],
+              "application/zip",
             )
           }
         />
@@ -275,7 +278,10 @@ function LinkRow({
 }
 
 function FullBackupCard() {
-  const job = useDownload(async () =>
+  const zip = useDownload(async () =>
+    downloadFile(`automate-backup-${today()}.zip`, [await buildArchive()], "application/zip"),
+  );
+  const json = useDownload(async () =>
     downloadJson(`automate-backup-${today()}.json`, await backupService.backup()),
   );
   return (
@@ -284,14 +290,19 @@ function FullBackupCard() {
         <div className="flex max-w-2xl flex-col gap-1">
           <h2 className="font-heading text-base font-semibold">Full backup</h2>
           <p className="text-sm text-muted-foreground">
-            One file with all your vehicles, fill-ups, service records, expenses, trips and document
-            details. Files attached to documents aren&apos;t included: download them from each
-            document.
+            Everything: vehicles, fill-ups, service records, expenses with receipts, loans and
+            recurring payments, budgets, parts and schedules, trips, documents with their files and
+            your photo. The ZIP holds the files; the JSON is the records alone.
           </p>
         </div>
-        <Button disabled={job.isPending} onClick={() => job.mutate()}>
-          {job.isPending ? "Preparing…" : "Download backup"}
-        </Button>
+        <div className="flex flex-wrap gap-2">
+          <Button variant="outline" disabled={json.isPending} onClick={() => json.mutate()}>
+            {json.isPending ? "Preparing…" : "Records only (.json)"}
+          </Button>
+          <Button disabled={zip.isPending} onClick={() => zip.mutate()}>
+            {zip.isPending ? "Preparing…" : "Download backup (.zip)"}
+          </Button>
+        </div>
       </CardContent>
     </Card>
   );

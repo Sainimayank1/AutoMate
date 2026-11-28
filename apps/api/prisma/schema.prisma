@@ -47,6 +47,7 @@ model User {
   tripCosts            TripCost[]
   tripAttachments      TripAttachment[]
   attachments          Attachment[]
+  pushSubscriptions    PushSubscription[]
 
   @@map("users")
 }
@@ -69,6 +70,9 @@ model UserPreference {
   notifyTrips          Boolean         @default(true) @map("notify_trips")
   notifyMonthlySummary Boolean         @default(false) @map("notify_monthly_summary")
   notifyFuel           Boolean         @default(true) @map("notify_fuel")
+  /// "22:00" to "07:00" (India time): no pushes in between; they wait until it ends.
+  quietStart           String?         @map("quiet_start") @db.VarChar(5)
+  quietEnd             String?         @map("quiet_end") @db.VarChar(5)
   /// Dashboard action-centre items the user dismissed ("<vehicleId>:<itemId>"); information only.
   dashboardDismissed   String[]        @default([]) @map("dashboard_dismissed")
   createdAt            DateTime        @default(now()) @map("created_at") @db.Timestamptz(3)
@@ -1130,6 +1134,8 @@ model Notification {
   readAt       DateTime?            @map("read_at") @db.Timestamptz(3)
   snoozedUntil DateTime?            @map("snoozed_until") @db.Timestamptz(3)
   dismissedAt  DateTime?            @map("dismissed_at") @db.Timestamptz(3)
+  /// Sent as a push to the user's devices (never twice).
+  pushedAt     DateTime?            @map("pushed_at") @db.Timestamptz(3)
   createdAt    DateTime             @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt    DateTime             @updatedAt @map("updated_at") @db.Timestamptz(3)
 
@@ -1143,16 +1149,18 @@ model Notification {
 
 /// A reminder the user set themselves (M10): a date, an optional vehicle, a lead in days.
 model Reminder {
-  id               String    @id @default(uuid(7)) @db.Uuid
-  userId           String    @map("user_id") @db.Uuid
-  vehicleId        String?   @map("vehicle_id") @db.Uuid
-  title            String    @db.VarChar(120)
-  dueDate          DateTime  @map("due_date") @db.Date
-  remindDaysBefore Int       @default(1) @map("remind_days_before")
+  id               String         @id @default(uuid(7)) @db.Uuid
+  userId           String         @map("user_id") @db.Uuid
+  vehicleId        String?        @map("vehicle_id") @db.Uuid
+  title            String         @db.VarChar(120)
+  dueDate          DateTime       @map("due_date") @db.Date
+  remindDaysBefore Int            @default(1) @map("remind_days_before")
+  /// Done on a repeating reminder moves it to its next date instead.
+  repeat           ReminderRepeat @default(NONE)
   notes            String?
-  doneAt           DateTime? @map("done_at") @db.Timestamptz(3)
-  createdAt        DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
-  updatedAt        DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
+  doneAt           DateTime?      @map("done_at") @db.Timestamptz(3)
+  createdAt        DateTime       @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt        DateTime       @updatedAt @map("updated_at") @db.Timestamptz(3)
 
   user    User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   vehicle Vehicle? @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
@@ -1200,4 +1208,29 @@ model StorageOrphan {
   createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
 
   @@map("storage_orphans")
+}
+
+enum ReminderRepeat {
+  NONE
+  WEEKLY
+  MONTHLY
+  YEARLY
+}
+
+/// A browser or phone that asked for push notifications (Web Push).
+model PushSubscription {
+  id         String    @id @default(uuid(7)) @db.Uuid
+  userId     String    @map("user_id") @db.Uuid
+  endpoint   String    @unique
+  p256dh     String
+  auth       String
+  /// "Chrome on Android", from the user agent at subscription.
+  device     String?
+  lastPushAt DateTime? @map("last_push_at") @db.Timestamptz(3)
+  createdAt  DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("push_subscriptions")
 }

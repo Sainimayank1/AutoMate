@@ -30,6 +30,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Spinner } from "@/components/ui/spinner";
 import { usePreviewRestore, useRestore } from "@/features/backup/hooks/use-backup";
+import { MAX_ARCHIVE_BYTES, readArchive, restoreFiles } from "@/features/backup/utils/archive";
 import { normalizeApiError } from "@/lib/api-error";
 import { formatDateTime, formatFileSize } from "@/utils/format";
 
@@ -46,6 +47,11 @@ const NOUNS: Record<keyof BackupCounts, [string, string]> = {
   expenses: ["expense", "expenses"],
   trips: ["trip", "trips"],
   documents: ["document", "documents"],
+  components: ["part", "parts"],
+  schedules: ["schedule", "schedules"],
+  loans: ["loan", "loans"],
+  recurring: ["recurring payment", "recurring payments"],
+  budgets: ["budget", "budgets"],
 };
 const ROW_LABEL: Record<BackupIssue["section"], string> = {
   vehicle: "Vehicle",
@@ -54,6 +60,11 @@ const ROW_LABEL: Record<BackupIssue["section"], string> = {
   expenses: "Expense",
   trips: "Trip",
   documents: "Document",
+  components: "Part",
+  schedules: "Schedule",
+  loans: "Loan",
+  recurring: "Recurring payment",
+  budgets: "Budget",
 };
 const plural = (count: number, [one, many]: [string, string]) =>
   `${count} ${count === 1 ? one : many}`;
@@ -75,32 +86,66 @@ const errorText = (error: unknown) => {
 export function RestoreCard() {
   const preview = usePreviewRestore();
   const restore = useRestore();
-  const [file, setFile] = useState<{ name: string; data: unknown } | null>(null);
+  const [file, setFile] = useState<{
+    name: string;
+    data: unknown;
+    /** A ZIP backup's files, by path. */
+    files: Record<string, Uint8Array> | null;
+  } | null>(null);
   const [readError, setReadError] = useState<string | null>(null);
+  const [filesState, setFilesState] = useState<
+    | { phase: "uploading"; done: number; total: number }
+    | { phase: "done"; restored: number; failed: string[] }
+    | null
+  >(null);
   const input = useRef<HTMLInputElement>(null);
 
   const reset = () => {
     setFile(null);
     setReadError(null);
+    setFilesState(null);
     preview.reset();
     restore.reset();
   };
   const choose = async (picked: File) => {
     reset();
-    if (picked.size > BACKUP_MAX_BYTES) {
-      setReadError(`Use a backup file of ${formatFileSize(BACKUP_MAX_BYTES)} or less.`);
+    const zip = /\.zip$/i.test(picked.name) || picked.type.includes("zip");
+    const limit = zip ? MAX_ARCHIVE_BYTES : BACKUP_MAX_BYTES;
+    if (picked.size > limit) {
+      setReadError(`Use a backup file of ${formatFileSize(limit)} or less.`);
       return;
     }
     let data: unknown;
+    let files: Record<string, Uint8Array> | null = null;
     try {
-      data = JSON.parse(await picked.text());
-    } catch {
-      setReadError("This file isn't an AutoMate backup.");
+      if (zip) {
+        ({ backup: data, files } = readArchive(new Uint8Array(await picked.arrayBuffer())));
+      } else {
+        data = JSON.parse(await picked.text());
+      }
+    } catch (error) {
+      setReadError(
+        error instanceof Error && error.message.startsWith("This ZIP")
+          ? error.message
+          : "This file isn't an AutoMate backup.",
+      );
       return;
     }
-    setFile({ name: picked.name, data });
+    setFile({ name: picked.name, data, files });
     preview.mutate(data);
   };
+  /** Records first, then each file from the ZIP to the record it now belongs to. */
+  const runRestore = () =>
+    restore.mutate(file!.data, {
+      onSuccess: async (result) => {
+        if (!file?.files || !result.files.length) return;
+        setFilesState({ phase: "uploading", done: 0, total: result.files.length });
+        const outcome = await restoreFiles(result.files, file.files, (done, total) =>
+          setFilesState({ phase: "uploading", done, total }),
+        );
+        setFilesState({ phase: "done", ...outcome });
+      },
+    });
 
   const report = restore.data ?? preview.data;
   const error =
@@ -135,7 +180,8 @@ export function RestoreCard() {
                 <FileUp className="size-5" aria-hidden />
               </span>
               <p className="text-sm text-muted-foreground">
-                Choose an AutoMate backup file (.json, up to {formatFileSize(BACKUP_MAX_BYTES)})
+                Choose an AutoMate backup: the ZIP with files, or the JSON file (up to{" "}
+                {formatFileSize(BACKUP_MAX_BYTES)})
               </p>
             </div>
             <Button variant="outline" onClick={() => input.current?.click()}>
@@ -146,7 +192,7 @@ export function RestoreCard() {
         <input
           ref={input}
           type="file"
-          accept=".json,application/json"
+          accept=".zip,.json,application/zip,application/json"
           aria-label="Backup file"
           className="sr-only"
           onChange={(event) => {
@@ -186,6 +232,30 @@ export function RestoreCard() {
                 <Spinner className="text-primary" /> Restoring… don&apos;t close this page
               </p>
             )}
+            {preview.data && !restore.data && preview.data.fileCount > 0 && (
+              <p className="border-t px-4 py-3 text-sm text-muted-foreground">
+                {file?.files
+                  ? `${plural(preview.data.fileCount, ["file", "files"])} (photos, receipts, document scans) will be restored too.`
+                  : `This backup refers to ${plural(preview.data.fileCount, ["file", "files"])}; restore the ZIP backup to bring them back.`}
+              </p>
+            )}
+            {filesState?.phase === "uploading" && (
+              <p
+                className="flex items-center gap-2.5 border-t px-4 py-3 text-sm font-medium"
+                role="status"
+              >
+                <Spinner className="text-primary" /> Restoring files… {filesState.done} of{" "}
+                {filesState.total}
+              </p>
+            )}
+            {filesState?.phase === "done" && (
+              <p className="border-t px-4 py-3 text-sm">
+                {plural(filesState.restored, ["file", "files"])} restored
+                {filesState.failed.length > 0 &&
+                  `; couldn't restore ${filesState.failed.join(", ")}`}
+                .
+              </p>
+            )}
             {restore.data && (
               <p className="flex flex-wrap items-center gap-2 border-t bg-success/10 px-4 py-3 text-sm">
                 <CircleCheck className="size-4 text-success" aria-hidden />
@@ -209,13 +279,17 @@ export function RestoreCard() {
                   Nothing new to restore: every vehicle in it is already in your garage.
                 </p>
               )}
-              <Button variant="outline" onClick={reset} disabled={restore.isPending}>
+              <Button
+                variant="outline"
+                onClick={reset}
+                disabled={restore.isPending || filesState?.phase === "uploading"}
+              >
                 {restore.data ? "Restore another file" : "Cancel"}
               </Button>
               {!restore.data && (
                 <Button
                   disabled={restore.isPending || (!restorable && !papers)}
-                  onClick={() => restore.mutate(file!.data)}
+                  onClick={runRestore}
                 >
                   {restore.isPending
                     ? "Restoring…"

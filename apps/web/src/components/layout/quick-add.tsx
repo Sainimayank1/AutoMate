@@ -1,15 +1,7 @@
-import {
-  BellPlus,
-  FileUp,
-  Fuel,
-  type LucideIcon,
-  Plus,
-  ReceiptIndianRupee,
-  Route,
-  Wrench,
-} from "lucide-react";
+import { Plus } from "lucide-react";
 import { Link } from "react-router";
 
+import { shortcuts } from "@/components/layout/quick-add-shortcuts";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -28,25 +20,6 @@ import {
 } from "@/components/ui/sheet";
 import { vehicleName } from "@/features/garage/constants";
 import { useActiveVehicle } from "@/hooks/use-active-vehicle";
-
-type Shortcut = { label: string; icon: LucideIcon; href: string };
-
-/** The add forms, in the order of application-navigation.md, each for the active vehicle. */
-function shortcuts(vehicleId: string | undefined): Shortcut[] {
-  const forVehicle = vehicleId ? `vehicle=${vehicleId}` : "";
-  return [
-    { label: "Fuel entry", icon: Fuel, href: "/fuel/new" },
-    { label: "Expense", icon: ReceiptIndianRupee, href: "/expenses/new" },
-    { label: "Service record", icon: Wrench, href: "/maintenance/records/new" },
-    { label: "Trip", icon: Route, href: `/trips/new${forVehicle && `?${forVehicle}`}` },
-    { label: "Document", icon: FileUp, href: "/documents/new" },
-    {
-      label: "Reminder",
-      icon: BellPlus,
-      href: `/notifications/reminders?new=1${forVehicle && `&${forVehicle}`}`,
-    },
-  ];
-}
 
 /**
  * Phones: the bottom nav's "Add" opens this sheet (Stitch "Quick Add Sheet — Mobile"): six large

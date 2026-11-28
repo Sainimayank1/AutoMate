@@ -11,6 +11,7 @@ import {
   notificationsService,
   type ReminderListParams,
 } from "@/features/notifications/services/notifications-service";
+import { formatDate } from "@/utils/format";
 
 export const notificationKeys = {
   all: ["notifications"] as const,
@@ -120,9 +121,15 @@ export function useReminderDone() {
   return useMutation({
     mutationFn: ({ id, done }: { id: string; done: boolean }) =>
       notificationsService.setReminderDone(id, done),
-    onSuccess: async (_saved, { done }) => {
+    onSuccess: async (saved, { done }) => {
       await refresh();
-      toast.success(done ? "Marked done." : "Back on your list.");
+      toast.success(
+        done && saved.repeat !== "NONE"
+          ? `Done. Next one on ${formatDate(saved.dueDate)}.`
+          : done
+            ? "Marked done."
+            : "Back on your list.",
+      );
     },
   });
 }

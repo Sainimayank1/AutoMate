@@ -48,6 +48,8 @@ import { VehicleLoansService } from "./vehicle-loans.service";
     // The dashboard's action centre reads upcoming payments and EMIs.
     RecurringExpensesService,
     VehicleLoansService,
+    // Backup restores budgets through it.
+    ExpenseBudgetsService,
     // Analytics compares every vehicle's ownership cost.
     OwnershipService,
   ],

@@ -85,6 +85,20 @@ const envSchema = z
     STORAGE_LOCAL_DIR: z.string().default(".storage"),
     /** The API's own origin as browsers reach it, for local upload and download links. */
     STORAGE_PUBLIC_URL: z.url({ protocol: /^https?$/ }).optional(),
+
+    /**
+     * Web Push (VAPID). All three or none: without them, push is off and the inbox works as
+     * before. Generate a pair with `npx web-push generate-vapid-keys`.
+     */
+    PUSH_VAPID_PUBLIC_KEY: z.string().optional(),
+    PUSH_VAPID_PRIVATE_KEY: z.string().optional(),
+    /** Who push services can contact about this sender: a mailto: or https: URL. */
+    PUSH_CONTACT: z
+      .string()
+      .regex(/^(mailto:|https:\/\/)/, "must be a mailto: or https:// URL")
+      .optional(),
+    /** Shared with the scheduled job that sends pushes (POST /internal/notifications/dispatch). */
+    DISPATCH_SECRET: z.string().min(32, "must be at least 32 characters").optional(),
   })
   .superRefine((env, ctx) => {
     if (env.NODE_ENV === "production" && env.FRONTEND_URL.includes("*")) {
@@ -99,6 +113,14 @@ const envSchema = z
         code: "custom",
         path: ["STORAGE_PROVIDER"],
         message: "local storage is not allowed in production (files would be lost on redeploy)",
+      });
+    }
+    const push = [env.PUSH_VAPID_PUBLIC_KEY, env.PUSH_VAPID_PRIVATE_KEY, env.PUSH_CONTACT];
+    if (push.some(Boolean) && !push.every(Boolean)) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["PUSH_VAPID_PUBLIC_KEY"],
+        message: "PUSH_VAPID_PUBLIC_KEY, PUSH_VAPID_PRIVATE_KEY and PUSH_CONTACT go together",
       });
     }
     if (env.STORAGE_PROVIDER === "r2" || env.STORAGE_PROVIDER === "s3") {

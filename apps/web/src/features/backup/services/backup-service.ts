@@ -1,4 +1,10 @@
-import type { Backup, BackupRestoreReport, FuelEntry, ServiceRecord } from "@automate/shared";
+import type {
+  Backup,
+  BackupFileLink,
+  BackupRestoreReport,
+  FuelEntry,
+  ServiceRecord,
+} from "@automate/shared";
 
 import { request, requestAllPages } from "@/lib/api-client";
 
@@ -6,6 +12,9 @@ import { request, requestAllPages } from "@/lib/api-client";
 export const backupService = {
   /** Everything, or one vehicle's archive. */
   backup: (vehicleId?: string) => request<Backup>({ url: "/backup", params: { vehicleId } }),
+  /** Short-lived links to the files the backup refers to (for the ZIP). */
+  fileLinks: (vehicleId?: string) =>
+    requestAllPages<BackupFileLink>({ url: "/backup/files", params: { vehicleId } }),
   /** The parsed file goes back as-is; the API checks it. */
   preview: (backup: unknown) =>
     request<BackupRestoreReport>({ method: "POST", url: "/backup/restore/preview", data: backup }),

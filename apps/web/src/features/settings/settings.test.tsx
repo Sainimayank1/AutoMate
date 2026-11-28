@@ -22,6 +22,7 @@ const preferences: UserPreferences = {
     fuel: true,
     monthlySummary: false,
   },
+  quietHours: null,
   regional: {
     currency: "INR",
     distanceUnit: "km",
@@ -83,6 +84,28 @@ describe("settings", () => {
     await waitFor(() => expect(patches()).toHaveLength(2));
     expect(patches().map(body)).toEqual([{ theme: "LIGHT" }, { notifications: { trips: false } }]);
     expect(screen.getByText("DD/MM/YYYY")).toBeInTheDocument();
+  });
+
+  it("sets quiet hours and explains when push can't work here", async () => {
+    const calls = api({
+      ...base,
+      "PATCH /users/me/preferences": (config) =>
+        ok({ ...preferences, ...(body(config) as object) }),
+    });
+    renderApp("/settings");
+    const user = userEvent.setup();
+
+    // jsdom has no Push API: the switch is off and says why.
+    expect(await screen.findByRole("switch", { name: "Push to this device" })).toBeDisabled();
+    expect(screen.getByText("This browser can't receive push notifications.")).toBeInTheDocument();
+
+    await user.click(screen.getByRole("switch", { name: "Quiet hours" }));
+    await waitFor(() =>
+      expect(calls.filter((call) => call.method === "patch").map(body)).toContainEqual({
+        quietHours: { start: "22:00", end: "07:00" },
+      }),
+    );
+    expect(await screen.findByLabelText("From")).toHaveValue("22:00");
   });
 
   it("turns every reminder off with the master switch", async () => {

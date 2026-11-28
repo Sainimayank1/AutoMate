@@ -1,4 +1,4 @@
-import type { Backup, BackupRestoreReport } from "@automate/shared";
+import type { Backup, BackupFileLink, BackupRestoreReport } from "@automate/shared";
 import { Body, Controller, Get, HttpCode, HttpStatus, Post, Query } from "@nestjs/common";
 import { ApiBearerAuth, ApiOperation, ApiTags } from "@nestjs/swagger";
 
@@ -6,12 +6,13 @@ import {
   ApiEnvelopeResponse,
   ApiErrorResponses,
 } from "@/common/decorators/api-response.decorators";
+import type { Paginated } from "@/common/pagination/paginated";
 import type { AuthUser } from "@/modules/auth/auth.types";
 import { CurrentUser } from "@/modules/auth/decorators/current-user.decorator";
 
 import { BACKUP_REPORT_SCHEMA, BACKUP_SCHEMA } from "./backup.constants";
 import { BackupService } from "./backup.service";
-import { BackupQueryDto, RestoreBackupDto } from "./dto/backup.dto";
+import { BackupFilesQueryDto, BackupQueryDto, RestoreBackupDto } from "./dto/backup.dto";
 
 /** Backup & Export: a JSON backup of the user's vehicles, and restoring one. */
 @ApiTags("backup")
@@ -26,6 +27,21 @@ export class BackupController {
   @ApiErrorResponses(400, 401, 404)
   export(@CurrentUser() user: AuthUser, @Query() query: BackupQueryDto): Promise<Backup> {
     return this.backup.export(user.id, query.vehicleId);
+  }
+
+  @Get("files")
+  @ApiOperation({ summary: "Short-lived links to the files the backup refers to, for a ZIP" })
+  @ApiEnvelopeResponse(
+    { type: "object", properties: { path: { type: "string" }, url: { type: "string" } } },
+    { paginated: true },
+  )
+  @ApiErrorResponses(400, 401, 503)
+  files(
+    @CurrentUser() user: AuthUser,
+    @Query() query: BackupFilesQueryDto,
+  ): Promise<Paginated<BackupFileLink>> {
+    const { vehicleId, ...page } = query;
+    return this.backup.fileLinks(user.id, vehicleId, page);
   }
 
   @Post("restore/preview")

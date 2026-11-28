@@ -1,9 +1,11 @@
 import {
   type CreateReminderValues,
   istToday,
+  nextReminderDate,
   pageMeta,
   type Reminder,
   type ReminderListQuery,
+  ReminderRepeat,
   reminderState,
   type UpdateReminderValues,
 } from "@automate/shared";
@@ -26,6 +28,7 @@ function toReminder(row: ReminderRow, today: string): Reminder {
     title: row.title,
     dueDate,
     remindDaysBefore: row.remindDaysBefore,
+    repeat: row.repeat,
     notes: row.notes,
     doneAt,
     state: reminderState({ dueDate, remindDaysBefore: row.remindDaysBefore, doneAt }, today),
@@ -106,13 +109,23 @@ export class RemindersService {
     return toReminder(row, istToday(new Date()));
   }
 
+  /** Done on a repeating reminder moves it to its next date (missed ones skipped) instead. */
   async setDone(userId: string, id: string, done: boolean): Promise<Reminder> {
-    await this.owned(userId, id);
+    const current = await this.owned(userId, id);
+    const today = istToday(new Date());
+    const repeats = done && current.repeat !== ReminderRepeat.NONE;
     const row = await this.prisma.reminder.update({
       where: { id },
-      data: { doneAt: done ? new Date() : null },
+      data: repeats
+        ? {
+            dueDate: toDbDate(
+              nextReminderDate(current.dueDate.toISOString().slice(0, 10), current.repeat, today),
+            ),
+            doneAt: null,
+          }
+        : { doneAt: done ? new Date() : null },
     });
-    return toReminder(row, istToday(new Date()));
+    return toReminder(row, today);
   }
 
   async remove(userId: string, id: string): Promise<void> {

@@ -2,6 +2,7 @@ import {
   createReminderSchema,
   type CreateReminderValues,
   type Reminder,
+  ReminderRepeat,
   type Vehicle,
 } from "@automate/shared";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -33,7 +34,7 @@ import {
 import { Spinner } from "@/components/ui/spinner";
 import { Textarea } from "@/components/ui/textarea";
 import { vehicleName } from "@/features/garage/constants";
-import { LEAD_OPTIONS } from "@/features/notifications/constants";
+import { LEAD_OPTIONS, REPEAT_LABELS } from "@/features/notifications/constants";
 import { useSaveReminder } from "@/features/notifications/hooks/use-notifications";
 import { applyServerErrors } from "@/lib/forms";
 
@@ -42,6 +43,7 @@ const NO_VEHICLE = "none";
 
 type ReminderForm = {
   title: string;
+  repeat: ReminderRepeat;
   dueDate: string;
   remindDaysBefore: string;
   vehicleId: string;
@@ -86,6 +88,7 @@ export function ReminderDialog({
     >,
     defaultValues: {
       title: editing?.title ?? "",
+      repeat: editing?.repeat ?? ReminderRepeat.NONE,
       dueDate: editing?.dueDate ?? "",
       remindDaysBefore: String(lead),
       vehicleId: editing?.vehicleId ?? vehicleId ?? NO_VEHICLE,
@@ -168,6 +171,30 @@ export function ReminderDialog({
               )}
             />
           </div>
+          <FormField
+            control={control}
+            name="repeat"
+            label="Repeat"
+            render={(field) => (
+              <Select value={field.value} onValueChange={field.onChange}>
+                <SelectTrigger
+                  ref={field.ref}
+                  id={field.id}
+                  aria-invalid={field["aria-invalid"]}
+                  className="w-full data-[size=default]:h-10"
+                >
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {Object.entries(REPEAT_LABELS).map(([value, label]) => (
+                    <SelectItem key={value} value={value}>
+                      {label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
+          />
           <FormField
             control={control}
             name="vehicleId"

@@ -39,6 +39,7 @@ import type {
 } from "@automate/shared";
 
 import { request, requestAllPages, requestPage } from "@/lib/api-client";
+import { shrinkImage } from "@/utils/image";
 
 export type TripListParams = Partial<TripListQuery>;
 export type TripCostListParams = Partial<TripCostListQuery>;
@@ -123,7 +124,9 @@ export const tripsService = {
   removeAttachment: (tripId: string, id: string) =>
     request<void>({ method: "DELETE", url: `/trips/${tripId}/attachments/${id}` }),
   /** Announce, PUT straight to storage (no API credentials go there), confirm. */
-  async uploadAttachment(tripId: string, file: File, costId?: string): Promise<TripAttachment> {
+  async uploadAttachment(tripId: string, original: File, costId?: string): Promise<TripAttachment> {
+    // Big photos are downscaled first, as for documents (PDFs and HEIC go as they are).
+    const file = await shrinkImage(original);
     const announced: CreateTripUploadValues = {
       fileName: file.name,
       contentType: file.type as CreateTripUploadValues["contentType"],

@@ -1,4 +1,4 @@
-import { act, screen, within } from "@testing-library/react";
+import { act, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { InternalAxiosRequestConfig } from "axios";
 import { beforeEach, describe, expect, it } from "vitest";
@@ -93,5 +93,57 @@ describe("phone header", () => {
       "Dark",
       "System",
     ]);
+  });
+});
+
+describe("app-wide search", () => {
+  it("finds records from the header and opens the one chosen", async () => {
+    const calls = api({
+      "GET /vehicles": () => okPage([victoris]),
+      "GET /search": () =>
+        okPage([
+          {
+            kind: "vehicle",
+            id: victoris.id,
+            title: "Maruti Suzuki Victoris LXI",
+            subtitle: "HR26EV4821",
+            href: `/garage/${victoris.id}`,
+          },
+          {
+            kind: "expense",
+            id: "0190d4a2-0000-7000-8000-0000000e0009",
+            title: "Victoris ceramic coating",
+            subtitle: "₹18,000.00 · 27 Nov 2026",
+            href: "/expenses/transactions/0190d4a2-0000-7000-8000-0000000e0009",
+          },
+        ]),
+    });
+    const router = renderApp("/dashboard");
+    const user = userEvent.setup();
+
+    await user.click((await screen.findAllByRole("button", { name: /Search records/ }))[0]!);
+    const dialog = within(await screen.findByRole("dialog", { name: "Search records" }));
+    expect(dialog.getByText("Quick actions")).toBeInTheDocument();
+    await user.type(dialog.getByRole("combobox", { name: "Search records" }), "vic");
+
+    expect(await dialog.findByText("Victoris ceramic coating")).toBeInTheDocument();
+    expect(dialog.getByText("Vehicles")).toBeInTheDocument();
+    expect(dialog.getByText("Expenses")).toBeInTheDocument();
+    expect(calls.find((call) => call.url === "/search")?.params).toMatchObject({ q: "vic" });
+
+    await user.click(dialog.getByText("Victoris ceramic coating"));
+    await waitFor(() =>
+      expect(router.state.location.pathname).toBe(
+        "/expenses/transactions/0190d4a2-0000-7000-8000-0000000e0009",
+      ),
+    );
+  });
+
+  it("opens with Ctrl K", async () => {
+    renderApp("/dashboard");
+    const user = userEvent.setup();
+    await screen.findByRole("banner");
+    await user.keyboard("{Control>}k{/Control}");
+    expect(await screen.findByRole("dialog", { name: "Search records" })).toBeInTheDocument();
   });
 });

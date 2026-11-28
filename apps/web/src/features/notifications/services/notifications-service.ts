@@ -4,6 +4,8 @@ import type {
   NotificationItem,
   NotificationListQuery,
   NotificationSummary,
+  PushConfig,
+  PushSubscriptionValues,
   Reminder,
   ReminderListQuery,
   UpdateReminderValues,
@@ -34,6 +36,12 @@ export const notificationsService = {
       url: "/notifications/read-all",
       data: category ? { category } : {},
     }),
+
+  pushConfig: () => request<PushConfig>({ url: "/notifications/push/config" }),
+  subscribePush: (subscription: PushSubscriptionValues) =>
+    request<void>({ method: "POST", url: "/notifications/push/subscriptions", data: subscription }),
+  unsubscribePush: (endpoint: string) =>
+    request<void>({ method: "POST", url: "/notifications/push/unsubscribe", data: { endpoint } }),
 
   reminders: (params: ReminderListParams) => requestPage<Reminder>({ url: "/reminders", params }),
   createReminder: (values: CreateReminderValues) =>

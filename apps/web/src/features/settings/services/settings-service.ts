@@ -12,13 +12,15 @@ import type {
 } from "@automate/shared";
 
 import { request, requestPage } from "@/lib/api-client";
+import { shrinkImage } from "@/utils/image";
 
 /** Settings (M11): profile, photo, preferences, password, devices, the account. */
 export const settingsService = {
   updateProfile: (values: UpdateProfileValues) =>
     request<UserProfile>({ method: "PATCH", url: "/users/me", data: values }),
   /** Announce, PUT straight to storage, confirm: the new profile. */
-  async uploadAvatar(file: File): Promise<UserProfile> {
+  async uploadAvatar(original: File): Promise<UserProfile> {
+    const file = await shrinkImage(original);
     const announced: CreateAvatarUploadValues = {
       contentType: file.type as CreateAvatarUploadValues["contentType"],
       size: file.size,

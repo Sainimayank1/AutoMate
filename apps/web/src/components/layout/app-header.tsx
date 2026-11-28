@@ -4,6 +4,7 @@ import { Link } from "react-router";
 
 import { Breadcrumbs } from "@/components/common/breadcrumbs";
 import { QuickAddMenu } from "@/components/layout/quick-add";
+import { SearchCommand } from "@/components/layout/search-command";
 import { ThemeToggle } from "@/components/layout/theme-toggle";
 import { UserMenu } from "@/components/layout/user-menu";
 import { HeaderVehicleSelector } from "@/components/layout/vehicle-selector";
@@ -50,6 +51,7 @@ export function AppHeader() {
       </div>
 
       <div className="ml-auto flex items-center gap-1">
+        <SearchCommand />
         <QuickAddMenu />
         <NotificationBell />
         <ThemeToggle className="hidden md:inline-flex" />
