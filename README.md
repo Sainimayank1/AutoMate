@@ -313,7 +313,7 @@ An AI assistant module was considered and dropped. Ideas and requests are welcom
 
 ## Contributing
 
-Contributions are welcome: bug reports, fixes, features, documentation and tests. Read
+Notable changes are listed in the [changelog](CHANGELOG.md). Contributions are welcome: bug reports, fixes, features, documentation and tests. Read
 [CONTRIBUTING.md](CONTRIBUTING.md) for the setup, coding standards, commit style and pull request
 checklist, and follow the [Code of Conduct](CODE_OF_CONDUCT.md).
 

@@ -138,6 +138,9 @@ run `pnpm test:e2e:web`. Locally they use your installed Google Chrome.
    issue, and add screenshots for UI changes (desktop and phone width).
 5. Respond to review feedback. A maintainer merges once the checks pass and the review is approved.
 
+If your change affects people running AutoMate, add a line to [CHANGELOG.md](CHANGELOG.md) under
+`Unreleased`.
+
 Keep pull requests focused: one fix or feature each. Large changes are much easier to review when
 split into smaller steps.
 

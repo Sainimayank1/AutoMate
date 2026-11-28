@@ -1,0 +1,74 @@
+name: Bug report
+description: Something doesn't work as it should.
+title: "[Bug]: "
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting a bug. Please search [existing issues](https://github.com/Sainimayank1/AutoMate/issues) first.
+        **Security problems go through [SECURITY.md](https://github.com/Sainimayank1/AutoMate/blob/main/SECURITY.md), not here.**
+  - type: textarea
+    id: summary
+    attributes:
+      label: What happened?
+      description: A short description of the bug.
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. Go to Fuel
+        2. Add a fill-up with ...
+        3. See ...
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: What did you expect?
+    validations:
+      required: true
+  - type: textarea
+    id: screenshots
+    attributes:
+      label: Screenshots
+      description: Drag images here if they help. Hide any personal data first.
+  - type: dropdown
+    id: setup
+    attributes:
+      label: Where are you running AutoMate?
+      options:
+        - Local development (pnpm dev)
+        - Self-hosted with Docker
+        - Managed hosting (Render, Pages, Neon, R2)
+        - Other
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Version or commit
+      placeholder: e.g. v0.1.0 or the output of git rev-parse --short HEAD
+  - type: input
+    id: environment
+    attributes:
+      label: Browser and operating system
+      placeholder: e.g. Chrome 140 on Android 15
+  - type: textarea
+    id: logs
+    attributes:
+      label: Relevant logs
+      description: Browser console or API logs. Remove tokens, passwords and personal data.
+      render: shell
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Before submitting
+      options:
+        - label: I searched the existing issues.
+          required: true
+        - label: I removed secrets and personal data from everything above.
+          required: true

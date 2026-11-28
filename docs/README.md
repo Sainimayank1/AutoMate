@@ -17,6 +17,12 @@ Start with the [project README](../README.md). This folder holds everything deep
 - [Product spec](MODULES.md): what each module does, and the rules that cross modules.
 - [Tech stack](TECH_STACK.md): packages, folder layout and infrastructure choices.
 
+## Maintaining
+
+- [Open-source maintainer guide](OPEN_SOURCE_MAINTAINER_GUIDE.md): repository settings, branch protection, security features.
+- [Releasing](RELEASING.md): versioning, the changelog, tags and GitHub Releases.
+- [Changelog](../CHANGELOG.md).
+
 ## Architecture
 
 How the code is organised and why:

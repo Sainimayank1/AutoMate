@@ -5,9 +5,7 @@
 #   runtime (default)  the API, as a non-root user, with production dependencies only
 #   migrate            one-off job: applies Prisma migrations and the reference data, then exits
 
-ARG NODE_VERSION=24
-
-FROM node:${NODE_VERSION}-bookworm-slim AS base
+FROM node:24-bookworm-slim AS base
 # HUSKY=0: no Git hooks in the image. CI=true: pnpm never prompts.
 ENV HUSKY=0 CI=true
 # OpenSSL: the Prisma CLI's migration engine needs it to pick the right build.
@@ -44,7 +42,7 @@ FROM base AS prod-deps
 RUN pnpm install --frozen-lockfile --prod --filter "@automate/api..."
 
 # ---- runtime
-FROM node:${NODE_VERSION}-bookworm-slim AS runtime
+FROM node:24-bookworm-slim AS runtime
 ENV NODE_ENV=production \
     PORT=3000 \
     STORAGE_LOCAL_DIR=/data/storage

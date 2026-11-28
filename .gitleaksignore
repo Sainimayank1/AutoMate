@@ -1,0 +1,6 @@
+# Reviewed false positives (gitleaks fingerprints). Add an entry only after checking the finding
+# is not a real secret, with a comment saying why.
+
+# A Web Push subscription's example "auth" value used as test data, not a credential.
+641e074d0afefa833c14933b7cdcd444ffd0ae4d:apps/api/test/push.e2e-spec.ts:generic-api-key:94
+apps/api/test/push.e2e-spec.ts:generic-api-key:94

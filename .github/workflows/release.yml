@@ -1,0 +1,24 @@
+# Creates a GitHub Release when a version tag is pushed (git tag v1.2.3 && git push origin v1.2.3).
+# Notes are generated from the merged pull requests; add the CHANGELOG highlights by hand.
+# See docs/RELEASING.md.
+name: Release
+
+on:
+  push:
+    tags: ["v*.*.*"]
+
+permissions:
+  contents: read
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - name: Create the release
+        run: gh release create "$GITHUB_REF_NAME" --title "AutoMate $GITHUB_REF_NAME" --generate-notes --verify-tag
+        env:
+          GH_TOKEN: ${{ github.token }}

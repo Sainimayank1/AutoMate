@@ -3,9 +3,7 @@
 # Build from the repository root:
 #   docker build -f apps/web/Dockerfile -t automate-web .
 
-ARG NODE_VERSION=24
-
-FROM node:${NODE_VERSION}-bookworm-slim AS build
+FROM node:24-bookworm-slim AS build
 ENV HUSKY=0 CI=true
 RUN corepack enable
 WORKDIR /app

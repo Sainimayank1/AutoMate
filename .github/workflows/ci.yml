@@ -37,12 +37,12 @@ jobs:
       DATABASE_URL: postgresql://postgres:postgres@localhost:5432/automate_test
       NODE_ENV: test
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
 
       # Version from package.json "packageManager".
-      - uses: pnpm/action-setup@v4
+      - uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320 # v4.4.0
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
           node-version: 24
           cache: pnpm
@@ -103,9 +103,9 @@ jobs:
       VITE_API_BASE_URL: http://localhost:3000/api/v1
       E2E_BASE_URL: http://localhost:4173
     steps:
-      - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320 # v4.4.0
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
           node-version: 24
           cache: pnpm
@@ -129,8 +129,39 @@ jobs:
       - name: Server logs
         if: failure()
         run: tail -n 100 api.log web.log
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         if: failure()
         with:
           name: playwright-report
           path: apps/web/playwright-report
+
+  # The production Docker stack builds, migrates and serves (docs/deployment/self-hosting.md).
+  docker:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - name: Throwaway settings for this run
+        run: |
+          umask 077
+          {
+            echo "POSTGRES_PASSWORD=$(openssl rand -hex 32)"
+            echo "JWT_ACCESS_SECRET=$(openssl rand -hex 32)"
+          } > .env
+      - name: Build and start the stack
+        run: docker compose -f docker-compose.prod.yml up -d --build
+      - name: Wait for the API through Caddy
+        run: |
+          for _ in $(seq 1 60); do
+            curl -fsS http://localhost/api/v1/health && exit 0
+            sleep 2
+          done
+          exit 1
+      - name: Serve the web app
+        run: curl -fsS http://localhost/garage | grep -q "<title>AutoMate</title>"
+      - name: Logs
+        if: failure()
+        run: docker compose -f docker-compose.prod.yml logs --tail 100
+      - name: Stop
+        if: always()
+        run: docker compose -f docker-compose.prod.yml down -v
