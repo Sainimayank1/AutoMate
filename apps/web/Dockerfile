@@ -21,6 +21,6 @@ ARG VITE_MAP_TILE_URL=
 ENV VITE_API_BASE_URL=${VITE_API_BASE_URL} VITE_MAP_TILE_URL=${VITE_MAP_TILE_URL}
 RUN pnpm --filter @automate/shared build && pnpm --filter @automate/web build
 
-FROM caddy:2.10-alpine AS runtime
+FROM caddy:2.11-alpine AS runtime
 COPY deploy/Caddyfile /etc/caddy/Caddyfile
 COPY --from=build /app/apps/web/dist /srv
