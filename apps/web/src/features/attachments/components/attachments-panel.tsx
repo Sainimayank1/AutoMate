@@ -32,6 +32,8 @@ export type AttachmentItem = {
   contentType: string;
   size: number;
   createdAt: string;
+  /** The API keeps a small preview (`onPreview` links it). */
+  thumbnail?: boolean;
   /** e.g. "Receipt for Toll · ₹320". */
   note?: string | null;
 };
@@ -55,6 +57,7 @@ export function AttachmentsPanel({
   error,
   onUpload,
   onOpen,
+  onPreview = onOpen,
   onRemove,
 }: {
   title: string;
@@ -66,6 +69,8 @@ export function AttachmentsPanel({
   onUpload: (file: File) => Promise<unknown>;
   /** A short-lived link to the file. */
   onOpen: (item: AttachmentItem) => Promise<string>;
+  /** A short-lived link to draw the tile with (a small preview when there is one). */
+  onPreview?: (item: AttachmentItem) => Promise<string>;
   onRemove: (item: AttachmentItem) => Promise<unknown>;
 }) {
   const inputId = useId();
@@ -162,7 +167,13 @@ export function AttachmentsPanel({
               <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
                 {photos.map((item) => (
                   <div key={item.id} role="listitem">
-                    <Tile item={item} readOnly={readOnly} onOpen={onOpen} onRemove={setRemoving} />
+                    <Tile
+                      item={item}
+                      readOnly={readOnly}
+                      onOpen={onOpen}
+                      onPreview={onPreview}
+                      onRemove={setRemoving}
+                    />
                   </div>
                 ))}
               </div>
@@ -231,11 +242,13 @@ function Tile({
   item,
   readOnly,
   onOpen,
+  onPreview,
   onRemove,
 }: {
   item: AttachmentItem;
   readOnly: boolean;
   onOpen: (item: AttachmentItem) => Promise<string>;
+  onPreview: (item: AttachmentItem) => Promise<string>;
   onRemove: (item: AttachmentItem) => void;
 }) {
   const image = previewable(item.contentType);
@@ -243,7 +256,7 @@ function Tile({
   // A thumbnail needs a link; links last a few minutes, so they're reused for less.
   const preview = useQuery({
     queryKey: ["attachment-link", item.id],
-    queryFn: () => onOpen(item),
+    queryFn: () => onPreview(item),
     enabled: image,
     staleTime: LINK_STALE_MS,
   });

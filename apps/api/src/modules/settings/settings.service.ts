@@ -3,6 +3,7 @@ import { randomUUID } from "node:crypto";
 import {
   type ChangePasswordValues,
   type CreateAvatarUploadValues,
+  DEFAULT_REMINDER_TIMING,
   type DeleteAccountValues,
   type NotificationPreferences,
   pageMeta,
@@ -163,6 +164,12 @@ export class SettingsService {
       notifyTrips: notifications.trips,
       notifyFuel: notifications.fuel,
       notifyMonthlySummary: notifications.monthlySummary,
+      documentReminderDays: values.reminderTiming?.documentDays
+        ? [...new Set(values.reminderTiming.documentDays)].sort((a, b) => b - a)
+        : undefined,
+      serviceLeadDays: values.reminderTiming?.serviceLeadDays,
+      serviceLeadKm: values.reminderTiming?.serviceLeadKm,
+      paymentReminderDays: values.reminderTiming?.paymentDays,
       ...(values.quietHours !== undefined && {
         quietStart: values.quietHours?.start ?? null,
         quietEnd: values.quietHours?.end ?? null,
@@ -293,5 +300,13 @@ function toPreferences(row: UserPreference | null): UserPreferences {
     regional: REGIONAL_FORMAT,
     quietHours:
       row?.quietStart && row.quietEnd ? { start: row.quietStart, end: row.quietEnd } : null,
+    reminderTiming: row
+      ? {
+          documentDays: row.documentReminderDays,
+          serviceLeadDays: row.serviceLeadDays,
+          serviceLeadKm: row.serviceLeadKm,
+          paymentDays: row.paymentReminderDays,
+        }
+      : DEFAULT_REMINDER_TIMING,
   };
 }

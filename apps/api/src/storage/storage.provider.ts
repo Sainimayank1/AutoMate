@@ -21,6 +21,12 @@ export interface StorageProvider {
   /** The object's first bytes, to check its real type. */
   head(key: string, bytes: number): Promise<Uint8Array>;
 
+  /** The whole object (server-side work such as thumbnails; files are capped at 10 MB). */
+  get(key: string): Promise<Uint8Array>;
+
+  /** Stores bytes the API made itself (a thumbnail). */
+  put(key: string, bytes: Uint8Array, contentType: string): Promise<void>;
+
   delete(key: string): Promise<void>;
 }
 

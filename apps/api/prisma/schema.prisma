@@ -48,6 +48,7 @@ model User {
   tripAttachments      TripAttachment[]
   attachments          Attachment[]
   pushSubscriptions    PushSubscription[]
+  transfersSent        VehicleTransfer[]
 
   @@map("users")
 }
@@ -73,6 +74,11 @@ model UserPreference {
   /// "22:00" to "07:00" (India time): no pushes in between; they wait until it ends.
   quietStart           String?         @map("quiet_start") @db.VarChar(5)
   quietEnd             String?         @map("quiet_end") @db.VarChar(5)
+  /// Reminder timing defaults: new documents, schedules without their own lead, new payments.
+  documentReminderDays Int[]           @default([30, 7, 1]) @map("document_reminder_days")
+  serviceLeadDays      Int             @default(30) @map("service_lead_days")
+  serviceLeadKm        Int             @default(1000) @map("service_lead_km")
+  paymentReminderDays  Int             @default(3) @map("payment_reminder_days")
   /// Dashboard action-centre items the user dismissed ("<vehicleId>:<itemId>"); information only.
   dashboardDismissed   String[]        @default([]) @map("dashboard_dismissed")
   createdAt            DateTime        @default(now()) @map("created_at") @db.Timestamptz(3)
@@ -186,6 +192,7 @@ model Vehicle {
   preferredBy          UserPreference[]
   notifications        Notification[]
   reminders            Reminder[]
+  transfers            VehicleTransfer[]
   maintenanceSchedules MaintenanceSchedule[]
   serviceRecords       ServiceRecord[]
   components           VehicleComponent[]
@@ -501,6 +508,8 @@ model DocumentFile {
   fileName    String    @map("file_name")
   contentType String    @map("content_type")
   size        Int
+  /// A small WebP preview of an image (made on confirm); null for PDFs and HEIC.
+  thumbKey    String?   @map("thumb_key")
   /// Set once the upload is checked (it exists, its size and real type match).
   confirmedAt DateTime? @map("confirmed_at") @db.Timestamptz(3)
   createdAt   DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
@@ -627,6 +636,8 @@ model MaintenanceSchedule {
   priority         MaintenancePriority @default(NORMAL)
   /// The tracked part it watches; cleared if the part is deleted.
   componentId      String?             @map("component_id") @db.Uuid
+  /// A planned job's estimate; never counted as spend.
+  estimatedCost    Decimal?            @map("estimated_cost") @db.Decimal(12, 2)
   notes            String?
   pausedAt         DateTime?           @map("paused_at") @db.Timestamptz(3)
   createdAt        DateTime            @default(now()) @map("created_at") @db.Timestamptz(3)
@@ -1183,6 +1194,8 @@ model Attachment {
   fileName        String    @map("file_name")
   contentType     String    @map("content_type")
   size            Int
+  /// A small WebP preview of an image (made on confirm); null for PDFs and HEIC.
+  thumbKey        String?   @map("thumb_key")
   /// Set once the upload is checked (it exists, its size and real type match).
   confirmedAt     DateTime? @map("confirmed_at") @db.Timestamptz(3)
   createdAt       DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
@@ -1233,4 +1246,36 @@ model PushSubscription {
 
   @@index([userId])
   @@map("push_subscriptions")
+}
+
+enum TransferStatus {
+  PENDING
+  ACCEPTED
+  DECLINED
+  CANCELLED
+}
+
+/// Moving a vehicle with everything recorded for it to another account (accepted by its owner).
+model VehicleTransfer {
+  id                 String         @id @default(uuid(7)) @db.Uuid
+  fromUserId         String         @map("from_user_id") @db.Uuid
+  /// Null once the vehicle has moved (it no longer exists in the sender's account).
+  vehicleId          String?        @map("vehicle_id") @db.Uuid
+  /// Shown to both sides even after the move.
+  vehicleName        String         @map("vehicle_name")
+  registrationNumber String         @map("registration_number")
+  /// Lower-cased; matched to the recipient's account email.
+  toEmail            String         @map("to_email")
+  toUserId           String?        @map("to_user_id") @db.Uuid
+  status             TransferStatus @default(PENDING)
+  expiresAt          DateTime       @map("expires_at") @db.Timestamptz(3)
+  decidedAt          DateTime?      @map("decided_at") @db.Timestamptz(3)
+  createdAt          DateTime       @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  fromUser User     @relation(fields: [fromUserId], references: [id], onDelete: Cascade)
+  vehicle  Vehicle? @relation(fields: [vehicleId], references: [id], onDelete: SetNull)
+
+  @@index([toEmail, status])
+  @@index([fromUserId, status])
+  @@map("vehicle_transfers")
 }

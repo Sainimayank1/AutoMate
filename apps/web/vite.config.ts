@@ -16,6 +16,8 @@ export default defineConfig({
   },
   test: {
     environment: "jsdom",
+    // e2e/ holds the Playwright browser tests.
+    include: ["src/**/*.{test,spec}.{ts,tsx}"],
     setupFiles: ["./src/test/setup.ts"],
     // Above the 6 s async wait in setup.ts, so a slow first render can still finish.
     testTimeout: 15_000,

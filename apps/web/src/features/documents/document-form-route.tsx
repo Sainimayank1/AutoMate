@@ -13,7 +13,7 @@ import {
 import { zodResolver } from "@hookform/resolvers/zod";
 import { format, parseISO } from "date-fns";
 import { Camera, CloudUpload, FileText, Trash2 } from "lucide-react";
-import { useId, useRef, useState } from "react";
+import { useId, useMemo, useRef, useState } from "react";
 import { type Control, type Resolver, useForm, useWatch } from "react-hook-form";
 import { useNavigate, useParams, useSearchParams } from "react-router";
 import { z } from "zod";
@@ -46,6 +46,7 @@ import {
   useUploadFile,
 } from "@/features/documents/hooks/use-documents";
 import { vehicleName } from "@/features/garage/constants";
+import { usePreferences } from "@/features/settings/hooks/use-settings";
 import { useActiveVehicle } from "@/hooks/use-active-vehicle";
 import { normalizeApiError } from "@/lib/api-error";
 import { applyServerErrors } from "@/lib/forms";
@@ -64,11 +65,12 @@ type DocumentForm = {
   remindOn: string;
 };
 type Values = Omit<CreateDocumentValues, "fileIds">;
-/** The checkbox stands for the default reminders (30, 7 and 1 days before) or none. */
-const formSchema = z.preprocess((value) => {
-  const { reminders, ...rest } = value as DocumentForm;
-  return { ...rest, reminderDays: reminders ? [...DEFAULT_REMINDER_DAYS] : [] };
-}, createDocumentSchema) as unknown as z.ZodType<Values, DocumentForm>;
+/** The checkbox stands for the user's default reminders (Settings; 30, 7 and 1 days before) or none. */
+const formSchemaFor = (days: readonly number[]) =>
+  z.preprocess((value) => {
+    const { reminders, ...rest } = value as DocumentForm;
+    return { ...rest, reminderDays: reminders ? [...days] : [] };
+  }, createDocumentSchema) as unknown as z.ZodType<Values, DocumentForm>;
 
 type Upload = { key: string; name: string; size: number; file?: DocumentFile; error?: string };
 const ACCEPT = DOCUMENT_FILE_TYPES.join(",");
@@ -158,6 +160,8 @@ function DocumentFormPage({
         })),
   );
   const [dragging, setDragging] = useState(false);
+  const reminderDays = usePreferences().data?.reminderTiming.documentDays ?? DEFAULT_REMINDER_DAYS;
+  const formSchema = useMemo(() => formSchemaFor(reminderDays), [reminderDays]);
   const form = useForm<DocumentForm, unknown, Values>({
     resolver: zodResolver(formSchema) as unknown as Resolver<DocumentForm, unknown, Values>,
     defaultValues: defaults,

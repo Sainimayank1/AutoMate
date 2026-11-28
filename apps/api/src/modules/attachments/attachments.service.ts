@@ -7,6 +7,7 @@ import {
   type CreateAttachmentUploadValues,
   type DocumentFileType,
   type FileLink,
+  type FileLinkQuery,
   MAX_ATTACHMENTS,
   MAX_DOCUMENT_FILE_BYTES,
   pageMeta,
@@ -20,6 +21,7 @@ import type { Attachment as AttachmentRow, Prisma } from "@/generated/prisma/cli
 import { SIGNATURE_BYTES, sniffType } from "@/storage/file-signature";
 import { STORAGE_PROVIDER, type StorageProvider } from "@/storage/storage.provider";
 import { StorageSweepService } from "@/storage/storage-sweep.service";
+import { ThumbnailService } from "@/storage/thumbnail.service";
 
 const UPLOAD_SECONDS = 10 * 60;
 const LINK_SECONDS = 5 * 60;
@@ -38,6 +40,7 @@ const toAttachment = (row: AttachmentRow): Attachment => ({
   fileName: row.fileName,
   contentType: row.contentType as DocumentFileType,
   size: row.size,
+  thumbnail: row.thumbKey !== null,
   createdAt: row.createdAt.toISOString(),
 });
 
@@ -55,6 +58,7 @@ export class AttachmentsService {
     private readonly prisma: PrismaService,
     @Inject(STORAGE_PROVIDER) private readonly storage: StorageProvider,
     private readonly sweep: StorageSweepService,
+    private readonly thumbs: ThumbnailService,
   ) {}
 
   /** A record's confirmed files, oldest first. */
@@ -131,22 +135,27 @@ export class AttachmentsService {
         ),
       );
     }
+    const thumbKey = await this.thumbs.make(userId, row.key, row.contentType);
     return toAttachment(
       await this.prisma.attachment.update({
         where: { id: row.id },
-        data: { confirmedAt: new Date() },
+        data: { confirmedAt: new Date(), thumbKey },
       }),
     );
   }
 
   /** A link to the file, valid for a few minutes. */
-  async link(userId: string, id: string): Promise<FileLink> {
+  async link(userId: string, id: string, size?: FileLinkQuery["size"]): Promise<FileLink> {
     const row = await this.prisma.attachment.findFirst({
       where: { id, userId, confirmedAt: { not: null } },
     });
     if (!row) throw new NotFoundException("File not found");
     return {
-      url: await this.storage.createDownloadUrl(row.key, LINK_SECONDS, row.fileName),
+      url: await this.storage.createDownloadUrl(
+        (size === "thumb" && row.thumbKey) || row.key,
+        LINK_SECONDS,
+        row.fileName,
+      ),
       expiresAt: new Date(Date.now() + LINK_SECONDS * 1000).toISOString(),
     };
   }
@@ -157,7 +166,7 @@ export class AttachmentsService {
     if (!row) throw new NotFoundException("File not found");
     await this.prisma.attachment.delete({ where: { id } });
     try {
-      await this.storage.delete(row.key);
+      for (const key of [row.key, row.thumbKey]) if (key) await this.storage.delete(key);
     } catch (error) {
       this.logger.warn({ err: error }, "Couldn't delete a stored file; the sweep will");
     }

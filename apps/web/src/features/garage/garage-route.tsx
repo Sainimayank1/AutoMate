@@ -10,6 +10,7 @@ import { VehicleImage } from "@/components/common/vehicle-image";
 import { EmptyState } from "@/components/feedback/empty-state";
 import { ErrorState } from "@/components/feedback/error-state";
 import { Button } from "@/components/ui/button";
+import { IncomingTransfers } from "@/features/garage/components/incoming-transfers";
 import { VehicleCard, VehicleCardSkeleton } from "@/features/garage/components/vehicle-card";
 import { FUEL_TYPE_LABELS, OWNERSHIP_LABELS } from "@/features/garage/constants";
 import { useRestoreVehicle, useVehicles } from "@/features/garage/hooks/use-vehicles";
@@ -73,6 +74,7 @@ export function Component() {
   return (
     <PageContainer>
       <PageHeader title="Your garage" description={description} actions={addVehicle} />
+      <IncomingTransfers />
 
       {isError && !data ? (
         <ErrorState

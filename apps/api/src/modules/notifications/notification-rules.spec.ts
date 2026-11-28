@@ -11,12 +11,14 @@ import { describe, expect, it } from "vitest";
 import { Prisma } from "@/generated/prisma/client";
 
 import {
+  actionOf,
   documentCandidates,
   maintenanceCandidates,
   mileageCandidate,
   paymentCandidates,
   reminderCandidates,
   summaryCandidate,
+  transferCandidates,
   tripCandidates,
 } from "./notification-rules";
 
@@ -36,6 +38,41 @@ const doc = (overrides: Partial<VehicleDocument>) =>
     remindOn: null,
     ...overrides,
   }) as VehicleDocument;
+
+describe("actionOf", () => {
+  it("offers a renewal for an expiring or expired document only", () => {
+    const href = "/documents/0190d4a2-0000-7000-8000-00000000d001";
+    expect(actionOf("document.expiring", href)).toEqual({
+      label: "Renew",
+      href: `${href}/edit?renew=1`,
+    });
+    expect(actionOf("document.expired", href)?.label).toBe("Renew");
+    expect(actionOf("maintenance.overdue", "/maintenance/schedules/x")).toBeNull();
+    expect(actionOf("document.expiring", "/elsewhere")).toBeNull();
+  });
+});
+
+describe("transferCandidates", () => {
+  it("raises one urgent notice per open transfer, never linked to the sender's vehicle", () => {
+    const [notice] = transferCandidates([
+      {
+        id: "t1",
+        vehicleName: "Maruti Suzuki Victoris LXI",
+        registrationNumber: "HR26EV4821",
+        expiresAt: new Date("2026-12-05T23:59:59.999Z"),
+        fromUser: { name: "Arjun Mehta" },
+      },
+    ]);
+    expect(notice).toMatchObject({
+      dedupeKey: "transfer:t1",
+      priority: "HIGH",
+      title: "Arjun Mehta wants to move Maruti Suzuki Victoris LXI to your garage",
+      href: "/garage?transfer=t1",
+      vehicleId: null,
+    });
+    expect(notice!.body).toContain("5 Dec 2026");
+  });
+});
 
 describe("documentCandidates", () => {
   it("raises the nearest reminder day reached, one notification per stage", () => {

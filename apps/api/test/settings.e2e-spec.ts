@@ -193,6 +193,53 @@ describe("Settings (e2e)", () => {
       .expect(404);
   });
 
+  it("keeps reminder timing per category and uses it where a schedule has no lead of its own", async () => {
+    const { token } = await account();
+    const defaults = dataOf<UserPreferences>(
+      await as(token).get("/api/v1/users/me/preferences").expect(200),
+    );
+    expect(defaults.reminderTiming).toEqual({
+      documentDays: [30, 7, 1],
+      serviceLeadDays: 30,
+      serviceLeadKm: 1000,
+      paymentDays: 3,
+    });
+    const changed = dataOf<UserPreferences>(
+      await as(token)
+        .patch("/api/v1/users/me/preferences", {
+          reminderTiming: { documentDays: [3, 15, 15], serviceLeadKm: 12_000 },
+        })
+        .expect(200),
+    );
+    // Deduped and latest first; untouched values stay.
+    expect(changed.reminderTiming).toEqual({
+      documentDays: [15, 3],
+      serviceLeadDays: 30,
+      serviceLeadKm: 12_000,
+      paymentDays: 3,
+    });
+    await as(token)
+      .patch("/api/v1/users/me/preferences", { reminderTiming: { documentDays: [] } })
+      .expect(400);
+
+    const car = await vehicle(token);
+    const schedule = (body: object) =>
+      as(token)
+        .post(`/api/v1/vehicles/${car.id}/maintenance-schedules`, {
+          id: randomUUID(),
+          categoryKey: "ENGINE.ENGINE_OIL",
+          name: "Engine oil & filter",
+          intervalKm: 10_000,
+          ...body,
+        })
+        .expect(201);
+    // 10,000 km away is inside the user's 12,000 km lead, unless the schedule sets its own.
+    expect(dataOf<{ due: { status: string } }>(await schedule({})).due.status).toBe("DUE_SOON");
+    expect(dataOf<{ due: { status: string } }>(await schedule({ leadKm: 500 })).due.status).toBe(
+      "UP_TO_DATE",
+    );
+  });
+
   it("lists signed-in devices, signs them out, and a new password signs the others out", async () => {
     const { token, phone } = await account();
     const list = await as(token).get("/api/v1/auth/sessions").expect(200);

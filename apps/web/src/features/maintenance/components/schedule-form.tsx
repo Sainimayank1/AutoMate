@@ -36,6 +36,7 @@ import { vehicleName } from "@/features/garage/constants";
 import { FormSection } from "@/features/maintenance/components/form-section";
 import { PRIORITY_LABELS } from "@/features/maintenance/constants";
 import { useComponents } from "@/features/maintenance/hooks/use-maintenance";
+import { usePreferences } from "@/features/settings/hooks/use-settings";
 import { normalizeApiError } from "@/lib/api-error";
 import { applyServerErrors } from "@/lib/forms";
 import { formatDate, formatDistance, formatNumber } from "@/utils/format";
@@ -149,6 +150,12 @@ function ScheduleFields({ vehicle }: { vehicle: Vehicle }) {
   const { control } = form;
   const { errors } = form.formState;
   const values = useWatch({ control });
+  const timing = usePreferences().data?.reminderTiming;
+  // Blank lead fields fall back to the user's default (Settings), then the app's.
+  const lead = {
+    days: timing?.serviceLeadDays ?? DEFAULT_REMINDER_LEAD.days,
+    km: timing?.serviceLeadKm ?? DEFAULT_REMINDER_LEAD.km,
+  };
   const repeats = values.kind === "REPEATS";
   const components = useComponents(vehicle.id, { pageSize: 100 }).data?.items ?? [];
 
@@ -357,6 +364,20 @@ function ScheduleFields({ vehicle }: { vehicle: Vehicle }) {
                 {kmField("dueKm", "Due odometer", "12,000")}
               </div>
               <p className="text-sm text-muted-foreground">Whichever comes first.</p>
+              <div className="grid gap-4 border-t pt-4 sm:grid-cols-2">
+                <FormField
+                  control={control}
+                  name="estimatedCost"
+                  label="Estimated cost"
+                  optional
+                  render={(field) => (
+                    <NumberInput {...field} prefix="₹" decimals={2} placeholder="24,000" />
+                  )}
+                />
+              </div>
+              <p className="text-sm text-muted-foreground">
+                For planning on the Planner; it's never counted as spend.
+              </p>
             </>
           )}
         </FormSection>
@@ -387,14 +408,10 @@ function ScheduleFields({ vehicle }: { vehicle: Vehicle }) {
               name="leadDays"
               label="Lead time"
               render={(field) => (
-                <NumberInput
-                  {...field}
-                  suffix="days"
-                  placeholder={String(DEFAULT_REMINDER_LEAD.days)}
-                />
+                <NumberInput {...field} suffix="days" placeholder={String(lead.days)} />
               )}
             />
-            {kmField("leadKm", "and", formatNumber(DEFAULT_REMINDER_LEAD.km))}
+            {kmField("leadKm", "and", formatNumber(lead.km))}
           </div>
           <p className="text-sm text-muted-foreground">
             It shows as due soon this early. Notifications arrive when the Notifications centre is
@@ -439,7 +456,7 @@ function ScheduleFields({ vehicle }: { vehicle: Vehicle }) {
           {repeats && <SummaryRow label="Counts from">{baseline}</SummaryRow>}
           <SummaryRow label="Reminders">
             {values.remindersEnabled
-              ? `${values.leadDays || DEFAULT_REMINDER_LEAD.days} days or ${values.leadKm || formatNumber(DEFAULT_REMINDER_LEAD.km)} km before`
+              ? `${values.leadDays || lead.days} days or ${values.leadKm || formatNumber(lead.km)} km before`
               : "Off"}
           </SummaryRow>
         </dl>

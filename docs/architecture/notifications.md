@@ -46,4 +46,6 @@ Tested in `test/notifications.e2e-spec.ts`, `test/push.e2e-spec.ts`, `vehicle-st
 
 ## 3. Not built
 
-Local notifications from a native app (there is none: Web Push covers phones, on iPhone from the home-screen app), email digests (no email provider), per-category lead times beyond each record's own (documents' reminder days, schedules' leads, payments' reminder windows), a details sheet (the card holds the whole message) and insurance or PUC renewal from the notification itself (it opens the document).
+Local notifications from a native app (there is none: Web Push covers phones, on iPhone from the home-screen app), and email digests (no email provider).
+
+**Since built:** per-category reminder timing (Settings → Reminder timing: documents' days before, payments' days before, service lead in days and km; defaults for new records, and the service lead applies where a schedule has none of its own), the details sheet (the card's title opens Stitch "Notification Details": the whole message, category, priority, vehicle, raised and last-shown times, read state, snooze, open, dismiss) incoming vehicle transfers (`transfer:` notices), and a next step on a notification: an expiring or expired document carries `action` ("Renew", opening its renewal in Documents, `?renew=1`), shown first on the card and in the details sheet (`actionOf` in `notification-rules.ts`). Reads that arrive together (the bell and the list) wait for the same sync instead of one skipping it.

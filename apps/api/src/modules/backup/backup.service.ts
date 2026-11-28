@@ -1,3 +1,5 @@
+import { randomUUID } from "node:crypto";
+
 import {
   type Backup,
   BACKUP_FORMAT,
@@ -26,6 +28,8 @@ import {
   type CreateExpenseValues,
   createFuelEntrySchema,
   type CreateFuelEntryValues,
+  createInspectionSchema,
+  type CreateInspectionValues,
   createRecurringExpenseSchema,
   type CreateRecurringExpenseValues,
   createRefundSchema,
@@ -40,12 +44,17 @@ import {
   type CreateVehicleValues,
   ExpenseKind,
   ExpenseSource,
+  loanRateChangeSchema,
+  type LoanRateChangeValues,
   pageMeta,
   type PaginationQuery,
+  RecurringStatus,
+  restoreBackupSchema,
   type RestoreBackupValues,
 } from "@automate/shared";
 import {
   BadRequestException,
+  ConflictException,
   HttpException,
   Inject,
   Injectable,
@@ -70,6 +79,7 @@ import { RecurringExpensesService } from "@/modules/expenses/recurring-expenses.
 import { VehicleLoansService } from "@/modules/expenses/vehicle-loans.service";
 import { FuelService } from "@/modules/fuel/fuel.service";
 import { ComponentsService } from "@/modules/maintenance/components.service";
+import { InspectionsService } from "@/modules/maintenance/inspections.service";
 import { toScheduleInput } from "@/modules/maintenance/maintenance.mapper";
 import { MaintenanceService } from "@/modules/maintenance/maintenance.service";
 import { RECORD_INCLUDE, toServiceRecordInput } from "@/modules/maintenance/service-record.mapper";
@@ -79,6 +89,7 @@ import { toVehicle } from "@/modules/vehicles/vehicles.mapper";
 import { VehiclesService } from "@/modules/vehicles/vehicles.service";
 import { SIGNATURE_BYTES, sniffType } from "@/storage/file-signature";
 import { STORAGE_PROVIDER, type StorageProvider } from "@/storage/storage.provider";
+import { ThumbnailService } from "@/storage/thumbnail.service";
 
 /** Manual entries: linked ones (Fuel, Maintenance, Trips) come back with their own records. */
 const BACKED_UP_SOURCES = [ExpenseSource.MANUAL, ExpenseSource.RECURRING, ExpenseSource.IMPORT];
@@ -133,12 +144,20 @@ interface VehiclePlan {
   expenses: PlannedExpense[];
   trips: { index: number; row: TripBackupRow }[];
   documents: WithFiles<Planned<CreateDocumentValues>>[];
-  components: (Planned<Omit<CreateComponentValues, "id">> & { backupId: string | null })[];
+  components: WithFiles<Planned<Omit<CreateComponentValues, "id">> & { backupId: string | null }>[];
+  /** Each item's part as its backup id (aligned with `values.items`). */
+  inspections: WithFiles<
+    Planned<Omit<CreateInspectionValues, "id">> & { componentBackupIds: (string | null)[] }
+  >[];
   schedules: (Planned<Omit<CreateScheduleValues, "id">> & { componentBackupId: string | null })[];
-  loans: (Planned<CreateVehicleLoanValues> & { backupId: string | null })[];
+  loans: (Planned<CreateVehicleLoanValues> & {
+    backupId: string | null;
+    rateChanges: LoanRateChangeValues[];
+  })[];
   recurring: (Planned<CreateRecurringExpenseValues> & {
     category: BackupCategoryRef;
     subcategory: BackupCategoryRef | null;
+    paused: boolean;
   })[];
   budgets: (Planned<CreateBudgetValues> & { category: BackupCategoryRef | null })[];
   /** Filled while restoring: where this vehicle's files go. */
@@ -152,6 +171,7 @@ const emptyCounts = (): BackupCounts => ({
   trips: 0,
   documents: 0,
   components: 0,
+  inspections: 0,
   schedules: 0,
   loans: 0,
   recurring: 0,
@@ -205,11 +225,13 @@ export class BackupService {
     private readonly trips: TripBackupService,
     private readonly documents: DocumentsService,
     private readonly components: ComponentsService,
+    private readonly inspections: InspectionsService,
     private readonly schedules: MaintenanceService,
     private readonly loans: VehicleLoansService,
     private readonly recurring: RecurringExpensesService,
     private readonly budgets: ExpenseBudgetsService,
     @Inject(STORAGE_PROVIDER) private readonly storage: StorageProvider,
+    private readonly thumbs: ThumbnailService,
   ) {}
 
   async export(userId: string, vehicleId?: string): Promise<Backup> {
@@ -230,6 +252,106 @@ export class BackupService {
     };
   }
 
+  /**
+   * Moves one vehicle with everything recorded against it to another account: the sender's
+   * export restored into the recipient through each module's create rules, its files copied in
+   * storage, then the sender's vehicle and its papers deleted. All or nothing: a row that
+   * wouldn't come across stops the move. Returns the recipient's new vehicle id.
+   */
+  async moveVehicle(fromUserId: string, toUserId: string, vehicleId: string): Promise<string> {
+    const backup = restoreBackupSchema.parse(
+      JSON.parse(JSON.stringify(await this.export(fromUserId, vehicleId))),
+    );
+    const plan = (await this.plan(toUserId, backup)).plans[0]!;
+    if (plan.outcome.status === "EXISTS") {
+      throw new ConflictException("A vehicle with this registration is already in your garage.");
+    }
+    // Checked through a copy: restoreVehicle changes the outcome afterwards.
+    const planned = plan.outcome.status;
+    if (planned !== "NEW" || plan.issues.length) {
+      throw new ConflictException(
+        `This vehicle can't be moved: ${plan.issues[0]?.message ?? "its details can't be read"}`,
+      );
+    }
+    await this.restoreVehicle(toUserId, plan);
+    const { status, vehicleId: newVehicleId } = plan.outcome;
+    if (status !== "RESTORED" || !newVehicleId) {
+      throw new ConflictException("Moving this vehicle failed, so nothing changed. Try again.");
+    }
+    const undo = async () => {
+      await this.prisma.document.deleteMany({
+        where: { userId: toUserId, vehicleId: newVehicleId },
+      });
+      await this.prisma.vehicle.deleteMany({ where: { id: newVehicleId, userId: toUserId } });
+    };
+    if (plan.issues.length) {
+      await undo();
+      throw new ConflictException(`This vehicle can't be moved: ${plan.issues[0]!.message}`);
+    }
+    try {
+      await this.copyFiles(fromUserId, toUserId, vehicleId, plan.files);
+    } catch (error) {
+      await undo();
+      throw error;
+    }
+    await this.prisma.$transaction([
+      this.prisma.document.deleteMany({ where: { userId: fromUserId, vehicleId } }),
+      this.prisma.vehicle.deleteMany({ where: { id: vehicleId, userId: fromUserId } }),
+    ]);
+    return newVehicleId;
+  }
+
+  /** Copies the sender's stored files to the recipient's restored records (already checked once). */
+  private async copyFiles(
+    fromUserId: string,
+    toUserId: string,
+    vehicleId: string,
+    targets: BackupFileTarget[],
+  ) {
+    if (!targets.length) return;
+    const sources = new Map(
+      (await this.storedFiles(fromUserId, vehicleId)).map((file) => [file.path, file.key]),
+    );
+    const owner = {
+      expense: "expenseId",
+      "service-record": "serviceRecordId",
+      component: "componentId",
+      inspection: "inspectionId",
+    } as const;
+    for (const target of targets) {
+      const source = sources.get(target.path);
+      if (!source || !target.id) continue;
+      // shortcut: an object copied just before a failed row create stays until cleaned by hand; rare.
+      const bytes = await this.storage.get(source);
+      const key = `users/${toUserId}/${randomUUID()}`;
+      await this.storage.put(key, bytes, target.contentType);
+      const file = {
+        userId: toUserId,
+        key,
+        fileName: target.fileName,
+        contentType: target.contentType,
+        size: bytes.length,
+        confirmedAt: new Date(),
+      };
+      if (target.kind === "trip") {
+        await this.prisma.tripAttachment.create({
+          data: { ...file, tripId: target.id, costId: target.costId ?? null },
+        });
+        continue;
+      }
+      const thumbKey = await this.thumbs.make(toUserId, key, target.contentType);
+      if (target.kind === "document") {
+        await this.prisma.documentFile.create({
+          data: { ...file, thumbKey, documentId: target.id },
+        });
+      } else if (target.kind !== "avatar") {
+        await this.prisma.attachment.create({
+          data: { ...file, thumbKey, [owner[target.kind]]: target.id },
+        });
+      }
+    }
+  }
+
   /** Short-lived links to every file the backup refers to, for the web to pack into a ZIP. */
   async fileLinks(userId: string, vehicleId: string | undefined, page: PaginationQuery) {
     const files = await this.storedFiles(userId, vehicleId);
@@ -246,7 +368,7 @@ export class BackupService {
   /** The stored objects behind the backup's file references, path to key. */
   private async storedFiles(userId: string, vehicleId?: string) {
     const ofVehicle = vehicleId ? { vehicleId } : {};
-    const [documentFiles, attachments, user] = await Promise.all([
+    const [documentFiles, attachments, tripFiles, user] = await Promise.all([
       this.prisma.documentFile.findMany({
         where: {
           userId,
@@ -260,13 +382,19 @@ export class BackupService {
           confirmedAt: { not: null },
           OR: [
             { expense: { source: { in: BACKED_UP_SOURCES }, ...ofVehicle } },
-            { serviceRecord: ofVehicle },
+            // `{}` on an optional relation matches nothing: "linked" must be said outright.
+            { serviceRecord: vehicleId ? { vehicleId } : { isNot: null } },
+            { component: { ...ofVehicle, removedAt: null } },
+            { inspection: vehicleId ? { vehicleId } : { isNot: null } },
           ],
         },
       }),
+      this.prisma.tripAttachment.findMany({
+        where: { userId, confirmedAt: { not: null }, trip: ofVehicle },
+      }),
       vehicleId ? null : this.prisma.user.findUnique({ where: { id: userId } }),
     ]);
-    const files = [...documentFiles, ...attachments].map((file) => ({
+    const files = [...documentFiles, ...attachments, ...tripFiles].map((file) => ({
       path: filePath(file.id, file.fileName),
       key: file.key,
       fileName: file.fileName,
@@ -361,6 +489,7 @@ export class BackupService {
       trips,
       documents,
       parts,
+      inspections,
       schedules,
       loans,
       recurring,
@@ -387,14 +516,26 @@ export class BackupService {
         include: { provider: { select: { name: true } } },
         orderBy: { createdAt: "asc" },
       }),
+      this.prisma.inspection.findMany({
+        where,
+        include: {
+          provider: { select: { name: true } },
+          items: { orderBy: { position: "asc" } },
+        },
+        orderBy: [{ date: "asc" }, { createdAt: "asc" }],
+      }),
       this.prisma.maintenanceSchedule.findMany({ where, orderBy: { createdAt: "asc" } }),
       this.prisma.vehicleLoan.findMany({
         where,
-        include: { recurring: true },
+        include: { recurring: true, rateChanges: { orderBy: { effectiveFrom: "asc" } } },
         orderBy: { createdAt: "asc" },
       }),
       this.prisma.recurringExpense.findMany({
-        where: { ...where, loanId: null, status: "ACTIVE" },
+        where: {
+          ...where,
+          loanId: null,
+          status: { in: [RecurringStatus.ACTIVE, RecurringStatus.PAUSED] },
+        },
         include: { category: true, subcategory: true },
         orderBy: { createdAt: "asc" },
       }),
@@ -411,11 +552,16 @@ export class BackupService {
         OR: [
           { expenseId: { in: expenses.map((expense) => expense.id) } },
           { serviceRecordId: { in: records.map((record) => record.id) } },
+          { componentId: { in: parts.map((part) => part.id) } },
+          { inspectionId: { in: inspections.map((inspection) => inspection.id) } },
         ],
       },
       orderBy: { createdAt: "asc" },
     });
-    const filesOf = (owner: "expenseId" | "serviceRecordId", id: string): BackupFileRef[] =>
+    const filesOf = (
+      owner: "expenseId" | "serviceRecordId" | "componentId" | "inspectionId",
+      id: string,
+    ): BackupFileRef[] =>
       attachments
         .filter((file) => file[owner] === id)
         .map((file) => ({
@@ -506,6 +652,28 @@ export class BackupService {
         warrantyUntil: day(part.warrantyUntil),
         warrantyKm: part.warrantyKm,
         notes: part.notes,
+        files: filesOf("componentId", part.id),
+      })),
+      // Follow-up schedule links aren't kept (a restored schedule is a new one).
+      inspections: inspections.map((inspection) => ({
+        kind: inspection.kind,
+        templateKey: inspection.templateKey,
+        title: inspection.title,
+        date: day(inspection.date),
+        odometerKm: inspection.odometerKm,
+        inspector: inspection.inspector,
+        providerName: inspection.provider?.name ?? null,
+        followUpDate: day(inspection.followUpDate),
+        notes: inspection.notes,
+        items: inspection.items.map((item) => ({
+          area: item.area,
+          label: item.label,
+          condition: item.condition,
+          notes: item.notes,
+          recommendedAction: item.recommendedAction,
+          componentBackupId: item.componentId,
+        })),
+        files: filesOf("inspectionId", inspection.id),
       })),
       schedules: schedules.map((schedule) => {
         const { componentId, ...input } = toScheduleInput(schedule);
@@ -523,6 +691,11 @@ export class BackupService {
         processingFee: loan.processingFee?.toFixed(2) ?? null,
         paymentMethod: loan.recurring?.paymentMethod ?? null,
         reminderDays: loan.recurring?.reminderDays ?? 3,
+        rateChanges: loan.rateChanges.map((change) => ({
+          effectiveFrom: day(change.effectiveFrom),
+          annualRate: change.annualRate.toFixed(2),
+          keepEmi: change.keepEmi,
+        })),
       })),
       recurring: recurring.map((schedule) => ({
         title: schedule.title,
@@ -537,6 +710,7 @@ export class BackupService {
         startDate: day(schedule.startDate),
         endDate: day(schedule.endDate),
         reminderDays: schedule.reminderDays,
+        paused: schedule.status === RecurringStatus.PAUSED,
       })),
       budgets: budgets.map((budget) => ({
         category: budget.category && this.ref(budget.category),
@@ -658,6 +832,7 @@ export class BackupService {
       trips: [],
       documents: [],
       components: [],
+      inspections: [],
       schedules: [],
       loans: [],
       recurring: [],
@@ -710,9 +885,34 @@ export class BackupService {
         createDocumentSchema.safeParse({ ...row, vehicleId: PLACEHOLDER_ID, fileIds: [] }),
       ),
     );
-    plan.components = this.validRows(entry.components, "components", issues, (row) =>
-      createComponentSchema.safeParse(row),
-    ).map((item) => ({ ...item, backupId: backupIdOf(entry.components[item.index]!) }));
+    plan.components = this.withFiles(
+      entry.components,
+      this.validRows(entry.components, "components", issues, (row) =>
+        createComponentSchema.safeParse(row),
+      ).map((item) => ({ ...item, backupId: backupIdOf(entry.components[item.index]!) })),
+    );
+    plan.inspections = this.withFiles(
+      entry.inspections,
+      this.validRows(entry.inspections, "inspections", issues, (row) =>
+        createInspectionSchema.safeParse({
+          ...row,
+          items: Array.isArray(row.items)
+            ? row.items.map((item: unknown) => ({ ...(item as object), componentId: null }))
+            : row.items,
+        }),
+      ).map((item) => {
+        const items = entry.inspections[item.index]!.items;
+        return {
+          ...item,
+          componentBackupIds: item.values.items.map((_, at) => {
+            const link: unknown = Array.isArray(items)
+              ? (items[at] as Record<string, unknown> | undefined)?.componentBackupId
+              : null;
+            return typeof link === "string" ? link : null;
+          }),
+        };
+      }),
+    );
     plan.schedules = this.validRows(entry.schedules, "schedules", issues, (row) =>
       createScheduleSchema.safeParse({ ...row, componentId: null }),
     ).map((item) => {
@@ -721,7 +921,20 @@ export class BackupService {
     });
     plan.loans = this.validRows(entry.loans, "loans", issues, (row) =>
       createVehicleLoanSchema.safeParse({ ...row, vehicleId: PLACEHOLDER_ID }),
-    ).map((item) => ({ ...item, backupId: backupIdOf(entry.loans[item.index]!) }));
+    ).map((item) => {
+      const changes = entry.loans[item.index]!.rateChanges;
+      const rateChanges = (Array.isArray(changes) ? changes : []).flatMap((change) => {
+        const parsed = loanRateChangeSchema.safeParse(change);
+        if (parsed.success) return [parsed.data];
+        issues.push({
+          section: "loans",
+          index: item.index,
+          message: `A rate change was left out: ${firstMessage(parsed.error)}`,
+        });
+        return [];
+      });
+      return { ...item, backupId: backupIdOf(entry.loans[item.index]!), rateChanges };
+    });
     plan.recurring = entry.recurring.flatMap((row, rowIndex) => {
       const category = categoryRefSchema.safeParse(row.category);
       const subcategory = categoryRefSchema.nullable().safeParse(row.subcategory ?? null);
@@ -745,6 +958,7 @@ export class BackupService {
           values: result.data,
           category: category.data,
           subcategory: subcategory.data,
+          paused: row.paused === true,
         },
       ];
     });
@@ -772,6 +986,7 @@ export class BackupService {
       trips: plan.trips.length,
       documents: plan.documents.length,
       components: plan.components.length,
+      inspections: plan.inspections.length,
       schedules: plan.schedules.length,
       loans: plan.loans.length,
       recurring: plan.recurring.length,
@@ -904,12 +1119,26 @@ export class BackupService {
     const documentIds: string[] = [];
     try {
       const partIds = new Map<string, string>();
-      for (const { index, values, backupId } of plan.components) {
+      for (const { index, values, backupId, files } of plan.components) {
         const ok = await this.attempt(issues, "components", index, async () => {
           const part = await this.components.create(userId, vehicleId, values);
           if (backupId) partIds.set(backupId, part.id);
+          plan.files.push(...this.targets(files, "component", part.id));
         });
         if (ok) counts.components += 1;
+      }
+      for (const { index, values, componentBackupIds, files } of plan.inspections) {
+        const ok = await this.attempt(issues, "inspections", index, async () => {
+          const inspection = await this.inspections.create(userId, vehicleId, {
+            ...values,
+            items: values.items.map((item, at) => {
+              const link = componentBackupIds[at];
+              return { ...item, componentId: (link && partIds.get(link)) || null };
+            }),
+          });
+          plan.files.push(...this.targets(files, "inspection", inspection.id));
+        });
+        if (ok) counts.inspections += 1;
       }
       const fillIds = new Map<string, string>();
       for (const { index, values, backupId } of plan.fuel) {
@@ -931,12 +1160,20 @@ export class BackupService {
       // Loans first: EMI payments link to them. Tracked from today, so EMIs already paid aren't
       // owed again (their payments come back as expenses below).
       const loanIds = new Map<string, string>();
-      for (const { index, values, backupId } of plan.loans) {
+      for (const { index, values, backupId, rateChanges } of plan.loans) {
+        let loanId: string | null = null;
         const ok = await this.attempt(issues, "loans", index, async () => {
-          const loan = await this.loans.create(userId, { ...values, vehicleId });
-          if (backupId) loanIds.set(backupId, loan.id);
+          loanId = (await this.loans.create(userId, { ...values, vehicleId })).id;
+          if (backupId) loanIds.set(backupId, loanId);
         });
-        if (ok) counts.loans += 1;
+        if (!ok || !loanId) continue;
+        counts.loans += 1;
+        // A refused change is reported; the loan stays.
+        for (const change of rateChanges) {
+          await this.attempt(issues, "loans", index, () =>
+            this.loans.addRateChange(userId, loanId!, change),
+          );
+        }
       }
       const categoryIds = new Map<string, string>();
       for (const schedule of plan.recurring) {
@@ -945,12 +1182,15 @@ export class BackupService {
           const subcategoryId =
             schedule.subcategory &&
             (await this.categoryId(userId, schedule.subcategory, categoryId, categoryIds));
-          await this.recurring.create(userId, {
+          const created = await this.recurring.create(userId, {
             ...schedule.values,
             vehicleId,
             categoryId,
             subcategoryId,
           });
+          if (schedule.paused) {
+            await this.recurring.setStatus(userId, created.id, RecurringStatus.PAUSED);
+          }
         });
         if (ok) counts.recurring += 1;
       }
@@ -1003,6 +1243,17 @@ export class BackupService {
           { timeout: 60_000 },
         );
         counts.trips = result.restored;
+        plan.trips.forEach(({ row }, at) => {
+          const tripId = result.ids[at];
+          if (!tripId) return;
+          for (const file of row.files ?? []) {
+            plan.files.push({
+              ...this.targets([file], "trip", tripId)[0]!,
+              costId:
+                file.costIndex === null ? null : (result.costIds[at]?.[file.costIndex] ?? null),
+            });
+          }
+        });
         for (const skipped of result.skipped) {
           issues.push({
             section: "trips",

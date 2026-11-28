@@ -8,6 +8,7 @@ import { LocalStorageController } from "./local-storage.controller";
 import { LocalStorageProvider } from "./local-storage.provider";
 import { STORAGE_PROVIDER, type StorageProvider } from "./storage.provider";
 import { StorageSweepService } from "./storage-sweep.service";
+import { ThumbnailService } from "./thumbnail.service";
 
 /** Production without a bucket: documents work, files don't (env validation allows it). */
 const unavailable = () => {
@@ -18,6 +19,8 @@ const NO_STORAGE: StorageProvider = {
   createDownloadUrl: unavailable,
   size: unavailable,
   head: unavailable,
+  get: unavailable,
+  put: unavailable,
   delete: () => Promise.resolve(),
 };
 
@@ -27,6 +30,7 @@ const NO_STORAGE: StorageProvider = {
   controllers: [LocalStorageController],
   providers: [
     StorageSweepService,
+    ThumbnailService,
     {
       provide: STORAGE_PROVIDER,
       inject: [ConfigService],
@@ -56,6 +60,6 @@ const NO_STORAGE: StorageProvider = {
       },
     },
   ],
-  exports: [STORAGE_PROVIDER, StorageSweepService],
+  exports: [STORAGE_PROVIDER, StorageSweepService, ThumbnailService],
 })
 export class StorageModule {}

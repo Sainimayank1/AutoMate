@@ -5,6 +5,7 @@ import { attachmentsService } from "@/features/attachments/services/attachments-
 import { backupService } from "@/features/backup/services/backup-service";
 import { documentsService } from "@/features/documents/services/documents-service";
 import { settingsService } from "@/features/settings/services/settings-service";
+import { tripsService } from "@/features/trips/services/trips-service";
 
 /** The JSON inside a ZIP backup; files sit beside it under `files/`. */
 export const BACKUP_ENTRY = "backup.json";
@@ -74,6 +75,8 @@ export async function restoreFiles(
         documents.set(target.id!, entry);
       } else if (target.kind === "avatar") {
         await settingsService.uploadAvatar(file);
+      } else if (target.kind === "trip") {
+        await tripsService.uploadAttachment(target.id!, file, target.costId ?? undefined);
       } else {
         await attachmentsService.upload(target.kind, target.id!, file);
       }

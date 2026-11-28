@@ -1,0 +1,2 @@
+# Formats and lints only the staged files (lint-staged config in package.json).
+pnpm exec lint-staged

@@ -1,6 +1,6 @@
 import { createHmac, timingSafeEqual } from "node:crypto";
 import { createReadStream, createWriteStream } from "node:fs";
-import { mkdir, open, rm, stat } from "node:fs/promises";
+import { mkdir, open, readFile, rm, stat, writeFile } from "node:fs/promises";
 import { dirname, resolve } from "node:path";
 import type { Readable } from "node:stream";
 import { pipeline } from "node:stream/promises";
@@ -70,6 +70,16 @@ export class LocalStorageProvider implements StorageProvider {
     } finally {
       await file.close();
     }
+  }
+
+  async get(key: string) {
+    return new Uint8Array(await readFile(this.path(key)));
+  }
+
+  async put(key: string, bytes: Uint8Array) {
+    const path = this.path(key);
+    await mkdir(dirname(path), { recursive: true });
+    await writeFile(path, bytes);
   }
 
   async delete(key: string) {

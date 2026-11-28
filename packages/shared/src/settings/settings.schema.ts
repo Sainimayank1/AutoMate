@@ -81,7 +81,46 @@ export interface QuietHours {
   end: string;
 }
 
+/**
+ * Reminder timing defaults: reminder days for new documents, the "due soon" lead for schedules
+ * that don't set their own, and reminder days for new recurring payments and loan EMIs.
+ */
+export interface ReminderTiming {
+  documentDays: number[];
+  serviceLeadDays: number;
+  serviceLeadKm: number;
+  paymentDays: number;
+}
+export const DEFAULT_REMINDER_TIMING: ReminderTiming = {
+  documentDays: [30, 7, 1],
+  serviceLeadDays: 30,
+  serviceLeadKm: 1000,
+  paymentDays: 3,
+};
+const wholeDays = (max: number) =>
+  z.coerce
+    .number({ error: "Enter a number of days" })
+    .int("Use whole days")
+    .min(0, `Use 0 to ${max} days`)
+    .max(max, `Use 0 to ${max} days`);
+
 export const updatePreferencesSchema = z.object({
+  reminderTiming: z
+    .object({
+      documentDays: z
+        .array(wholeDays(365))
+        .min(1, "Choose at least one reminder")
+        .max(5, "Choose up to 5 reminders"),
+      serviceLeadDays: wholeDays(365),
+      serviceLeadKm: z.coerce
+        .number({ error: "Enter a distance in km" })
+        .int("Use whole km")
+        .min(0, "Use 0 to 50,000 km")
+        .max(50_000, "Use 0 to 50,000 km"),
+      paymentDays: wholeDays(60),
+    })
+    .partial()
+    .optional(),
   theme: z.enum(ThemePreference).optional(),
   /** null: no quiet hours. */
   quietHours: z
@@ -124,6 +163,7 @@ export interface UserPreferences {
   notifications: NotificationPreferences;
   regional: typeof REGIONAL_FORMAT;
   quietHours: QuietHours | null;
+  reminderTiming: ReminderTiming;
 }
 
 export interface SessionInfo {

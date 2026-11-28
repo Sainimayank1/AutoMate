@@ -18,6 +18,7 @@ export const toDocumentFile = (row: FileRow) => ({
   fileName: row.fileName,
   contentType: row.contentType as DocumentFileType,
   size: row.size,
+  thumbnail: row.thumbKey !== null,
   createdAt: row.createdAt.toISOString(),
 });
 

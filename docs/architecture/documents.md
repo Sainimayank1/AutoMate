@@ -32,9 +32,9 @@ File bytes never pass through the JSON API and are never stored in PostgreSQL; a
 
 **Storage cleanup** (`StorageSweepService`, tested in `test/attachments.e2e-spec.ts`): delete triggers on `document_files`, `attachments` and `trip_attachments` queue every removed row's key in `storage_orphans`, whatever removed it (the record, its vehicle, the account). A sweep drops uploads not confirmed within a day (and document files never attached), which queues them too, then deletes queued objects and their queue rows; a failed delete stays queued. It runs at start-up and, at most every ten minutes, after an upload is announced: no scheduler.
 
-**Photo size**: the web scales photos over 1.5 MB down to 2048 px on the long side before announcing the upload (`utils/image.ts`, JPEG stays JPEG, PNG becomes WebP; PDFs, HEIC and small files go as they are), so storage and thumbnails stay light without image processing on the API.
+**Photo size**: the web scales photos over 1.5 MB down to 2048 px on the long side before announcing the upload (`utils/image.ts`, JPEG stays JPEG, PNG becomes WebP; PDFs, HEIC and small files go as they are), so storage stays light.
 
-Not built yet: thumbnails generated on the server (the panel shows the downscaled photos).
+**Thumbnails**: on confirm, a JPEG, PNG or WebP document file or attachment gets a 400 px WebP preview made with `sharp` (`ThumbnailService`, stored under its own key in `thumb_key`; HEIC and PDFs get none, and a failure only means no preview). Responses say `thumbnail: true`; the link endpoints return it with `?size=thumb` (the original otherwise), and the `AttachmentsPanel` draws its tiles from it. The thumbnail is deleted with its file (the delete trigger queues `thumb_key` too). Trip attachments have none yet.
 
 ## 3. API
 

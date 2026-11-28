@@ -26,6 +26,7 @@ import { MaintenanceModule } from "./modules/maintenance/maintenance.module";
 import { NotificationsModule } from "./modules/notifications/notifications.module";
 import { SearchModule } from "./modules/search/search.module";
 import { SettingsModule } from "./modules/settings/settings.module";
+import { TransfersModule } from "./modules/transfers/transfers.module";
 import { TripsModule } from "./modules/trips/trips.module";
 import { UsersModule } from "./modules/users/users.module";
 import { VehiclesModule } from "./modules/vehicles/vehicles.module";
@@ -55,6 +56,7 @@ import { StorageModule } from "./storage/storage.module";
     DocumentsModule,
     AnalyticsModule,
     BackupModule,
+    TransfersModule,
     NotificationsModule,
     AttachmentsModule,
     SearchModule,

@@ -41,6 +41,7 @@ import {
   CreateUploadDto,
   DocumentListQueryDto,
   DocumentSummaryQueryDto,
+  FileLinkQueryDto,
   UpdateDocumentDto,
 } from "./dto/document.dto";
 
@@ -140,7 +141,8 @@ export class DocumentsController {
     @CurrentUser() user: AuthUser,
     @Param("id", ParseUUIDPipe) id: string,
     @Param("fileId", ParseUUIDPipe) fileId: string,
+    @Query() query: FileLinkQueryDto,
   ): Promise<FileLink> {
-    return this.documents.fileLink(user.id, id, fileId);
+    return this.documents.fileLink(user.id, id, fileId, query.size);
   }
 }

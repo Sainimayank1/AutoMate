@@ -15,6 +15,15 @@ export const NOTIFICATION_SCHEMA: Schema = {
     title: { type: "string", example: "Engine oil change is overdue" },
     body: { type: "string", nullable: true, example: "Due on 15 Dec 2026 or at 10,000 km" },
     href: { type: "string", nullable: true, example: "/maintenance/schedules/0190…" },
+    action: {
+      type: "object",
+      nullable: true,
+      description: "The next step, e.g. renewing an expiring document",
+      properties: {
+        label: { type: "string", example: "Renew" },
+        href: { type: "string", example: "/documents/0190d4a2-…/edit?renew=1" },
+      },
+    },
     vehicle: {
       type: "object",
       nullable: true,

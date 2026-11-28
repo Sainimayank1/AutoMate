@@ -1,4 +1,5 @@
 import type {
+  BulkCreateSchedulesValues,
   CreateComponentValues,
   CreateInspectionValues,
   CreateProviderValues,
@@ -6,6 +7,7 @@ import type {
   CreateServiceRecordValues,
   InspectComponentValues,
   Inspection,
+  MaintenanceAnalyticsQuery,
   MaintenanceSchedule,
   Page,
   ProviderProfile,
@@ -47,6 +49,27 @@ export function useMaintenanceOverview(vehicleId: string | undefined, params: Ov
     // Changing the period keeps the page on screen, but never shows another vehicle's.
     placeholderData: (previous, previousQuery) =>
       previousQuery?.queryKey[1] === vehicleId ? previous : undefined,
+  });
+}
+
+export function useMaintenanceAnalytics(
+  vehicleId: string | undefined,
+  period: MaintenanceAnalyticsQuery["period"],
+) {
+  return useQuery({
+    queryKey: maintenanceKeys.analytics(vehicleId ?? "", period),
+    queryFn: () => maintenanceService.analytics(vehicleId!, period),
+    enabled: !!vehicleId,
+    placeholderData: (previous, previousQuery) =>
+      previousQuery?.queryKey[1] === vehicleId ? previous : undefined,
+  });
+}
+
+export function usePlanSummary(vehicleId: string | undefined) {
+  return useQuery({
+    queryKey: maintenanceKeys.plan(vehicleId ?? ""),
+    queryFn: () => maintenanceService.plan(vehicleId!),
+    enabled: !!vehicleId,
   });
 }
 
@@ -194,6 +217,19 @@ export function useCreateSchedule(vehicleId: string) {
       toast.success("Schedule added.");
     },
     onError: handledByForm,
+  });
+}
+
+/** A reviewed template's schedules, all at once. */
+export function useCreateSchedules(vehicleId: string) {
+  const sync = useSyncMaintenance();
+  return useMutation({
+    mutationFn: (values: BulkCreateSchedulesValues) =>
+      maintenanceService.createMany(vehicleId, values),
+    onSuccess: async (made) => {
+      await sync(vehicleId);
+      toast.success(`${made.length} schedule${made.length === 1 ? "" : "s"} added.`);
+    },
   });
 }
 

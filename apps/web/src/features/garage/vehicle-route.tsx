@@ -2,6 +2,7 @@ import { FuelType, type Vehicle } from "@automate/shared";
 import {
   Archive,
   ArrowLeft,
+  ArrowLeftRight,
   CarFront,
   EllipsisVertical,
   Pencil,
@@ -32,6 +33,10 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { DeleteVehicleDialog } from "@/features/garage/components/delete-vehicle-dialog";
 import { DetailList } from "@/features/garage/components/detail-list";
+import {
+  PendingTransfer,
+  TransferVehicleDialog,
+} from "@/features/garage/components/vehicle-transfer";
 import {
   CATEGORY_LABELS,
   FUEL_TYPE_LABELS,
@@ -93,6 +98,7 @@ function VehicleDetails({ vehicle }: { vehicle: Vehicle }) {
   const restore = useRestoreVehicle();
   const [archiveOpen, setArchiveOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
+  const [transferOpen, setTransferOpen] = useState(false);
 
   const isArchived = vehicle.archivedAt !== null;
   const isActive = !isArchived && activeVehicle?.id === vehicle.id;
@@ -131,6 +137,10 @@ function VehicleDetails({ vehicle }: { vehicle: Vehicle }) {
           </div>
         </div>
         <div className="flex items-center gap-2">
+          <Button variant="outline" className="max-md:hidden" onClick={() => setTransferOpen(true)}>
+            <ArrowLeftRight data-icon="inline-start" />
+            Transfer vehicle
+          </Button>
           <Button variant="outline" asChild className="max-sm:hidden">
             <Link to={editHref}>
               <Pencil data-icon="inline-start" />
@@ -157,6 +167,10 @@ function VehicleDetails({ vehicle }: { vehicle: Vehicle }) {
                       Set as active vehicle
                     </DropdownMenuItem>
                   )}
+                  <DropdownMenuItem onSelect={() => setTransferOpen(true)}>
+                    <ArrowLeftRight />
+                    Transfer to another account
+                  </DropdownMenuItem>
                   <DropdownMenuItem onSelect={() => setArchiveOpen(true)}>
                     <Archive />
                     Archive vehicle
@@ -172,6 +186,9 @@ function VehicleDetails({ vehicle }: { vehicle: Vehicle }) {
           </DropdownMenu>
         </div>
       </div>
+
+      <PendingTransfer vehicle={vehicle} />
+      <TransferVehicleDialog vehicle={vehicle} open={transferOpen} onOpenChange={setTransferOpen} />
 
       {isArchived && (
         <Alert>

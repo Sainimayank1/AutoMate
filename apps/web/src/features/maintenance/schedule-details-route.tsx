@@ -34,6 +34,7 @@ import {
   useServiceRecords,
 } from "@/features/maintenance/hooks/use-maintenance";
 import { basisText, intervalText } from "@/features/maintenance/utils/schedule-text";
+import { usePreferences } from "@/features/settings/hooks/use-settings";
 import { useActiveVehicle } from "@/hooks/use-active-vehicle";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { normalizeApiError } from "@/lib/api-error";
@@ -118,7 +119,8 @@ function Details({
   const group = maintenanceGroupOf(schedule.categoryKey);
   const Icon = GROUP_ICONS[group];
   const paused = schedule.pausedAt !== null;
-  const lead = `${formatNumber(schedule.leadDays ?? DEFAULT_REMINDER_LEAD.days)} days or ${formatNumber(schedule.leadKm ?? DEFAULT_REMINDER_LEAD.km)} km before`;
+  const timing = usePreferences().data?.reminderTiming;
+  const lead = `${formatNumber(schedule.leadDays ?? timing?.serviceLeadDays ?? DEFAULT_REMINDER_LEAD.days)} days or ${formatNumber(schedule.leadKm ?? timing?.serviceLeadKm ?? DEFAULT_REMINDER_LEAD.km)} km before`;
   const both = schedule.due.date && schedule.due.distance;
 
   return (

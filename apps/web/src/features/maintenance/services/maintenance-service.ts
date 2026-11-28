@@ -1,4 +1,5 @@
 import type {
+  BulkCreateSchedulesValues,
   ComponentListQuery,
   CreateComponentValues,
   CreateInspectionValues,
@@ -8,8 +9,11 @@ import type {
   InspectComponentValues,
   Inspection,
   InspectionListQuery,
+  MaintenanceAnalytics,
+  MaintenanceAnalyticsQuery,
   MaintenanceOverview,
   MaintenanceOverviewQuery,
+  MaintenancePlanSummary,
   MaintenanceProvider,
   MaintenanceSchedule,
   PaginationQuery,
@@ -58,6 +62,19 @@ export const maintenanceService = {
     requestPage<MaintenanceSchedule>({ url: schedules(vehicleId), params }),
   get: (vehicleId: string, id: string) =>
     request<MaintenanceSchedule>({ url: `${schedules(vehicleId)}/${id}` }),
+  analytics: (vehicleId: string, period: MaintenanceAnalyticsQuery["period"]) =>
+    request<MaintenanceAnalytics>({
+      url: `/vehicles/${vehicleId}/maintenance-analytics`,
+      params: { period },
+    }),
+  plan: (vehicleId: string) =>
+    request<MaintenancePlanSummary>({ url: `/vehicles/${vehicleId}/maintenance-plan` }),
+  createMany: (vehicleId: string, values: BulkCreateSchedulesValues) =>
+    request<MaintenanceSchedule[]>({
+      method: "POST",
+      url: `/vehicles/${vehicleId}/maintenance-schedules/bulk`,
+      data: values,
+    }),
   create: (vehicleId: string, values: CreateScheduleValues) =>
     request<MaintenanceSchedule>({ method: "POST", url: schedules(vehicleId), data: values }),
   update: (vehicleId: string, id: string, values: UpdateScheduleValues) =>

@@ -1,0 +1,4 @@
+# husky owns core.hooksPath: hand over to the hook graphify installed in .git/hooks.
+hook="$(git rev-parse --git-dir)/hooks/post-checkout"
+[ -x "$hook" ] && exec "$hook" "$@"
+exit 0

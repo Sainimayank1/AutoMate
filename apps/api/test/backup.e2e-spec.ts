@@ -263,6 +263,7 @@ describe("Backup (e2e)", () => {
           trips: 1,
           documents: 1,
           components: 0,
+          inspections: 0,
           schedules: 0,
           loans: 0,
           recurring: 0,
@@ -293,6 +294,7 @@ describe("Backup (e2e)", () => {
         trips: 1,
         documents: 1,
         components: 0,
+        inspections: 0,
         schedules: 0,
         loans: 0,
         recurring: 0,
@@ -502,6 +504,158 @@ describe("Backup (e2e)", () => {
       where: { vehicleId: outcome.vehicleId!, name: "Battery check" },
     });
     expect(newSchedule.componentId).not.toBeNull();
+  });
+
+  it("brings back inspections, part and trip photos, rate changes and paused payments", async () => {
+    const { token, car } = await arjunsGarage();
+    const post = (url: string, body: object = {}) => as(token).post(url, body);
+    const upload = async (announce: string, body: object) => {
+      const slot = dataOf<UploadSlot>(
+        await post(announce, { ...body, contentType: "image/png", size: PNG.length }).expect(201),
+      );
+      await request(app.getHttpServer())
+        .put(new URL(slot.url).pathname)
+        .set(slot.headers)
+        .send(PNG)
+        .expect(200);
+      return slot.fileId;
+    };
+    const tyres = dataOf<{ id: string }>(
+      await post(`/api/v1/vehicles/${car.id}/components`, {
+        kind: "TYRES",
+        name: "Front left tyre",
+        installedAt: addDays(today, -300),
+      }).expect(201),
+    );
+    const warranty = await upload("/api/v1/attachments/uploads", {
+      owner: "component",
+      ownerId: tyres.id,
+      fileName: "warranty.png",
+    });
+    await post(`/api/v1/attachments/uploads/${warranty}/confirm`).expect(200);
+    const inspection = dataOf<{ id: string }>(
+      await post(`/api/v1/vehicles/${car.id}/inspections`, {
+        kind: "SELF_CHECK",
+        templateKey: "MONTHLY",
+        title: "Monthly check",
+        date: addDays(today, -3),
+        items: [
+          { area: "TYRES", label: "Tread", condition: "ATTENTION", componentId: tyres.id },
+          { area: "AC", label: "AC cooling", condition: "GOOD" },
+        ],
+      }).expect(201),
+    );
+    const sidewall = await upload("/api/v1/attachments/uploads", {
+      owner: "inspection",
+      ownerId: inspection.id,
+      fileName: "sidewall.png",
+    });
+    await post(`/api/v1/attachments/uploads/${sidewall}/confirm`).expect(200);
+    const loan = dataOf<{ id: string }>(
+      await post("/api/v1/vehicle-loans", {
+        vehicleId: car.id,
+        lender: "SBI",
+        principal: "600000",
+        annualRate: "8.75",
+        tenureMonths: 48,
+        firstEmiDate: addDays(today, -100),
+      }).expect(201),
+    );
+    await post(`/api/v1/vehicle-loans/${loan.id}/rate-changes`, {
+      effectiveFrom: addDays(today, -20),
+      annualRate: "9.25",
+    }).expect(201);
+    const pass = dataOf<{ id: string }>(
+      await post("/api/v1/recurring-expenses", {
+        vehicleId: car.id,
+        title: "Car wash plan",
+        amount: "800",
+        categoryId: keyed.get("DAILY_USAGE"),
+        every: 1,
+        unit: "MONTH",
+        startDate: addDays(today, -30),
+      }).expect(201),
+    );
+    await post(`/api/v1/recurring-expenses/${pass.id}/pause`).expect(200);
+    const types = dataOf<TripCategory[]>(
+      await as(token).get("/api/v1/trip-categories?pageSize=100").expect(200),
+    );
+    const trip = dataOf<Trip>(
+      await post("/api/v1/trips", {
+        vehicleId: car.id,
+        method: "DISTANCE",
+        categoryId: types.find((type) => type.key === "ROAD_TRIP")!.id,
+        date: addDays(today, -6),
+        distanceKm: 120,
+      }).expect(201),
+    );
+    const toll = dataOf<{ id: string }>(
+      await post(`/api/v1/trips/${trip.id}/costs`, {
+        category: "TOLL",
+        amount: "240",
+        date: addDays(today, -6),
+      }).expect(201),
+    );
+    const receipt = await upload(`/api/v1/trips/${trip.id}/attachments/uploads`, {
+      fileName: "toll.png",
+      costId: toll.id,
+    });
+    await post(`/api/v1/trips/${trip.id}/attachments/${receipt}/confirm`).expect(200);
+
+    const backup = dataOf<Backup>(await as(token).get("/api/v1/backup").expect(200));
+    const [entry] = backup.vehicles;
+    expect(entry!.inspections).toEqual([
+      expect.objectContaining({
+        title: "Monthly check",
+        items: [
+          expect.objectContaining({ label: "Tread", componentBackupId: tyres.id }),
+          expect.objectContaining({ label: "AC cooling", componentBackupId: null }),
+        ],
+        files: [expect.objectContaining({ fileName: "sidewall.png" })],
+      }),
+    ]);
+    expect(entry!.loans[0]).toMatchObject({
+      rateChanges: [{ effectiveFrom: addDays(today, -20), annualRate: "9.25", keepEmi: true }],
+    });
+    expect(entry!.recurring).toEqual([expect.objectContaining({ paused: true })]);
+    const links = dataOf<BackupFileLink[]>(await as(token).get("/api/v1/backup/files").expect(200));
+    expect(links).toHaveLength(3);
+
+    const priya = await signUp();
+    const restored = dataOf<BackupRestoreReport>(
+      await as(priya).post("/api/v1/backup/restore", backup).expect(200),
+    );
+    const outcome = restored.vehicles[0]!;
+    expect(outcome).toMatchObject({
+      status: "RESTORED",
+      // arjunsGarage has a trip of its own.
+      counts: { components: 1, inspections: 1, loans: 1, recurring: 1, trips: 2 },
+      issues: [],
+    });
+    const vehicleId = outcome.vehicleId!;
+    const [newPart, newInspection, newLoan, newPass, newTrip] = await Promise.all([
+      prisma.vehicleComponent.findFirstOrThrow({ where: { vehicleId } }),
+      prisma.inspection.findFirstOrThrow({
+        where: { vehicleId },
+        include: { items: { orderBy: { position: "asc" } } },
+      }),
+      prisma.vehicleLoan.findFirstOrThrow({ where: { vehicleId }, include: { rateChanges: true } }),
+      prisma.recurringExpense.findFirstOrThrow({ where: { vehicleId, title: "Car wash plan" } }),
+      prisma.trip.findFirstOrThrow({
+        where: { vehicleId, costs: { some: { amount: 240 } } },
+        include: { costs: true },
+      }),
+    ]);
+    expect(newInspection.items.map((item) => item.componentId)).toEqual([newPart.id, null]);
+    expect(newLoan.rateChanges.map((change) => change.annualRate.toFixed(2))).toEqual(["9.25"]);
+    expect(newPass.status).toBe("PAUSED");
+    expect(restored.files.map(({ kind, id, costId }) => ({ kind, id, costId }))).toEqual(
+      expect.arrayContaining([
+        { kind: "component", id: newPart.id, costId: undefined },
+        { kind: "inspection", id: newInspection.id, costId: undefined },
+        { kind: "trip", id: newTrip.id, costId: newTrip.costs[0]!.id },
+      ]),
+    );
   });
 
   it("restores one vehicle's archive, skipping rows that fail their checks", async () => {

@@ -1,4 +1,8 @@
-import { type NotificationPreferences, ThemePreference } from "@automate/shared";
+import {
+  type NotificationPreferences,
+  type ReminderTiming,
+  ThemePreference,
+} from "@automate/shared";
 import { formatDistanceToNowStrict } from "date-fns";
 import { ArrowRight, Laptop, Smartphone } from "lucide-react";
 import { useTheme } from "next-themes";
@@ -357,6 +361,7 @@ function RemindersCard() {
         <div className="mt-3 flex flex-col divide-y rounded-lg border bg-elevated">
           <PushRow disabled={!notifications.enabled} />
           <QuietHoursRow />
+          <ReminderTimingRow />
         </div>
       </CardContent>
     </Card>
@@ -436,6 +441,73 @@ function QuietHoursRow() {
           </Label>
         </div>
       )}
+    </div>
+  );
+}
+
+/**
+ * How early reminders come, per category; a record's own lead (a schedule's, a payment's) still
+ * wins. Saved on blur; a value the API refuses snaps back.
+ */
+function ReminderTimingRow() {
+  const { reminderTiming } = usePreferences().data!;
+  const update = useUpdatePreferences();
+  const save = (change: Partial<ReminderTiming>) => update.mutate({ reminderTiming: change });
+  const whole = (value: string) => (/^\d+$/.test(value.trim()) ? Number(value) : null);
+  const field = (
+    label: string,
+    key: "serviceLeadDays" | "serviceLeadKm" | "paymentDays",
+    unit: string,
+  ) => (
+    <Label className="flex flex-col items-start gap-1.5 text-xs font-normal text-muted-foreground">
+      {label}
+      <span className="flex w-full items-center gap-2">
+        <Input
+          key={reminderTiming[key]}
+          inputMode="numeric"
+          defaultValue={reminderTiming[key]}
+          className="h-10 tabular-nums"
+          onBlur={(event) => {
+            const value = whole(event.target.value);
+            if (value === null) event.target.value = String(reminderTiming[key]);
+            else if (value !== reminderTiming[key]) save({ [key]: value });
+          }}
+        />
+        <span className="shrink-0">{unit}</span>
+      </span>
+    </Label>
+  );
+  const days = reminderTiming.documentDays.join(", ");
+  return (
+    <div className="flex flex-col gap-3 px-4 py-3">
+      <div>
+        <p className="text-sm font-medium">Reminder timing</p>
+        <p className="text-xs text-muted-foreground">
+          Defaults for new records; a record&apos;s own setting wins.
+        </p>
+      </div>
+      <div className="grid gap-3 sm:grid-cols-2">
+        <Label className="flex flex-col items-start gap-1.5 text-xs font-normal text-muted-foreground">
+          Documents expiring (days before)
+          <Input
+            key={days}
+            defaultValue={days}
+            placeholder="30, 7, 1"
+            className="h-10 tabular-nums"
+            onBlur={(event) => {
+              const parts = event.target.value.split(",").map(whole);
+              if (!parts.length || parts.some((part) => part === null)) {
+                event.target.value = days;
+              } else if (parts.join(", ") !== days) {
+                save({ documentDays: parts as number[] });
+              }
+            }}
+          />
+        </Label>
+        {field("Payments due", "paymentDays", "days before")}
+        {field("Service due", "serviceLeadDays", "days before")}
+        {field("or", "serviceLeadKm", "km before")}
+      </div>
     </div>
   );
 }

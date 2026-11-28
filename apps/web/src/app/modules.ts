@@ -229,6 +229,16 @@ export const appModules = [
         lazy: () => import("@/features/maintenance/workshop-details-route"),
         handle: { title: "Workshop" },
       },
+      {
+        path: "analytics",
+        lazy: () => import("@/features/maintenance/analytics-route"),
+        handle: { title: "Analytics" },
+      },
+      {
+        path: "planner",
+        lazy: () => import("@/features/maintenance/planner-route"),
+        handle: { title: "Planner" },
+      },
     ],
     taskRoutes: [
       {

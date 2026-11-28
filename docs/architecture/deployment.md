@@ -36,7 +36,9 @@ Free tiers first ([TECH_STACK.md §9](../TECH_STACK.md#9-infrastructure--keep-it
 
 ## 3. Continuous integration
 
-`.github/workflows/ci.yml` runs on every push to `main` and every pull request: install (frozen lockfile), Prisma client, format check, lint, type check, API unit tests, migrations into a throwaway Postgres 17 service, API e2e tests, web tests and the production builds. Render and Pages deploy from `main` on their own; keep `main` green.
+`.github/workflows/ci.yml` runs on every push to `main` and every pull request: install (frozen lockfile), Prisma client, format check, lint, type check, API unit tests, migrations into a throwaway Postgres 17 service, API e2e tests, web tests and the production builds. A second job, `browser`, builds both apps, starts the API and a web preview against their own Postgres, and runs the Playwright tests (`apps/web/e2e`, desktop and phone) in Chromium; the report is uploaded when it fails. Render and Pages deploy from `main` on their own; keep `main` green.
+
+**Locally:** `pnpm test:e2e:web` runs the Playwright tests against the dev servers (it starts `pnpm dev` / `pnpm dev:api` when they aren't running) in your installed Google Chrome, so no browser download is needed. **Pre-commit:** husky runs lint-staged (`package.json`): Prettier on staged files, ESLint `--fix` on staged web and API TypeScript. `pnpm install` sets it up (`prepare`); the post-commit, post-checkout and post-merge hooks in `.husky/` hand over to graphify's hooks in `.git/hooks`.
 
 ## 4. Push notifications (optional)
 

@@ -27,6 +27,7 @@ export type ScheduleFormValues = {
   leadDays: string;
   leadKm: string;
   componentId: string;
+  estimatedCost: string;
   notes: string;
 };
 
@@ -79,6 +80,7 @@ export function newScheduleForm(): ScheduleFormValues {
     leadDays: "",
     leadKm: "",
     componentId: "",
+    estimatedCost: "",
     notes: "",
   };
 }
@@ -100,6 +102,7 @@ export function editScheduleForm(schedule: MaintenanceSchedule): ScheduleFormVal
     leadDays: text(schedule.leadDays),
     leadKm: text(schedule.leadKm),
     componentId: schedule.component?.id ?? "",
+    estimatedCost: text(schedule.estimatedCost),
     notes: text(schedule.notes),
   };
 }

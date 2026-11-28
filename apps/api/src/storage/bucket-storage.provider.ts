@@ -61,6 +61,21 @@ export class BucketStorageProvider implements StorageProvider {
     return new Uint8Array(await response.arrayBuffer());
   }
 
+  async get(key: string) {
+    const response = await this.client.fetch(this.url(key));
+    if (!response.ok) throw new Error(`Storage GET failed: ${response.status}`);
+    return new Uint8Array(await response.arrayBuffer());
+  }
+
+  async put(key: string, bytes: Uint8Array, contentType: string) {
+    const response = await this.client.fetch(this.url(key), {
+      method: "PUT",
+      headers: { "content-type": contentType },
+      body: bytes,
+    });
+    if (!response.ok) throw new Error(`Storage PUT failed: ${response.status}`);
+  }
+
   async delete(key: string) {
     const response = await this.client.fetch(this.url(key), { method: "DELETE" });
     if (!response.ok && response.status !== 404) {

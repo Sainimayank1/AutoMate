@@ -1,6 +1,7 @@
 import { istToday, NotificationCategory, type NotificationItem } from "@automate/shared";
 import { differenceInCalendarDays, parseISO } from "date-fns";
 import { BellOff, Settings } from "lucide-react";
+import { useState } from "react";
 import { useSearchParams } from "react-router";
 import { Link } from "react-router";
 
@@ -11,6 +12,7 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { NotificationCard } from "@/features/notifications/components/notification-card";
+import { NotificationDetails } from "@/features/notifications/components/notification-details";
 import { NotificationsLayout } from "@/features/notifications/components/notifications-layout";
 import { CATEGORY_META } from "@/features/notifications/constants";
 import {
@@ -42,8 +44,8 @@ function groupOf(item: NotificationItem, today: string): (typeof GROUPS)[number]
 /**
  * `/notifications` (Stitch "Notifications"): one calm inbox raised from your records. Filter
  * chips in the URL; Today / This week / Earlier; snoozed ones on their own chip with their wake
- * time. Deviations: no item-specific action buttons ("Renew plan", "Upload PUC"): "Open" goes to
- * the record, where those actions live; no details sheet (the card holds the whole message).
+ * time. An expiring document's card offers "Renew" (Stitch's "Renew plan" / "Upload PUC"); other
+ * cards open their record. The title opens Stitch "Notification Details".
  */
 export function Component() {
   const [params, setParams] = useSearchParams();
@@ -54,6 +56,7 @@ export function Component() {
   const list = useNotifications({ filter, category, page, pageSize: 20 });
   const summary = useNotificationSummary();
   const readAll = useReadAll();
+  const [selected, setSelected] = useState<string | null>(null);
   const unread = summary.data?.unread ?? 0;
   const today = istToday(new Date());
   const items = list.data?.items ?? [];
@@ -137,7 +140,12 @@ export function Component() {
       ) : filter === "snoozed" ? (
         <section aria-label="Snoozed" className="flex flex-col gap-3">
           {items.map((item) => (
-            <NotificationCard key={item.id} item={item} snoozed />
+            <NotificationCard
+              key={item.id}
+              item={item}
+              snoozed
+              onSelect={() => setSelected(item.id)}
+            />
           ))}
         </section>
       ) : (
@@ -153,12 +161,16 @@ export function Component() {
                 {group}
               </h2>
               {inGroup.map((item) => (
-                <NotificationCard key={item.id} item={item} />
+                <NotificationCard key={item.id} item={item} onSelect={() => setSelected(item.id)} />
               ))}
             </section>
           );
         })
       )}
+      <NotificationDetails
+        item={items.find((item) => item.id === selected) ?? null}
+        onClose={() => setSelected(null)}
+      />
       {(list.data?.meta.totalPages ?? 0) > 1 && (
         <Pager
           page={page}

@@ -5,6 +5,7 @@ import {
   type FuelSummary,
   type MaintenanceSchedule,
   NotificationCategory,
+  type NotificationItem,
   NotificationPriority,
   PaymentState,
   type RecurringPayment,
@@ -244,4 +245,41 @@ export function reminderCandidates(reminders: Reminder[]): Candidate[] {
       },
     ];
   });
+}
+
+/** A vehicle another account offered you: open until accepted, declined or expired. */
+export function transferCandidates(
+  transfers: {
+    id: string;
+    vehicleName: string;
+    registrationNumber: string;
+    expiresAt: Date;
+    fromUser: { name: string };
+  }[],
+): Candidate[] {
+  return transfers.map((transfer) => ({
+    dedupeKey: `transfer:${transfer.id}`,
+    category: NotificationCategory.REMINDERS,
+    kind: "transfer.incoming",
+    priority: NotificationPriority.HIGH,
+    title: `${transfer.fromUser.name} wants to move ${transfer.vehicleName} to your garage`,
+    body: `${transfer.registrationNumber}, with all its records and files. Accept or decline by ${day(transfer.expiresAt.toISOString().slice(0, 10))}.`,
+    href: `/garage?transfer=${transfer.id}`,
+    // The vehicle is still the sender's: never linked to it.
+    vehicleId: null,
+  }));
+}
+
+const DOCUMENT_DUE = /^\/documents\/[0-9a-f-]{36}$/;
+
+/** A document expiring or expired opens its renewal (the Documents form with `?renew=1`). */
+export function actionOf(kind: string, href: string | null): NotificationItem["action"] {
+  if (
+    (kind === "document.expiring" || kind === "document.expired") &&
+    href &&
+    DOCUMENT_DUE.test(href)
+  ) {
+    return { label: "Renew", href: `${href}/edit?renew=1` };
+  }
+  return null;
 }

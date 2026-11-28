@@ -164,6 +164,33 @@ describe("Notifications (e2e)", () => {
     expect((await refresh(token)).unread).toBe(0);
   });
 
+  it("lets the bell and the list read at once: both wait for the same sync, and renewals open", async () => {
+    const token = await signUp();
+    const vehicle = await car(token);
+    const document = dataOf<{ id: string }>(
+      await as(token)
+        .post("/api/v1/documents", {
+          vehicleId: vehicle.id,
+          type: "PUC",
+          name: "PUC certificate",
+          expiryDate: addDays(today, 5),
+          fileIds: [],
+        })
+        .expect(201),
+    );
+    // A page opening on the inbox asks for both together.
+    const [summary, list] = await Promise.all([
+      as(token).get("/api/v1/notifications/summary").expect(200),
+      as(token).get("/api/v1/notifications").expect(200),
+    ]);
+    const puc = dataOf<NotificationItem[]>(list).find((item) => item.kind === "document.expiring");
+    expect(dataOf<NotificationSummary>(summary).unread).toBeGreaterThan(0);
+    expect(puc?.action).toEqual({
+      label: "Renew",
+      href: `/documents/${document.id}/edit?renew=1`,
+    });
+  });
+
   it("reads, snoozes and dismisses; a dismissal holds while the reminder still applies", async () => {
     const token = await signUp();
     const victoris = await car(token);

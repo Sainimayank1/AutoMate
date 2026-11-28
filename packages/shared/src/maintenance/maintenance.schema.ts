@@ -91,6 +91,8 @@ export const scheduleFieldsSchema = z.object({
   componentId: z.preprocess(blankToNull, z.uuid("Choose a component").nullable()).optional(),
   /** Create only: the inspection finding this schedule follows up (linked both ways). */
   inspectionItemId: z.uuid().optional(),
+  /** What the work should cost (a planned job's estimate); never counted as spend. */
+  estimatedCost: optionalDecimal(10, 2, "Enter the estimate in rupees, e.g. 5200"),
   notes: optionalText(1000),
 });
 
@@ -138,6 +140,8 @@ export const updateScheduleSchema = scheduleFieldsSchema
 export const scheduleListQuerySchema = paginationQuerySchema.extend({
   status: z.enum(ScheduleStatus).optional(),
   search: z.string().trim().max(80).optional(),
+  /** Only one-time jobs (the Planner's planned maintenance). */
+  once: z.stringbool().optional(),
 });
 
 /** `GET /vehicles/:vehicleId/maintenance-overview`: the period of the spending section. */
@@ -381,6 +385,8 @@ export interface MaintenanceSchedule {
   leadKm: number | null;
   priority: SchedulePriority;
   component: { id: string; name: string } | null;
+  /** Decimal string; an estimate, never spend. */
+  estimatedCost: string | null;
   notes: string | null;
   pausedAt: string | null;
   createdAt: string;

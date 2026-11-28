@@ -1,4 +1,5 @@
 import {
+  bulkCreateSchedulesSchema,
   componentListQuerySchema,
   createComponentSchema,
   createInspectionSchema,
@@ -7,6 +8,7 @@ import {
   createServiceRecordSchema,
   inspectComponentSchema,
   inspectionListQuerySchema,
+  maintenanceAnalyticsQuerySchema,
   maintenanceOverviewQuerySchema,
   paginationQuerySchema,
   providerListQuerySchema,
@@ -24,6 +26,8 @@ import {
 import { createZodDto } from "nestjs-zod";
 
 export class CreateScheduleDto extends createZodDto(createScheduleSchema) {}
+export class BulkCreateSchedulesDto extends createZodDto(bulkCreateSchedulesSchema) {}
+export class MaintenanceAnalyticsQueryDto extends createZodDto(maintenanceAnalyticsQuerySchema) {}
 export class UpdateScheduleDto extends createZodDto(updateScheduleSchema) {}
 export class ScheduleListQueryDto extends createZodDto(scheduleListQuerySchema) {}
 export class MaintenanceOverviewQueryDto extends createZodDto(maintenanceOverviewQuerySchema) {}

@@ -34,6 +34,9 @@ export function RecordAttachments({
       readOnly={readOnly}
       onUpload={(file) => upload.mutateAsync(file)}
       onOpen={async (item) => (await attachmentsService.link(item.id)).url}
+      onPreview={async (item) =>
+        (await attachmentsService.link(item.id, item.thumbnail ? "thumb" : undefined)).url
+      }
       onRemove={(item) => remove.mutateAsync(item.id)}
     />
   );

@@ -15,18 +15,18 @@ The profile, preferences that follow the account, reminder switches, password, s
 
 ## 2. API
 
-| Endpoint                                        | Notes                                                         |
-| ----------------------------------------------- | ------------------------------------------------------------- |
-| `PATCH /users/me`                               | `name`, `email` (+ `currentPassword`). Returns the profile.   |
-| `POST /users/me/avatar/uploads`                 | `contentType`, `size`: an upload slot, as for documents.      |
-| `POST /users/me/avatar/uploads/:fileId/confirm` | Checks the object and returns the profile with the photo.     |
-| `DELETE /users/me/avatar`                       | Removes the photo; returns the profile.                       |
-| `GET` / `PATCH /users/me/preferences`           | Theme, default vehicle, partial `notifications`, regional.    |
-| `POST /auth/password`                           | `currentPassword`, `newPassword`; `204`.                      |
-| `GET /auth/sessions`                            | Paginated devices, the caller's marked `current`.             |
-| `DELETE /auth/sessions/:id`                     | Signs one device out; `204`.                                  |
-| `POST /auth/sessions/revoke-others`             | `{ signedOut }`.                                              |
-| `POST /users/me/delete`                         | `password`, `confirm: "DELETE"`; `204` and clears the cookie. |
+| Endpoint                                        | Notes                                                                                              |
+| ----------------------------------------------- | -------------------------------------------------------------------------------------------------- |
+| `PATCH /users/me`                               | `name`, `email` (+ `currentPassword`). Returns the profile.                                        |
+| `POST /users/me/avatar/uploads`                 | `contentType`, `size`: an upload slot, as for documents.                                           |
+| `POST /users/me/avatar/uploads/:fileId/confirm` | Checks the object and returns the profile with the photo.                                          |
+| `DELETE /users/me/avatar`                       | Removes the photo; returns the profile.                                                            |
+| `GET` / `PATCH /users/me/preferences`           | Theme, default vehicle, partial `notifications`, `quietHours`, partial `reminderTiming`, regional. |
+| `POST /auth/password`                           | `currentPassword`, `newPassword`; `204`.                                                           |
+| `GET /auth/sessions`                            | Paginated devices, the caller's marked `current`.                                                  |
+| `DELETE /auth/sessions/:id`                     | Signs one device out; `204`.                                                                       |
+| `POST /auth/sessions/revoke-others`             | `{ signedOut }`.                                                                                   |
+| `POST /users/me/delete`                         | `password`, `confirm: "DELETE"`; `204` and clears the cookie.                                      |
 
 Tested in `test/settings.e2e-spec.ts`, `device.spec.ts` and `settings.test.tsx`.
 

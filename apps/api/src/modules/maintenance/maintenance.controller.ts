@@ -1,4 +1,9 @@
-import type { MaintenanceOverview, MaintenanceSchedule } from "@automate/shared";
+import type {
+  MaintenanceAnalytics,
+  MaintenanceOverview,
+  MaintenancePlanSummary,
+  MaintenanceSchedule,
+} from "@automate/shared";
 import {
   Body,
   Controller,
@@ -23,19 +28,30 @@ import type { AuthUser } from "@/modules/auth/auth.types";
 import { CurrentUser } from "@/modules/auth/decorators/current-user.decorator";
 
 import {
+  BulkCreateSchedulesDto,
   CreateScheduleDto,
+  MaintenanceAnalyticsQueryDto,
   MaintenanceOverviewQueryDto,
   ScheduleListQueryDto,
   UpdateScheduleDto,
 } from "./dto/maintenance.dto";
-import { OVERVIEW_SCHEMA, SCHEDULE_SCHEMA } from "./maintenance.constants";
+import {
+  ANALYTICS_SCHEMA,
+  OVERVIEW_SCHEMA,
+  PLAN_SCHEMA,
+  SCHEDULE_SCHEMA,
+} from "./maintenance.constants";
 import { MaintenanceService } from "./maintenance.service";
+import { MaintenanceAnalyticsService } from "./maintenance-analytics.service";
 
 @ApiTags("maintenance")
 @ApiBearerAuth()
 @Controller("vehicles/:vehicleId")
 export class MaintenanceController {
-  constructor(private readonly maintenance: MaintenanceService) {}
+  constructor(
+    private readonly maintenance: MaintenanceService,
+    private readonly analyticsService: MaintenanceAnalyticsService,
+  ) {}
 
   @Get("maintenance-overview")
   @ApiOperation({ summary: "Maintenance state, due items and spending for a vehicle" })
@@ -73,6 +89,43 @@ export class MaintenanceController {
     @Param("id", ParseUUIDPipe) id: string,
   ): Promise<MaintenanceSchedule> {
     return this.maintenance.get(user.id, vehicleId, id);
+  }
+
+  @Get("maintenance-analytics")
+  @ApiOperation({
+    summary: "Spending, visits, frequency, replacements and rule-based insights for a period",
+  })
+  @ApiEnvelopeResponse(ANALYTICS_SCHEMA)
+  @ApiErrorResponses(400, 401, 404)
+  analytics(
+    @CurrentUser() user: AuthUser,
+    @Param("vehicleId", ParseUUIDPipe) vehicleId: string,
+    @Query() query: MaintenanceAnalyticsQueryDto,
+  ): Promise<MaintenanceAnalytics> {
+    return this.analyticsService.analytics(user.id, vehicleId, query);
+  }
+
+  @Get("maintenance-plan")
+  @ApiOperation({ summary: "Open one-time jobs and the total of their estimates (not spend)" })
+  @ApiEnvelopeResponse(PLAN_SCHEMA)
+  @ApiErrorResponses(400, 401, 404)
+  plan(
+    @CurrentUser() user: AuthUser,
+    @Param("vehicleId", ParseUUIDPipe) vehicleId: string,
+  ): Promise<MaintenancePlanSummary> {
+    return this.maintenance.plan(user.id, vehicleId);
+  }
+
+  @Post("maintenance-schedules/bulk")
+  @ApiOperation({ summary: "Add several schedules at once (a reviewed template), all or none" })
+  @ApiEnvelopeResponse(SCHEDULE_SCHEMA, { status: HttpStatus.CREATED })
+  @ApiErrorResponses(400, 401, 404, 409)
+  createMany(
+    @CurrentUser() user: AuthUser,
+    @Param("vehicleId", ParseUUIDPipe) vehicleId: string,
+    @Body() body: BulkCreateSchedulesDto,
+  ): Promise<MaintenanceSchedule[]> {
+    return this.maintenance.createMany(user.id, vehicleId, body);
   }
 
   @Post("maintenance-schedules")

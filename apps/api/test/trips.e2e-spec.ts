@@ -1097,6 +1097,21 @@ describe("Trips (e2e)", () => {
       await as(arjun).post(`/api/v1/trip-plans/${plan.id}/cancel`).expect(200);
 
       const userId = (await prisma.trip.findUniqueOrThrow({ where: { id: done.id } })).userId;
+      const tollId = dataOf<TripCost[]>(
+        await as(arjun).get(`/api/v1/trips/${done.id}/costs`).expect(200),
+      ).find((cost) => cost.category === "TOLL")!.id;
+      const receipt = await prisma.tripAttachment.create({
+        data: {
+          userId,
+          tripId: done.id,
+          costId: tollId,
+          key: `users/${userId}/${randomUUID()}`,
+          fileName: "toll.pdf",
+          contentType: "application/pdf",
+          size: 1024,
+          confirmedAt: new Date(),
+        },
+      });
       const backup = app.get(TripBackupService);
       const rows = await backup.backupRows(userId, car.id);
       expect(rows.map((row) => [row.version, row.status])).toEqual([
@@ -1111,6 +1126,15 @@ describe("Trips (e2e)", () => {
           { category: "FOOD", amount: "540.00" },
         ],
         fuelEntryIds: [fuelId],
+        files: [
+          {
+            path: `files/${receipt.id}/toll.pdf`,
+            fileName: "toll.pdf",
+            contentType: "application/pdf",
+            size: 1024,
+            costIndex: 0,
+          },
+        ],
       });
       // A JSON round trip, as a backup file would make.
       const fromFile = JSON.parse(JSON.stringify(rows)) as typeof rows;
@@ -1132,11 +1156,15 @@ describe("Trips (e2e)", () => {
       );
       expect(outcome).toEqual({
         restored: 3,
+        ids: [expect.any(String), expect.any(String), expect.any(String), null, null],
+        costIds: [[expect.any(String), expect.any(String)], [], [], null, null],
         skipped: [
           { index: 3, reason: "Made by a newer version of AutoMate" },
           { index: 4, reason: "Enter the distance in km" },
         ],
       });
+      // Each input row's new id; the toll's new id is where a receipt's costIndex points.
+      expect(outcome.ids[0]).not.toBe(done.id);
       const restored = dataOf<Trip[]>(
         await as(arjun).get(`/api/v1/trips?vehicleId=${copy.id}&sort=oldest`).expect(200),
       );

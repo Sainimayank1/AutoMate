@@ -27,7 +27,11 @@ import {
 } from "@/modules/documents/documents.constants";
 
 import { AttachmentsService } from "./attachments.service";
-import { AttachmentListQueryDto, CreateAttachmentUploadDto } from "./dto/attachments.dto";
+import {
+  AttachmentListQueryDto,
+  CreateAttachmentUploadDto,
+  FileLinkQueryDto,
+} from "./dto/attachments.dto";
 
 /** Receipts and files on expenses, service records, tracked parts and inspections. */
 @ApiTags("attachments")
@@ -74,8 +78,12 @@ export class AttachmentsController {
   @ApiOperation({ summary: "A link to view or download the file, valid for five minutes" })
   @ApiEnvelopeResponse(FILE_LINK_SCHEMA)
   @ApiErrorResponses(400, 401, 404, 503)
-  link(@CurrentUser() user: AuthUser, @Param("id", ParseUUIDPipe) id: string): Promise<FileLink> {
-    return this.attachments.link(user.id, id);
+  link(
+    @CurrentUser() user: AuthUser,
+    @Param("id", ParseUUIDPipe) id: string,
+    @Query() query: FileLinkQueryDto,
+  ): Promise<FileLink> {
+    return this.attachments.link(user.id, id, query.size);
   }
 
   @Delete(":id")

@@ -28,6 +28,7 @@ export const BACKUP_SECTIONS = [
   "trips",
   "documents",
   "components",
+  "inspections",
   "schedules",
   "loans",
   "recurring",
@@ -90,6 +91,8 @@ export interface BackupVehicle {
   documents: BackupDocumentRow[];
   /** Tracked parts (backupId re-links schedules to them). */
   components: Record<string, unknown>[];
+  /** Inspections as create input, their items' parts as `componentBackupId`, with their files. */
+  inspections: Record<string, unknown>[];
   /** Maintenance schedules, each with its part's backup id if it had one. */
   schedules: Record<string, unknown>[];
   /** Loans (backupId re-links EMI payments); their EMI schedules come back with them. */
@@ -153,6 +156,7 @@ export const restoreBackupSchema = z.object({
         trips: rows,
         documents: rows,
         components: rows,
+        inspections: rows,
         schedules: rows,
         loans: rows,
         recurring: rows,
@@ -200,9 +204,11 @@ export interface BackupFileTarget {
   path: string;
   fileName: string;
   contentType: string;
-  kind: "document" | "expense" | "service-record" | "avatar";
+  kind: "document" | "expense" | "service-record" | "component" | "inspection" | "trip" | "avatar";
   /** The restored record (null for the profile photo). */
   id: string | null;
+  /** A trip receipt's restored cost. */
+  costId?: string | null;
 }
 
 /** `POST /backup/restore/preview` (nothing saved) and `POST /backup/restore`. */

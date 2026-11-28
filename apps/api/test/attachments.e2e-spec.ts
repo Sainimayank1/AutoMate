@@ -4,7 +4,7 @@
  * and other users kept out.
  */
 import { randomUUID } from "node:crypto";
-import { access, rm } from "node:fs/promises";
+import { access, readFile, rm } from "node:fs/promises";
 import { resolve } from "node:path";
 
 import {
@@ -21,6 +21,7 @@ import {
 } from "@automate/shared";
 import type { NestExpressApplication } from "@nestjs/platform-express";
 import { Test } from "@nestjs/testing";
+import sharp from "sharp";
 import request from "supertest";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
@@ -129,22 +130,26 @@ describe("Attachments (e2e)", () => {
   }
 
   /** Announce, PUT straight to storage, confirm. */
-  async function upload(token: string, ownerId: string) {
+  async function upload(
+    token: string,
+    ownerId: string,
+    file = { bytes: PNG, contentType: "image/png", fileName: "receipt.png" },
+  ) {
     const slot = dataOf<UploadSlot>(
       await as(token)
         .post("/api/v1/attachments/uploads", {
           owner: "expense",
           ownerId,
-          fileName: "receipt.png",
-          contentType: "image/png",
-          size: PNG.length,
+          fileName: file.fileName,
+          contentType: file.contentType,
+          size: file.bytes.length,
         })
         .expect(201),
     );
     await request(app.getHttpServer())
       .put(new URL(slot.url).pathname)
       .set(slot.headers)
-      .send(PNG)
+      .send(file.bytes)
       .expect(200);
     return {
       slot,
@@ -174,6 +179,40 @@ describe("Attachments (e2e)", () => {
     await as(token).delete(`/api/v1/attachments/${receipt.id}`).expect(204);
     expect(await exists(stored(row.key))).toBe(false);
     await as(token).get(`/api/v1/attachments/${receipt.id}/link`).expect(404);
+  });
+
+  it("keeps a small WebP preview of a photo, linked with ?size=thumb and removed with it", async () => {
+    const token = await signUp();
+    const wash = await expense(token);
+    const photo = await sharp({
+      create: { width: 1600, height: 1200, channels: 3, background: "#33669a" },
+    })
+      .jpeg()
+      .toBuffer();
+    const { confirm } = await upload(token, wash.id, {
+      bytes: photo,
+      contentType: "image/jpeg",
+      fileName: "odometer.jpg",
+    });
+    const file = dataOf<Attachment>(await confirm().expect(200));
+    expect(file.thumbnail).toBe(true);
+    const row = await prisma.attachment.findUniqueOrThrow({ where: { id: file.id } });
+    const thumb = await sharp(await readFile(stored(row.thumbKey!))).metadata();
+    expect(thumb).toMatchObject({ format: "webp", width: 400, height: 300 });
+
+    const full = dataOf<FileLink>(await as(token).get(`/api/v1/attachments/${file.id}/link`));
+    const small = dataOf<FileLink>(
+      await as(token).get(`/api/v1/attachments/${file.id}/link?size=thumb`).expect(200),
+    );
+    expect(small.url).not.toBe(full.url);
+    await as(token).get(`/api/v1/attachments/${file.id}/link?size=huge`).expect(400);
+
+    await as(token).delete(`/api/v1/attachments/${file.id}`).expect(204);
+    expect(await exists(stored(row.thumbKey!))).toBe(false);
+
+    // A file sharp can't read is kept, just without a preview.
+    const broken = dataOf<Attachment>(await (await upload(token, wash.id)).confirm().expect(200));
+    expect(broken.thumbnail).toBe(false);
   });
 
   it("refuses a file that isn't what it says, and other users' records", async () => {

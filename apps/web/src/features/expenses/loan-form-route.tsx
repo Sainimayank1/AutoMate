@@ -38,6 +38,7 @@ import {
 } from "@/features/expenses/hooks/use-recurring";
 import { PAYMENT_METHOD_LABELS } from "@/features/fuel/constants";
 import { vehicleName } from "@/features/garage/constants";
+import { usePreferences } from "@/features/settings/hooks/use-settings";
 import { useActiveVehicle } from "@/hooks/use-active-vehicle";
 import { applyServerErrors } from "@/lib/forms";
 import { formatCurrency, formatNumber } from "@/utils/format";
@@ -58,7 +59,12 @@ type LoanForm = {
 
 const trim = (value: string | null | undefined) => value?.replace(/\.00$/, "") ?? "";
 
-const toForm = (vehicleId: string, loan?: VehicleLoan, emis?: RecurringExpense): LoanForm => ({
+const toForm = (
+  vehicleId: string,
+  loan?: VehicleLoan,
+  emis?: RecurringExpense,
+  reminderDays = 3,
+): LoanForm => ({
   vehicleId: loan?.vehicleId ?? vehicleId,
   lender: loan?.lender ?? "",
   accountNumber: loan?.accountNumber ?? "",
@@ -70,7 +76,7 @@ const toForm = (vehicleId: string, loan?: VehicleLoan, emis?: RecurringExpense):
   method: loan?.method ?? LoanMethod.REDUCING,
   processingFee: trim(loan?.processingFee),
   paymentMethod: emis?.paymentMethod ?? "",
-  reminderDays: String(emis?.reminderDays ?? 3),
+  reminderDays: String(emis?.reminderDays ?? reminderDays),
 });
 
 /**
@@ -80,6 +86,7 @@ const toForm = (vehicleId: string, loan?: VehicleLoan, emis?: RecurringExpense):
 export function Component() {
   const { loanId } = useParams();
   const garage = useActiveVehicle();
+  const preferences = usePreferences();
   const loan = useLoan(loanId);
   const emis = useRecurringSchedule(loan.data?.recurringId ?? undefined);
 
@@ -102,7 +109,12 @@ export function Component() {
   return (
     <LoanFormPage
       vehicles={garage.vehicles}
-      defaults={toForm(garage.activeVehicle?.id ?? "", loan.data, emis.data)}
+      defaults={toForm(
+        garage.activeVehicle?.id ?? "",
+        loan.data,
+        emis.data,
+        preferences.data?.reminderTiming.paymentDays,
+      )}
       loan={loan.data}
     />
   );

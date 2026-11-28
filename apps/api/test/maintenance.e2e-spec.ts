@@ -10,6 +10,7 @@ import {
   type ApiSuccessResponse,
   type Inspection,
   istToday,
+  type MaintenanceAnalytics,
   type MaintenanceOverview,
   type MaintenanceProvider,
   type MaintenanceSchedule,
@@ -440,6 +441,108 @@ describe("Maintenance (e2e)", () => {
         recent: [{ id }],
         spend: { maintenance: "6850.00" },
       });
+    });
+
+    it("builds analytics from Expenses and records, with planned estimates never counted as spend", async () => {
+      const car = await vehicle(arjun, 8000);
+      await as(arjun)
+        .post(records(car.id), service({ serviceDate: addDays(today, -40), odometerKm: 8100 }))
+        .expect(201);
+      await as(arjun)
+        .post(
+          records(car.id),
+          service({
+            type: "REPAIR",
+            title: "AC compressor",
+            categoryKey: "AC.SERVICE",
+            serviceDate: addDays(today, -10),
+            odometerKm: 9100,
+          }),
+        )
+        .expect(201);
+      const planned = dataOf<MaintenanceSchedule>(
+        await as(arjun)
+          .post(schedules(car.id), {
+            name: "Replace tyres",
+            categoryKey: "TYRES.REPLACEMENT",
+            dueKm: 45_000,
+            estimatedCost: "24000",
+          })
+          .expect(201),
+      );
+      expect(planned.estimatedCost).toBe("24000.00");
+      await as(arjun)
+        .post(schedules(car.id), {
+          name: "Wiper blades",
+          categoryKey: "OTHER.OTHER",
+          dueKm: 20_000,
+        })
+        .expect(201);
+      await as(arjun).post(schedules(car.id), oil()).expect(201);
+      expect(
+        dataOf<unknown>(
+          await as(arjun).get(`/api/v1/vehicles/${car.id}/maintenance-plan`).expect(200),
+        ),
+      ).toEqual({ open: 2, estimatedTotal: "24000.00", withoutEstimate: 1 });
+      const once = await as(arjun)
+        .get(`${schedules(car.id)}?once=true`)
+        .expect(200);
+      expect(
+        dataOf<MaintenanceSchedule[]>(once)
+          .map((item) => item.name)
+          .sort(),
+      ).toEqual(["Replace tyres", "Wiper blades"]);
+
+      const analytics = dataOf<MaintenanceAnalytics>(
+        await as(arjun).get(`/api/v1/vehicles/${car.id}/maintenance-analytics`).expect(200),
+      );
+      expect(analytics.totals).toMatchObject({
+        spend: "13700.00",
+        services: 2,
+        repairVisits: 1,
+        averagePerService: "6850.00",
+      });
+      // Today back to the same day a year ago: 13 calendar months, as on the Overview.
+      expect(analytics.months).toHaveLength(13);
+      expect(analytics.frequency).toEqual({ averageDays: 30, averageKm: 1000, intervals: 1 });
+      expect(analytics.categories.map((row) => row.percent).reduce((a, b) => a + b, 0)).toBe(100);
+      expect(analytics.insights).toContain(
+        "On average, 30 days and 1,000 km passed between services.",
+      );
+      await as(arjun)
+        .get(`/api/v1/vehicles/${car.id}/maintenance-analytics?period=last_month`)
+        .expect(400);
+      await as(priya).get(`/api/v1/vehicles/${car.id}/maintenance-analytics`).expect(404);
+    });
+
+    it("applies a reviewed template in one go, or not at all", async () => {
+      const car = await vehicle(arjun, 8000);
+      const bulk = `${schedules(car.id)}/bulk`;
+      const made = dataOf<MaintenanceSchedule[]>(
+        await as(arjun)
+          .post(bulk, {
+            schedules: [
+              {
+                name: "Engine oil & filter",
+                categoryKey: "ENGINE.ENGINE_OIL",
+                intervalKm: 10_000,
+                intervalMonths: 12,
+              },
+              { name: "Cabin filter", categoryKey: "AC.CABIN_FILTER", intervalKm: 15_000 },
+            ],
+          })
+          .expect(201),
+      );
+      expect(made.map((item) => item.name).sort()).toEqual(["Cabin filter", "Engine oil & filter"]);
+      await as(arjun)
+        .post(bulk, {
+          schedules: [
+            { name: "Air filter", categoryKey: "ENGINE.AIR_FILTER", intervalKm: 20_000 },
+            { name: "Broken", categoryKey: "ENGINE.AIR_FILTER" },
+          ],
+        })
+        .expect(400);
+      expect(metaOf(await as(arjun).get(schedules(car.id)).expect(200))?.total).toBe(2);
     });
 
     it("checks the cost breakdown, the schedules and the odometer order", async () => {

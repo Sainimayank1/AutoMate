@@ -131,6 +131,8 @@ export interface DocumentFile {
   fileName: string;
   contentType: DocumentFileType;
   size: number;
+  /** A small WebP preview exists (photos; ask for it with `?size=thumb`). */
+  thumbnail: boolean;
   createdAt: string;
 }
 
@@ -141,6 +143,10 @@ export interface UploadSlot {
   headers: Record<string, string>;
   expiresAt: string;
 }
+
+/** `?size=thumb` links the small preview when the file has one (the original otherwise). */
+export const fileLinkQuerySchema = z.object({ size: z.enum(["thumb"]).optional() });
+export type FileLinkQuery = z.output<typeof fileLinkQuerySchema>;
 
 export interface FileLink {
   url: string;

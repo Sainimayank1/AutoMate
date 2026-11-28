@@ -13,9 +13,18 @@
     "typecheck": "pnpm -r typecheck",
     "test": "pnpm -r test",
     "format": "prettier --write .",
-    "format:check": "prettier --check ."
+    "format:check": "prettier --check .",
+    "prepare": "husky",
+    "test:e2e:web": "pnpm --filter @automate/web test:e2e"
   },
   "devDependencies": {
+    "husky": "^9.1.7",
+    "lint-staged": "^17.6.1",
     "prettier": "^3.10.1"
+  },
+  "lint-staged": {
+    "*.{ts,tsx,js,mjs,cjs,json,md,css,yml,yaml,html}": "prettier --write --ignore-unknown",
+    "apps/web/**/*.{ts,tsx}": "pnpm --filter @automate/web exec eslint --fix --no-warn-ignored",
+    "apps/api/**/*.ts": "pnpm --filter @automate/api exec eslint --fix --no-warn-ignored"
   }
 }

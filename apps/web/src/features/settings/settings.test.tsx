@@ -23,6 +23,12 @@ const preferences: UserPreferences = {
     monthlySummary: false,
   },
   quietHours: null,
+  reminderTiming: {
+    documentDays: [30, 7, 1],
+    serviceLeadDays: 30,
+    serviceLeadKm: 1000,
+    paymentDays: 3,
+  },
   regional: {
     currency: "INR",
     distanceUnit: "km",
@@ -106,6 +112,42 @@ describe("settings", () => {
       }),
     );
     expect(await screen.findByLabelText("From")).toHaveValue("22:00");
+  });
+
+  it("saves reminder timing and puts back a value it can't use", async () => {
+    let saved = preferences.reminderTiming;
+    const calls = api({
+      ...base,
+      "PATCH /users/me/preferences": (config) => {
+        const change = body(config) as Pick<UserPreferences, "reminderTiming">;
+        saved = { ...saved, ...change.reminderTiming };
+        return ok({ ...preferences, reminderTiming: saved });
+      },
+    });
+    renderApp("/settings");
+    const user = userEvent.setup();
+
+    const payments = await screen.findByLabelText(/Payments due/);
+    await user.clear(payments);
+    await user.type(payments, "5");
+    const documents = screen.getByLabelText(/Documents expiring/);
+    await user.clear(documents);
+    await user.type(documents, "15, 3");
+    await user.tab();
+    const patches = () => calls.filter((call) => call.method === "patch").map(body);
+    await waitFor(() =>
+      expect(patches()).toEqual([
+        { reminderTiming: { paymentDays: 5 } },
+        { reminderTiming: { documentDays: [15, 3] } },
+      ]),
+    );
+
+    const km = screen.getByLabelText(/km before/);
+    await user.clear(km);
+    await user.type(km, "lots");
+    await user.tab();
+    expect(km).toHaveValue("1000");
+    expect(patches()).toHaveLength(2);
   });
 
   it("turns every reminder off with the master switch", async () => {

@@ -19,6 +19,9 @@ export const maintenanceKeys = {
   workshopVisits: (id: string, params: PageParams) =>
     ["maintenance", "providers", "visits", id, params] as const,
   vehicle: (vehicleId: string) => ["maintenance", vehicleId] as const,
+  plan: (vehicleId: string) => ["maintenance", vehicleId, "plan"] as const,
+  analytics: (vehicleId: string, period: string) =>
+    ["maintenance", vehicleId, "analytics", period] as const,
   overview: (vehicleId: string, params: OverviewParams) =>
     ["maintenance", vehicleId, "overview", params] as const,
   lists: (vehicleId: string) => ["maintenance", vehicleId, "list"] as const,

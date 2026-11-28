@@ -8,7 +8,7 @@ import tseslint from "typescript-eslint";
 
 export default defineConfig([
   // public/sw.js runs in a service worker, not the page: plain JS outside the app's TypeScript.
-  globalIgnores(["dist", "coverage", "public/sw.js"]),
+  globalIgnores(["dist", "coverage", "public/sw.js", "playwright-report", "test-results"]),
   {
     files: ["**/*.{ts,tsx,js}"],
     extends: [

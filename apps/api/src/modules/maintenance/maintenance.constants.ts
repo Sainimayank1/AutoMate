@@ -48,6 +48,12 @@ export const SCHEDULE_SCHEMA: Schema = {
     leadDays: int(),
     leadKm: int(),
     priority: { type: "string", enum: Object.values(SchedulePriority) },
+    estimatedCost: {
+      type: "string",
+      nullable: true,
+      example: "24000.00",
+      description: "An estimate, never spend",
+    },
     notes: { type: "string", nullable: true },
     pausedAt: { type: "string", format: "date-time", nullable: true },
     createdAt: { type: "string", format: "date-time" },
@@ -318,5 +324,104 @@ export const INSPECTION_SCHEMA: Schema = {
     },
     createdAt: { type: "string", format: "date-time" },
     updatedAt: { type: "string", format: "date-time" },
+  },
+};
+
+/** OpenAPI shape of `MaintenanceAnalytics` (@automate/shared). */
+export const ANALYTICS_SCHEMA: Schema = {
+  type: "object",
+  properties: {
+    period: {
+      type: "object",
+      properties: { from: date("2025-11-29"), to: date("2026-11-28") },
+    },
+    totals: {
+      type: "object",
+      properties: {
+        spend: money("48650.00"),
+        maintenance: money("30163.00"),
+        repairs: money("18487.00"),
+        services: { type: "integer", example: 6 },
+        repairVisits: { type: "integer", example: 2 },
+        averagePerService: optionalMoney("8108.33"),
+        distanceKm: int(20020),
+        costPerKm: optionalMoney("2.43"),
+      },
+    },
+    months: {
+      type: "array",
+      items: {
+        type: "object",
+        properties: {
+          month: { type: "string", example: "2026-11" },
+          maintenance: money("6200.00"),
+          repairs: money("1200.00"),
+        },
+      },
+    },
+    categories: {
+      type: "array",
+      description: "By Expenses subcategory, largest first",
+      items: {
+        type: "object",
+        properties: {
+          name: { type: "string", example: "Engine oil" },
+          total: money("14600.00"),
+          percent: { type: "integer", example: 30 },
+        },
+      },
+    },
+    frequency: {
+      type: "object",
+      properties: {
+        averageDays: int(92),
+        averageKm: int(3400),
+        intervals: { type: "integer", example: 5 },
+      },
+    },
+    replacements: {
+      type: "array",
+      items: {
+        type: "object",
+        properties: {
+          name: { type: "string", example: "Front brake pads" },
+          replacedOn: date("2026-09-14"),
+          replacedKm: int(18400),
+          lifeKm: int(18400),
+          expectedLifeKm: int(20000),
+          percentOfLife: int(92),
+        },
+      },
+    },
+    comparison: {
+      type: "array",
+      description: "Every active vehicle over the same window; empty with one vehicle",
+      items: {
+        type: "object",
+        properties: {
+          vehicleId: { type: "string", format: "uuid" },
+          name: { type: "string", example: "Maruti Suzuki Victoris LXI" },
+          registrationNumber: { type: "string", example: "HR26EV4821" },
+          spend: money("48650.00"),
+          services: { type: "integer", example: 6 },
+          costPerKm: optionalMoney("2.43"),
+        },
+      },
+    },
+    insights: {
+      type: "array",
+      description: "Rule-based observations from the figures (no AI)",
+      items: { type: "string", example: "Repairs were 38% of maintenance spend." },
+    },
+  },
+};
+
+/** OpenAPI shape of `MaintenancePlanSummary` (@automate/shared). */
+export const PLAN_SCHEMA: Schema = {
+  type: "object",
+  properties: {
+    open: { type: "integer", example: 3, description: "One-time jobs not yet done, not paused" },
+    estimatedTotal: money("38500.00"),
+    withoutEstimate: { type: "integer", example: 1 },
   },
 };

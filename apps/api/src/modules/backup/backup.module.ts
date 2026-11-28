@@ -21,5 +21,6 @@ import { BackupService } from "./backup.service";
   ],
   controllers: [BackupController],
   providers: [BackupService],
+  exports: [BackupService],
 })
 export class BackupModule {}

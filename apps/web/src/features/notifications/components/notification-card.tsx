@@ -29,16 +29,21 @@ const SNOOZE = [
 
 /**
  * One notification (Stitch "Notifications"): the category icon tinted by priority, the title
- * (bold while unread, with the cyan dot), what it's about, the vehicle and when. "Open" goes to
- * the record and marks it read; the menu reads, snoozes or dismisses it.
+ * (bold while unread, with the cyan dot), what it's about, the vehicle and when. Its next step
+ * (Stitch's "Renew plan": renewing an expiring document) comes first; "Open" goes to the record
+ * and marks it read; the title opens the details sheet; the menu reads, snoozes or
+ * dismisses it.
  */
 export function NotificationCard({
   item,
   snoozed = false,
+  onSelect,
 }: {
   item: NotificationItem;
   /** Shown under "Snoozed": says when it comes back. */
   snoozed?: boolean;
+  /** Opens the details sheet (the title becomes its button). */
+  onSelect?: () => void;
 }) {
   const setRead = useSetRead();
   const snooze = useSnooze();
@@ -72,7 +77,18 @@ export function NotificationCard({
           {unread && (
             <span className="mt-1.5 size-2 shrink-0 rounded-full bg-primary" aria-label="Unread" />
           )}
-          <span className="min-w-0">{item.title}</span>
+          {onSelect ? (
+            <button
+              type="button"
+              onClick={onSelect}
+              className="min-w-0 text-left hover:underline focus-visible:underline focus-visible:outline-none"
+              aria-label={`Details: ${item.title}`}
+            >
+              {item.title}
+            </button>
+          ) : (
+            <span className="min-w-0">{item.title}</span>
+          )}
         </p>
         {item.body && <p className="text-sm text-muted-foreground">{item.body}</p>}
         <p className="text-xs text-muted-foreground">
@@ -85,6 +101,16 @@ export function NotificationCard({
         </p>
       </div>
       <div className="flex shrink-0 items-center gap-1">
+        {item.action && (
+          <Button
+            asChild
+            size="sm"
+            className="max-md:h-10"
+            onClick={() => unread && setRead.mutate({ id: item.id, read: true })}
+          >
+            <Link to={item.action.href}>{item.action.label}</Link>
+          </Button>
+        )}
         {item.href && (
           <Button
             asChild

@@ -19,6 +19,7 @@ const notification = (overrides: Partial<NotificationItem>): NotificationItem =>
   title: "Wheel alignment is overdue",
   body: "Due on 25 Nov 2026",
   href: "/maintenance/schedules/s1",
+  action: null,
   vehicle: {
     id: victoris.id,
     name: "Maruti Suzuki Victoris LXI",
@@ -39,6 +40,7 @@ const puc = notification({
   title: "PUC certificate expires on 3 Dec 2026",
   body: "PUC renewal · HR026-PUC-9921",
   href: "/documents/d1",
+  action: { label: "Renew", href: "/documents/d1/edit?renew=1" },
   readAt: now,
 });
 const reminder = (overrides: Partial<Reminder>): Reminder => ({
@@ -93,6 +95,13 @@ describe("notifications inbox", () => {
     expect(card.getByLabelText("Unread")).toBeInTheDocument();
     expect(card.getByText(/^Maruti Suzuki Victoris LXI · /)).toBeInTheDocument();
     expect(card.getByRole("link", { name: "Open" })).toHaveAttribute("href", overdue.href);
+    expect(card.queryByRole("link", { name: "Renew" })).not.toBeInTheDocument();
+    // An expiring document goes straight to its renewal.
+    const pucCard = within(today.getByRole("article", { name: puc.title }));
+    expect(pucCard.getByRole("link", { name: "Renew" })).toHaveAttribute(
+      "href",
+      "/documents/d1/edit?renew=1",
+    );
     expect(screen.getByRole("button", { name: "Notifications, 1 unread" })).toBeInTheDocument();
 
     await user.click(screen.getByRole("radio", { name: "Documents" }));
@@ -115,6 +124,35 @@ describe("notifications inbox", () => {
     await waitFor(() =>
       expect(calls.some((call) => call.url === "/notifications/read-all")).toBe(true),
     );
+  });
+
+  it("opens a notification's details and acts on it there", async () => {
+    const calls = api({
+      ...base,
+      [`PATCH /notifications/${overdue.id}`]: () => ok({ ...overdue, readAt: now }),
+      [`POST /notifications/${overdue.id}/snooze`]: () => ok({ ...overdue, snoozedUntil: now }),
+    });
+    renderApp("/notifications");
+    const user = userEvent.setup();
+
+    await user.click(await screen.findByRole("button", { name: `Details: ${overdue.title}` }));
+    const sheet = within(await screen.findByRole("dialog", { name: overdue.title }));
+    expect(sheet.getByText("Due on 25 Nov 2026")).toBeInTheDocument();
+    expect(sheet.getByText("Maruti Suzuki Victoris LXI · HR-26-EV-4821")).toBeInTheDocument();
+    expect(sheet.getByText("Unread")).toBeInTheDocument();
+    expect(sheet.getByRole("link", { name: "Open record" })).toHaveAttribute("href", overdue.href);
+
+    await user.click(sheet.getByRole("button", { name: "Mark as read" }));
+    await waitFor(() =>
+      expect(calls.some((call) => call.method === "patch" && call.url?.endsWith(overdue.id))).toBe(
+        true,
+      ),
+    );
+    expect(body(calls.find((call) => call.method === "patch"))).toEqual({ read: true });
+
+    await user.click(sheet.getByRole("button", { name: "3 days" }));
+    await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
+    expect(calls.some((call) => call.url?.endsWith(`${overdue.id}/snooze`))).toBe(true);
   });
 
   it("says when you're all caught up", async () => {

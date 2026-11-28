@@ -14,3 +14,7 @@ graphify-out/
 
 # Document files kept by the local storage provider (apps/api)
 .storage/
+
+# Playwright output (apps/web)
+playwright-report/
+test-results/

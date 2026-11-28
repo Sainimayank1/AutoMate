@@ -226,6 +226,26 @@ export class ExpensesService {
     }));
   }
 
+  /** Spending in some top-level categories by subcategory (the parent's name when there's none). */
+  async spendBySubcategory(
+    userId: string,
+    vehicleId: string,
+    window: DateWindow,
+    categoryKeys: string[],
+  ): Promise<{ name: string; total: Prisma.Decimal }[]> {
+    const rows = await this.prisma.$queryRaw<{ name: string; total: Prisma.Decimal }[]>`
+      SELECT coalesce(s.name, c.name) AS name,
+             sum(CASE WHEN e.kind = 'REFUND' THEN -e.amount ELSE e.amount END) AS total
+      FROM expenses e
+      JOIN expense_categories c ON c.id = e.category_id
+      LEFT JOIN expense_categories s ON s.id = e.subcategory_id
+      WHERE e.user_id = ${userId}::uuid AND e.vehicle_id = ${vehicleId}::uuid
+        AND e.date >= ${window.from}::date AND e.date <= ${window.to}::date
+        AND c.key IN (${Prisma.join(categoryKeys)})
+      GROUP BY 1`;
+    return rows.map((row) => ({ name: row.name, total: new Prisma.Decimal(row.total) }));
+  }
+
   async get(userId: string, id: string): Promise<ExpenseDetail> {
     const row = await this.prisma.expense.findFirst({ where: { id, userId }, include: INCLUDE });
     if (!row) throw new NotFoundException(NOT_FOUND);

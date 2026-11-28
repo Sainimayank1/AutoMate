@@ -35,6 +35,8 @@ export interface NotificationItem {
   body: string | null;
   /** Where it opens (a path in the app). */
   href: string | null;
+  /** The next step it calls for, when there's one (e.g. renewing an expiring document). */
+  action: { label: string; href: string } | null;
   vehicle: { id: string; name: string; registrationNumber: string } | null;
   /** When it (re)appeared: raised, or woken from a snooze. */
   activeAt: string;

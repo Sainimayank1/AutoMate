@@ -42,6 +42,7 @@ import {
 } from "@/features/expenses/hooks/use-recurring";
 import { PAYMENT_METHOD_LABELS } from "@/features/fuel/constants";
 import { vehicleName } from "@/features/garage/constants";
+import { usePreferences } from "@/features/settings/hooks/use-settings";
 import { useActiveVehicle } from "@/hooks/use-active-vehicle";
 import { applyServerErrors } from "@/lib/forms";
 import { formatCurrency, formatDate } from "@/utils/format";
@@ -80,7 +81,11 @@ const presetOf = (every: number, unit: RecurrenceUnit): Frequency =>
     ([, preset]) => preset.every === every && preset.unit === unit,
   )?.[0] as Frequency | undefined) ?? "custom";
 
-const toForm = (vehicleId: string, schedule?: RecurringExpense): RecurringForm => ({
+const toForm = (
+  vehicleId: string,
+  schedule?: RecurringExpense,
+  reminderDays = 3,
+): RecurringForm => ({
   vehicleId: schedule?.vehicleId ?? vehicleId,
   categoryId: schedule?.category.id ?? "",
   subcategoryId: schedule?.subcategory?.id ?? "",
@@ -94,7 +99,7 @@ const toForm = (vehicleId: string, schedule?: RecurringExpense): RecurringForm =
   unit: schedule?.unit ?? RecurrenceUnit.MONTH,
   startDate: schedule?.startDate ?? format(new Date(), "yyyy-MM-dd"),
   endDate: schedule?.endDate ?? "",
-  reminderDays: String(schedule?.reminderDays ?? 3),
+  reminderDays: String(schedule?.reminderDays ?? reminderDays),
 });
 
 /**
@@ -104,6 +109,7 @@ const toForm = (vehicleId: string, schedule?: RecurringExpense): RecurringForm =
 export function Component() {
   const { recurringId } = useParams();
   const garage = useActiveVehicle();
+  const preferences = usePreferences();
   const categories = useExpenseCategories();
   const schedule = useRecurringSchedule(recurringId);
 
@@ -125,7 +131,11 @@ export function Component() {
   return (
     <RecurringFormPage
       vehicles={garage.vehicles}
-      defaults={toForm(garage.activeVehicle?.id ?? "", schedule.data)}
+      defaults={toForm(
+        garage.activeVehicle?.id ?? "",
+        schedule.data,
+        preferences.data?.reminderTiming.paymentDays,
+      )}
       id={recurringId}
     />
   );

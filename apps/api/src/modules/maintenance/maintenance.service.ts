@@ -1,10 +1,12 @@
 import {
+  type BulkCreateSchedulesValues,
   createScheduleSchema,
   type CreateScheduleValues,
   istToday,
   maintenanceCategoryName,
   type MaintenanceOverview,
   type MaintenanceOverviewQuery,
+  type MaintenancePlanSummary,
   type MaintenanceSchedule,
   ReportingPeriod,
   resolvePeriod,
@@ -23,7 +25,7 @@ import { ZodValidationException } from "nestjs-zod";
 
 import { Paginated } from "@/common/pagination/paginated";
 import { PrismaService } from "@/database/prisma.service";
-import type { Prisma, Vehicle } from "@/generated/prisma/client";
+import { Prisma, type Vehicle } from "@/generated/prisma/client";
 import { ExpensesService } from "@/modules/expenses/expenses.service";
 import { VehiclesService } from "@/modules/vehicles/vehicles.service";
 
@@ -42,6 +44,9 @@ const ACTIVE_DUE: ScheduleStatus[] = [
 ];
 
 /** The stages Notifications reminds about. */
+const isOnce = (schedule: MaintenanceSchedule) =>
+  schedule.intervalKm === null && schedule.intervalMonths === null;
+
 const REMINDED: ScheduleStatus[] = [
   ScheduleStatus.OVERDUE,
   ScheduleStatus.DUE,
@@ -63,6 +68,7 @@ const rowData = (values: CreateScheduleValues) => ({
   leadKm: values.leadKm ?? null,
   priority: values.priority ?? "NORMAL",
   componentId: values.componentId ?? null,
+  estimatedCost: values.estimatedCost ?? null,
   notes: values.notes ?? null,
 });
 
@@ -123,24 +129,44 @@ export class MaintenanceService {
       where: { vehicleId: vehicle.id, userId: vehicle.userId },
       include: SCHEDULE_INCLUDE,
     });
-    return rows.map((row) => toSchedule(row, vehicle.odometerKm, today)).sort(byUrgency);
+    const lead = await this.userLead(vehicle.userId);
+    return rows.map((row) => toSchedule(row, vehicle.odometerKm, today, lead)).sort(byUrgency);
   }
 
   async list(
     userId: string,
     vehicleId: string,
-    { status, search, ...page }: ScheduleListQuery,
+    { status, search, once, ...page }: ScheduleListQuery,
   ): Promise<Paginated<MaintenanceSchedule>> {
     const vehicle = await this.vehicles.findOwned(userId, vehicleId);
     const needle = search?.toLowerCase();
     const matches = (await this.computed(vehicle)).filter(
       (schedule) =>
         (!status || schedule.due.status === status) &&
+        (!once || isOnce(schedule)) &&
         (!needle ||
           schedule.name.toLowerCase().includes(needle) ||
           maintenanceCategoryName(schedule.categoryKey).toLowerCase().includes(needle)),
     );
     return Paginated.of(matches, page);
+  }
+
+  /** The Planner's total: open one-time jobs and their estimates (never counted as spend). */
+  async plan(userId: string, vehicleId: string): Promise<MaintenancePlanSummary> {
+    const vehicle = await this.vehicles.findOwned(userId, vehicleId);
+    const open = (await this.computed(vehicle)).filter(
+      (schedule) =>
+        isOnce(schedule) &&
+        schedule.due.status !== ScheduleStatus.COMPLETED &&
+        schedule.pausedAt === null,
+    );
+    return {
+      open: open.length,
+      estimatedTotal: open
+        .reduce((sum, schedule) => sum.plus(schedule.estimatedCost ?? 0), new Prisma.Decimal(0))
+        .toFixed(2),
+      withoutEstimate: open.filter((schedule) => schedule.estimatedCost === null).length,
+    };
   }
 
   async get(userId: string, vehicleId: string, id: string): Promise<MaintenanceSchedule> {
@@ -150,7 +176,12 @@ export class MaintenanceService {
       include: SCHEDULE_INCLUDE,
     });
     if (!row) throw new NotFoundException(NOT_FOUND);
-    return toSchedule(row, vehicle.odometerKm, istToday(new Date()));
+    return toSchedule(
+      row,
+      vehicle.odometerKm,
+      istToday(new Date()),
+      await this.userLead(vehicle.userId),
+    );
   }
 
   async create(
@@ -203,6 +234,31 @@ export class MaintenanceService {
     });
     this.logger.log(`Maintenance schedule ${id} created`);
     return this.get(userId, vehicleId, id);
+  }
+
+  /** Several schedules at once (a reviewed template), in one transaction: all or none. */
+  async createMany(
+    userId: string,
+    vehicleId: string,
+    { schedules }: BulkCreateSchedulesValues,
+  ): Promise<MaintenanceSchedule[]> {
+    const ids = await this.prisma.$transaction(async (tx) => {
+      const vehicle = await this.vehicles.lockOwned(userId, vehicleId, tx);
+      assertActive(vehicle);
+      const made: string[] = [];
+      for (const input of schedules) {
+        assertLastDoneKm(input.lastDoneKm, vehicle);
+        await assertComponent(tx, vehicle, input.componentId);
+        const row = await tx.maintenanceSchedule.create({
+          data: { ...rowData(input), userId, vehicleId, addedOdometerKm: vehicle.odometerKm },
+        });
+        made.push(row.id);
+      }
+      return made;
+    });
+    this.logger.log(`${ids.length} maintenance schedules created`);
+    const all = await this.computed(await this.vehicles.findOwned(userId, vehicleId));
+    return all.filter((schedule) => ids.includes(schedule.id));
   }
 
   /** Merges onto the stored schedule and re-checks it whole. History is never rewritten. */
@@ -311,6 +367,15 @@ export class MaintenanceService {
     return (await this.computed(vehicle)).filter(
       (schedule) => schedule.remindersEnabled && REMINDED.includes(schedule.due.status),
     );
+  }
+
+  /** The user's "due soon" lead for schedules without their own (Settings → reminder timing). */
+  private async userLead(userId: string) {
+    const prefs = await this.prisma.userPreference.findUnique({
+      where: { userId },
+      select: { serviceLeadDays: true, serviceLeadKm: true },
+    });
+    return prefs ? { days: prefs.serviceLeadDays, km: prefs.serviceLeadKm } : undefined;
   }
 
   /** The schedule under its vehicle's lock; archived vehicles are read-only. */

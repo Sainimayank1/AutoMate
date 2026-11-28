@@ -63,7 +63,11 @@ export function Component() {
     <ScheduleForm
       mode="create"
       vehicle={activeVehicle}
-      defaultValues={finding ? scheduleFromFinding(inspection.data!, finding) : newScheduleForm()}
+      defaultValues={
+        finding
+          ? scheduleFromFinding(inspection.data!, finding)
+          : { ...newScheduleForm(), ...(params.get("once") && { kind: "ONCE" as const }) }
+      }
       backTo={finding ? `/maintenance/inspections/${inspectionId}` : undefined}
       onSave={(values) =>
         create.mutateAsync({ ...values, id, ...(finding && { inspectionItemId: finding.id }) })

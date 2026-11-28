@@ -73,6 +73,27 @@ export interface TripBackupRow {
   }[];
   /** Fill-ups linked as the trip's actual fuel (their ids in the backup). */
   fuelEntryIds: string[];
+  /**
+   * The trip's confirmed photos and receipts (added after version 1 shipped, so old rows have
+   * none): `path` is where Backup puts the bytes, `costIndex` the receipt's place in `costs`.
+   * Restore leaves files to Backup, which uploads them under the restored ids.
+   */
+  files?: {
+    path: string;
+    fileName: string;
+    contentType: string;
+    size: number;
+    costIndex: number | null;
+  }[];
+}
+
+/** What a restore made: per input row, the new trip id and its costs' ids (null when skipped). */
+export interface TripRestoreResult {
+  restored: number;
+  ids: (string | null)[];
+  /** Aligned with each row's `costs`, so a file's `costIndex` finds its new cost. */
+  costIds: (string[] | null)[];
+  skipped: { index: number; reason: string }[];
 }
 
 const money = (value: Prisma.Decimal | null) => value?.toFixed(2) ?? null;
@@ -99,6 +120,10 @@ export class TripBackupService {
         stops: { orderBy: { position: "asc" } },
         costs: { orderBy: [{ date: "asc" }, { id: "asc" }] },
         fuelEntries: { select: { id: true } },
+        attachments: {
+          where: { confirmedAt: { not: null } },
+          orderBy: [{ createdAt: "asc" }, { id: "asc" }],
+        },
       },
       orderBy: [{ date: "asc" }, { createdAt: "asc" }, { id: "asc" }],
     });
@@ -158,6 +183,16 @@ export class TripBackupService {
         notes: cost.notes,
       })),
       fuelEntryIds: row.fuelEntries.map((entry) => entry.id),
+      files: row.attachments.map((file) => {
+        const costIndex = row.costs.findIndex((cost) => cost.id === file.costId);
+        return {
+          path: `files/${file.id}/${file.fileName}`,
+          fileName: file.fileName,
+          contentType: file.contentType,
+          size: file.size,
+          costIndex: costIndex === -1 ? null : costIndex,
+        };
+      }),
     }));
   }
 
@@ -173,7 +208,7 @@ export class TripBackupService {
     vehicleId: string,
     rows: TripBackupRow[],
     { fuelEntryIds }: { fuelEntryIds?: Map<string, string> } = {},
-  ): Promise<{ restored: number; skipped: { index: number; reason: string }[] }> {
+  ): Promise<TripRestoreResult> {
     const vehicle = await tx.vehicle.findFirst({ where: { id: vehicleId, userId } });
     if (!vehicle) throw new NotFoundException("Vehicle not found");
     const types = await tx.tripCategory.findMany({
@@ -181,6 +216,8 @@ export class TripBackupService {
       select: { id: true, key: true, name: true, userId: true },
     });
     const skipped: { index: number; reason: string }[] = [];
+    const ids: (string | null)[] = rows.map(() => null);
+    const costIds: (string[] | null)[] = rows.map(() => null);
     let restored = 0;
 
     for (const [index, row] of rows.entries()) {
@@ -281,6 +318,7 @@ export class TripBackupService {
           };
       await tx.trip.create({ data: { ...data, id, userId, vehicleId } });
       await this.trips.writeStops(tx, id, row.stops);
+      const madeCosts: string[] = [];
       if (done) {
         for (const cost of costs) {
           const saved = await tx.tripCost.create({
@@ -288,6 +326,7 @@ export class TripBackupService {
             include: COST_INCLUDE,
           });
           await this.costs.syncExpense(tx, userId, saved, saved.trip);
+          madeCosts.push(saved.id);
         }
         const fills = row.fuelEntryIds
           .map((old) => fuelEntryIds?.get(old))
@@ -299,8 +338,10 @@ export class TripBackupService {
           });
         }
       }
+      ids[index] = id;
+      costIds[index] = madeCosts;
       restored += 1;
     }
-    return { restored, skipped };
+    return { restored, ids, costIds, skipped };
   }
 }

@@ -26,6 +26,8 @@ export function toSchedule(
   row: ScheduleRow,
   odometerKm: number,
   today: string,
+  /** The user's default "due soon" lead, for a schedule without its own (Settings). */
+  lead?: { days: number; km: number },
 ): MaintenanceSchedule {
   const fields = {
     intervalKm: row.intervalKm,
@@ -47,6 +49,7 @@ export function toSchedule(
     remindersEnabled: row.remindersEnabled,
     priority: row.priority,
     component: row.component,
+    estimatedCost: row.estimatedCost?.toFixed(2) ?? null,
     notes: row.notes,
     pausedAt: row.pausedAt?.toISOString() ?? null,
     createdAt: row.createdAt.toISOString(),
@@ -54,6 +57,8 @@ export function toSchedule(
     due: computeDue(
       {
         ...fields,
+        leadDays: row.leadDays ?? lead?.days ?? null,
+        leadKm: row.leadKm ?? lead?.km ?? null,
         addedDate: istToday(row.createdAt),
         addedOdometerKm: row.addedOdometerKm,
         paused: row.pausedAt !== null,
@@ -86,6 +91,7 @@ export function toScheduleInput(
     leadKm: row.leadKm,
     priority: row.priority,
     componentId: row.componentId,
+    estimatedCost: row.estimatedCost?.toFixed(2) ?? null,
     notes: row.notes,
   };
 }

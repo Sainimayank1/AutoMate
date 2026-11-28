@@ -22,6 +22,7 @@ import { SettingsService } from "@/modules/settings/settings.service";
 import { TripPlansService } from "@/modules/trips/trip-plans.service";
 
 import {
+  actionOf,
   type Candidate,
   documentCandidates,
   EVENT_PREFIXES,
@@ -30,6 +31,7 @@ import {
   paymentCandidates,
   reminderCandidates,
   summaryCandidate,
+  transferCandidates,
   tripCandidates,
 } from "./notification-rules";
 import { RemindersService } from "./reminders.service";
@@ -55,6 +57,7 @@ function toItem(row: Row): NotificationItem {
     title: row.title,
     body: row.body,
     href: row.href,
+    action: actionOf(row.kind, row.href),
     vehicle: vehicle && {
       id: vehicle.id,
       name: [vehicle.make, vehicle.model, vehicle.variant].filter(Boolean).join(" "),
@@ -87,6 +90,8 @@ export class NotificationsService {
   // shortcut: a per-process throttle; with several API instances each one syncs on its own, which
   // is harmless (a sync is idempotent). Move to a stored timestamp if that ever matters.
   private readonly syncedAt = new Map<string, number>();
+  /** A sync on its way: concurrent reads (the bell and the list) wait for it, not skip it. */
+  private readonly running = new Map<string, Promise<void>>();
 
   constructor(
     private readonly prisma: PrismaService,
@@ -106,10 +111,18 @@ export class NotificationsService {
   }
 
   async sync(userId: string, { force = false } = {}): Promise<void> {
+    const inFlight = this.running.get(userId);
+    if (inFlight) return inFlight;
     const now = Date.now();
     if (!force && now - (this.syncedAt.get(userId) ?? 0) < SYNC_EVERY_MS) return;
     this.syncedAt.set(userId, now);
+    const run = this.raise(userId, now).finally(() => this.running.delete(userId));
+    this.running.set(userId, run);
+    return run;
+  }
 
+  /** Brings the stored inbox in line with the records (one sync's work). */
+  private async raise(userId: string, now: number): Promise<void> {
     const { notifications: prefs } = await this.settings.preferences(userId);
     const failed: string[] = [];
     const candidates: Candidate[] = [];
@@ -322,6 +335,23 @@ export class NotificationsService {
               vehicles: totals.filter((item) => item.records > 0).length,
             }),
           ];
+        },
+      },
+      {
+        prefix: "transfer:",
+        enabled: true,
+        run: async () => {
+          const { email } = await this.prisma.user.findUniqueOrThrow({ where: { id: userId } });
+          return transferCandidates(
+            await this.prisma.vehicleTransfer.findMany({
+              where: {
+                toEmail: email.toLowerCase(),
+                status: "PENDING",
+                expiresAt: { gt: new Date() },
+              },
+              include: { fromUser: { select: { name: true } } },
+            }),
+          );
         },
       },
       {

@@ -1,5 +1,6 @@
 import type {
   Inspection,
+  MaintenanceAnalytics,
   MaintenanceOverview,
   MaintenanceSchedule,
   ProviderProfile,
@@ -55,6 +56,7 @@ const schedule = (overrides: Partial<MaintenanceSchedule> = {}): MaintenanceSche
   leadKm: null,
   priority: "NORMAL",
   component: null,
+  estimatedCost: null,
   notes: null,
   pausedAt: null,
   createdAt: "2026-11-27T05:00:00.000Z",
@@ -193,6 +195,106 @@ describe("maintenance overview", () => {
     renderApp("/maintenance");
     expect(await screen.findByText("Couldn't load maintenance")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Try again" })).toBeInTheDocument();
+  });
+});
+
+describe("maintenance analytics and planner", () => {
+  const analytics: MaintenanceAnalytics = {
+    period: { from: "2025-11-28", to: "2026-11-27" },
+    totals: {
+      spend: "48650.00",
+      maintenance: "30163.00",
+      repairs: "18487.00",
+      services: 6,
+      repairVisits: 2,
+      averagePerService: "8108.33",
+      distanceKm: 20_020,
+      costPerKm: "2.43",
+    },
+    months: [
+      { month: "2026-10", maintenance: "6850.00", repairs: "0.00" },
+      { month: "2026-11", maintenance: "6200.00", repairs: "1200.00" },
+    ],
+    categories: [{ name: "Engine oil", total: "14600.00", percent: 30 }],
+    frequency: { averageDays: 92, averageKm: 3400, intervals: 5 },
+    replacements: [
+      {
+        name: "Front brake pads",
+        replacedOn: "2026-09-14",
+        replacedKm: 18_400,
+        lifeKm: 18_400,
+        expectedLifeKm: 20_000,
+        percentOfLife: 92,
+      },
+    ],
+    comparison: [],
+    insights: ["Repairs were 38% of maintenance spend, up from 21% in the period before."],
+  };
+
+  it("shows analytics from the API and asks for the period on the server", async () => {
+    const calls = api({
+      "GET /vehicles": () => okPage([victoris]),
+      [`GET /vehicles/${victoris.id}/maintenance-analytics`]: () => ok(analytics),
+    });
+    renderApp("/maintenance/analytics");
+    const user = userEvent.setup();
+
+    expect(await screen.findByText("₹48,650.00")).toBeInTheDocument();
+    expect(screen.getByText("4 scheduled · 2 repairs")).toBeInTheDocument();
+    expect(screen.getByText("₹2.43")).toBeInTheDocument();
+    expect(screen.getByText(analytics.insights[0]!)).toBeInTheDocument();
+    expect(screen.getByText("Based on your records")).toBeInTheDocument();
+    expect(screen.getAllByText("18,400 / 20,000 km (92%)").length).toBeGreaterThan(0);
+
+    await user.click(screen.getByRole("combobox", { name: "Analytics period" }));
+    await user.click(await screen.findByRole("option", { name: "All time" }));
+    await waitFor(() =>
+      expect(
+        calls.filter((call) => call.url?.endsWith("/maintenance-analytics")).at(-1)?.params,
+      ).toEqual({ period: "all_time" }),
+    );
+  });
+
+  it("lists planned jobs with their estimate total and applies a reviewed template", async () => {
+    const tyres = schedule({
+      id: "0190d4a2-0000-7000-8000-00000000c009",
+      name: "Replace tyres",
+      categoryKey: "TYRES.REPLACEMENT",
+      intervalKm: null,
+      lastDoneDate: null,
+      lastDoneKm: null,
+      dueKm: 45_000,
+      estimatedCost: "24000.00",
+    });
+    const calls = api({
+      "GET /vehicles": () => okPage([victoris]),
+      [`GET /vehicles/${victoris.id}/maintenance-plan`]: () =>
+        ok({ open: 1, estimatedTotal: "24000.00", withoutEstimate: 0 }),
+      [`GET ${SCHEDULES}`]: () => okPage([tyres]),
+      [`POST ${SCHEDULES}/bulk`]: () => ok([oil], 201),
+    });
+    renderApp("/maintenance/planner");
+    const user = userEvent.setup();
+
+    expect(await screen.findByText("Replace tyres")).toBeInTheDocument();
+    expect(screen.getByText("est. ₹24,000.00")).toBeInTheDocument();
+    expect(await screen.findByText("₹24,000.00")).toBeInTheDocument();
+    expect(calls.find((call) => call.url === SCHEDULES)?.params).toMatchObject({ once: true });
+
+    const card = screen.getByRole("heading", { name: "Two-wheeler" }).closest("[data-slot=card]")!;
+    await user.click(within(card as HTMLElement).getByRole("button", { name: "Apply template" }));
+    const dialog = within(await screen.findByRole("dialog"));
+    expect(
+      dialog.getByText("Generic starting point — check your owner's manual"),
+    ).toBeInTheDocument();
+    await user.click(dialog.getByRole("checkbox", { name: "Spark plug" }));
+    await user.click(dialog.getByRole("button", { name: "Add 5 schedules" }));
+    await waitFor(() => expect(calls.some((call) => call.url?.endsWith("/bulk"))).toBe(true));
+    const sent = bodyOf(calls.find((call) => call.url?.endsWith("/bulk"))) as {
+      schedules: { name: string; intervalKm: number | null }[];
+    };
+    expect(sent.schedules.map((item) => item.name)).not.toContain("Spark plug");
+    expect(sent.schedules[0]).toMatchObject({ name: "Periodic service", intervalKm: 3000 });
   });
 });
 

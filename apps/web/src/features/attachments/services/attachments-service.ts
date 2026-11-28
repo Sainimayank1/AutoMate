@@ -14,7 +14,9 @@ export const attachmentsService = {
   /** A record holds at most MAX_ATTACHMENTS, so the whole list is small. */
   list: (owner: AttachmentOwner, ownerId: string) =>
     requestAllPages<Attachment>({ url: "/attachments", params: { owner, ownerId } }),
-  link: (id: string) => request<FileLink>({ url: `/attachments/${id}/link` }),
+  /** `thumb`: the small preview the API made of a photo (the original when there's none). */
+  link: (id: string, size?: "thumb") =>
+    request<FileLink>({ url: `/attachments/${id}/link`, params: size ? { size } : undefined }),
   remove: (id: string) => request<void>({ method: "DELETE", url: `/attachments/${id}` }),
   /** Announce, PUT straight to storage, confirm. */
   async upload(owner: AttachmentOwner, ownerId: string, original: File): Promise<Attachment> {

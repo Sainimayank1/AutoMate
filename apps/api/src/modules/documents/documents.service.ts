@@ -12,6 +12,7 @@ import {
   type DocumentSummaryQuery,
   EXPIRING_DAYS,
   type FileLink,
+  type FileLinkQuery,
   istToday,
   MAX_DOCUMENT_FILE_BYTES,
   pageMeta,
@@ -29,6 +30,7 @@ import { VehiclesService } from "@/modules/vehicles/vehicles.service";
 import { SIGNATURE_BYTES, sniffType } from "@/storage/file-signature";
 import { STORAGE_PROVIDER, type StorageProvider } from "@/storage/storage.provider";
 import { StorageSweepService } from "@/storage/storage-sweep.service";
+import { ThumbnailService } from "@/storage/thumbnail.service";
 
 import { stateWindow } from "./document-state";
 import {
@@ -61,6 +63,7 @@ export class DocumentsService {
     private readonly vehicles: VehiclesService,
     @Inject(STORAGE_PROVIDER) private readonly storage: StorageProvider,
     private readonly sweep: StorageSweepService,
+    private readonly thumbs: ThumbnailService,
   ) {}
 
   async list(userId: string, query: DocumentListQuery): Promise<Paginated<VehicleDocument>> {
@@ -206,7 +209,7 @@ export class DocumentsService {
       await this.attach(tx, userId, id, parsed.data.fileIds);
       return gone;
     });
-    await this.forget(removed.map((file) => file.key));
+    await this.forget(removed.flatMap((file) => [file.key, file.thumbKey]));
     this.logger.log(`Document ${id} updated`);
     return this.get(userId, id);
   }
@@ -217,7 +220,7 @@ export class DocumentsService {
       this.prisma.documentFile.deleteMany({ where: { documentId: id } }),
       this.prisma.document.delete({ where: { id } }),
     ]);
-    await this.forget(current.files.map((file) => file.key));
+    await this.forget(current.files.flatMap((file) => [file.key, file.thumbKey]));
     this.logger.log(`Document ${id} deleted`);
   }
 
@@ -271,21 +274,31 @@ export class DocumentsService {
         ),
       );
     }
+    const thumbKey = await this.thumbs.make(userId, file.key, file.contentType);
     const confirmed = await this.prisma.documentFile.update({
       where: { id: file.id },
-      data: { confirmedAt: new Date() },
+      data: { confirmedAt: new Date(), thumbKey },
     });
     return toDocumentFile(confirmed);
   }
 
   /** A link to one of a document's files, valid for a few minutes. */
-  async fileLink(userId: string, documentId: string, fileId: string): Promise<FileLink> {
+  async fileLink(
+    userId: string,
+    documentId: string,
+    fileId: string,
+    size?: FileLinkQuery["size"],
+  ): Promise<FileLink> {
     const file = await this.prisma.documentFile.findFirst({
       where: { id: fileId, userId, documentId, confirmedAt: { not: null } },
     });
     if (!file) throw new NotFoundException("File not found");
     return {
-      url: await this.storage.createDownloadUrl(file.key, LINK_SECONDS, file.fileName),
+      url: await this.storage.createDownloadUrl(
+        (size === "thumb" && file.thumbKey) || file.key,
+        LINK_SECONDS,
+        file.fileName,
+      ),
       expiresAt: new Date(Date.now() + LINK_SECONDS * 1000).toISOString(),
     };
   }
@@ -369,8 +382,9 @@ export class DocumentsService {
   }
 
   /** Removes objects after their rows are gone; a failure is logged, never undoes the delete. */
-  private async forget(keys: string[]) {
+  private async forget(keys: (string | null)[]) {
     for (const key of keys) {
+      if (!key) continue;
       try {
         await this.storage.delete(key);
       } catch (error) {
