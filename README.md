@@ -191,9 +191,20 @@ Detailed steps, conventions and checks are in [CONTRIBUTING.md](CONTRIBUTING.md)
 
 ### Docker
 
-Today, Docker Compose runs the development database (`pnpm db:up`), bound to `127.0.0.1` only, with
-its data in a named volume. The API and web app run on your machine with `pnpm`. A Docker Compose
-setup that runs the whole stack for self-hosting is in progress (see the [roadmap](#roadmap)).
+Run the whole stack (PostgreSQL, API, and the web app behind Caddy) with Docker alone, no Node.js
+needed:
+
+```bash
+cp .env.example .env    # set POSTGRES_PASSWORD and JWT_ACCESS_SECRET (commands in the file)
+docker compose -f docker-compose.prod.yml up -d --build
+```
+
+Open <http://localhost>. Migrations and reference data are applied automatically by a one-off
+`migrate` service; data and uploaded files live in named volumes. Set `PUBLIC_URL` to a domain and
+Caddy serves it over HTTPS with an automatic certificate. The full guide, including ports, logs,
+updates and backups, is [docs/deployment/self-hosting.md](docs/deployment/self-hosting.md).
+
+For development, `docker-compose.yml` runs only the database (`pnpm db:up`, bound to `127.0.0.1`).
 
 ## Configuration
 
@@ -227,9 +238,11 @@ AutoMate/
 │       ├── e2e/             Playwright browser tests
 │       └── screenshots/     the README screenshot capture
 ├── packages/shared/         Zod schemas, types and calculations for both apps
-├── docs/                    product spec, architecture notes, development guides, assets
+├── deploy/                  Caddyfile and the backup script for self-hosting
+├── docs/                    product spec, architecture notes, development and deployment guides
 ├── .github/workflows/       CI and scheduled jobs
-└── docker-compose.yml       development database
+├── docker-compose.yml       development database
+└── docker-compose.prod.yml  production stack (PostgreSQL, API, Caddy)
 ```
 
 ## API
@@ -268,12 +281,16 @@ GitHub Actions runs all of these on every push to `main` and every pull request.
 
 ## Deployment
 
-- **Managed hosting (documented today):** the web app on Cloudflare Pages, the API on Render,
-  PostgreSQL on Neon and files on Cloudflare R2, all on free tiers. The repository includes the
-  configuration (`render.yaml`, `apps/web/public/_redirects` and `_headers`); the step-by-step guide
-  is in [docs/architecture/deployment.md](docs/architecture/deployment.md).
-- **Self-hosting (in progress):** one server running the whole stack with Docker Compose and
-  automatic HTTPS, with backup, restore and update guides.
+- **Recommended: self-hosting with Docker.** One Linux server (2 vCPU, 2–4 GB RAM) runs PostgreSQL,
+  the API and Caddy with automatic HTTPS from `docker-compose.prod.yml`. PostgreSQL stays on an
+  internal network, the API runs as a non-root user, and migrations run before each start.
+  Guides: [self-hosting](docs/deployment/self-hosting.md) (install, updates, rollback) and
+  [backup and restore](docs/deployment/backup-and-restore.md) (with a cron-ready
+  `deploy/backup.sh`).
+- **Alternative: managed free tiers.** The web app on Cloudflare Pages, the API on Render,
+  PostgreSQL on Neon and files on Cloudflare R2. The repository includes the configuration
+  (`render.yaml`, `apps/web/public/_redirects` and `_headers`); the guide is
+  [docs/architecture/deployment.md](docs/architecture/deployment.md).
 
 In any deployment: set strong secrets, serve over HTTPS, never expose PostgreSQL to the internet,
 and back up the database and files regularly. See [SECURITY.md](SECURITY.md).
@@ -284,7 +301,7 @@ and back up the database and files regularly. See [SECURITY.md](SECURITY.md).
 - [x] Maintenance, Documents, Notifications
 - [x] Trips, Analytics
 - [x] Settings, Backup & Export, vehicle transfer between accounts
-- [ ] Self-hosting with Docker Compose and automatic HTTPS
+- [x] Self-hosting with Docker Compose and automatic HTTPS
 - [ ] Versioned releases with a changelog and upgrade notes
 - [ ] Password reset and email verification (needs an email provider)
 - [ ] Email reminders and digests

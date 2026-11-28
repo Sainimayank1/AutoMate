@@ -1,5 +1,8 @@
 # Deployment
 
+This guide covers managed hosting. To run everything on one server of your own instead, see
+[self-hosting with Docker](../deployment/self-hosting.md).
+
 Free tiers first ([TECH_STACK.md §9](../TECH_STACK.md#9-infrastructure--keep-it-free-initially)): the web app on **Cloudflare Pages**, the API on **Render**, PostgreSQL on **Neon**, files on **Cloudflare R2**, checks on **GitHub Actions**. The repository holds the configuration (`render.yaml`, `apps/web/public/_redirects` and `_headers`, `.github/workflows/`); accounts, projects and secrets are created by the owner in each dashboard, never committed.
 
 ## 1. Order

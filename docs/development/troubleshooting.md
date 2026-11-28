@@ -82,6 +82,27 @@ with its keys, or `local` with `STORAGE_LOCAL_PERSISTENT=true`. Locally, storage
 **Photos or documents are gone after a redeploy**: `local` files live in `STORAGE_LOCAL_DIR`, which
 must be a persistent volume in production.
 
+## Docker (self-hosting)
+
+**`required variable POSTGRES_PASSWORD is missing a value`**: create `.env` from `.env.example` at
+the repository root and fill in the required values.
+
+**`Bind for 0.0.0.0:80 failed: port is already allocated`**: another web server uses port 80 (or
+443). Stop it, or publish other ports: set `HTTP_PORT`, `HTTPS_PORT`, `SITE_ADDRESS=:80` and a
+`PUBLIC_URL` with the port (see [self-hosting](../deployment/self-hosting.md#try-it-on-your-own-machine-first)).
+
+**`service "migrate" didn't complete successfully`**: read why with
+`docker compose -f docker-compose.prod.yml logs migrate`. A wrong `POSTGRES_PASSWORD` after the
+database was first created is a common cause: the password is set when the volume is first
+initialised, so changing `.env` later doesn't change it.
+
+**No HTTPS certificate / the browser can't connect to your domain**: Caddy needs the domain's DNS
+to point at the server and ports 80 and 443 open from the internet. Check
+`docker compose -f docker-compose.prod.yml logs web` for the ACME error.
+
+**Uploads fail after moving to Docker**: `PUBLIC_URL` must be the exact address people open
+(scheme, host and port), because upload and download links are built from it.
+
 ## Tests and tooling
 
 **API e2e tests fail to connect**: they use the database in `apps/api/.env`. Run `pnpm db:up` and

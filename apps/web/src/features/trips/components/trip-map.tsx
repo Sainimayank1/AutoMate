@@ -6,7 +6,8 @@ import { CircleMarker, MapContainer, Polyline, TileLayer, Tooltip } from "react-
 
 import { env } from "@/lib/env";
 
-const TILES = env.VITE_MAP_TILE_URL ?? "https://tile.openstreetmap.org/{z}/{x}/{y}.png";
+// Blank counts as unset (a Docker build argument may pass an empty string).
+const TILES = env.VITE_MAP_TILE_URL || "https://tile.openstreetmap.org/{z}/{x}/{y}.png";
 const ATTRIBUTION =
   '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors';
 

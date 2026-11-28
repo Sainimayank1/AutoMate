@@ -1,0 +1,26 @@
+# Keep the Docker build context small and free of secrets and local state.
+.git
+**/node_modules
+**/dist
+**/coverage
+**/.env
+**/.env.*
+!**/.env.example
+**/*.log
+**/.storage
+apps/api/src/generated
+apps/web/playwright-report
+apps/web/test-results
+graphify-out
+backups
+*.dump
+**/.claude
+**/.agents
+**/.windsurf
+**/skills-lock.json
+.husky
+.github
+.vscode
+.idea
+docs
+README.md

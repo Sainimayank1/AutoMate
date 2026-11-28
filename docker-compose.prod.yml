@@ -1,0 +1,126 @@
+# AutoMate on one server: PostgreSQL, the API, and Caddy serving the web app with automatic HTTPS.
+#   cp .env.example .env    # then fill in the required values
+#   docker compose -f docker-compose.prod.yml up -d --build
+# Guide: docs/deployment/self-hosting.md. Local development uses docker-compose.yml instead.
+name: automate-prod
+
+x-logging: &logging
+  driver: json-file
+  options:
+    max-size: 10m
+    max-file: "3"
+
+x-database-url: &database-url postgresql://${POSTGRES_USER:-automate}:${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}@postgres:5432/${POSTGRES_DB:-automate}
+
+services:
+  postgres:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-automate}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}
+      POSTGRES_DB: ${POSTGRES_DB:-automate}
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    # Never published: only the API and the migration job can reach it.
+    networks: [backend]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+    logging: *logging
+
+  # One-off: applies migrations and the reference data, then exits. Never inserts demo data.
+  migrate:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+      target: migrate
+    restart: "no"
+    environment:
+      DATABASE_URL: *database-url
+    networks: [backend]
+    depends_on:
+      postgres:
+        condition: service_healthy
+    logging: *logging
+
+  api:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+      target: runtime
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      DATABASE_URL: *database-url
+      JWT_ACCESS_SECRET: ${JWT_ACCESS_SECRET:?Set JWT_ACCESS_SECRET in .env}
+      FRONTEND_URL: ${PUBLIC_URL:-http://localhost}
+      TRUST_PROXY: "1"
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+      SWAGGER_ENABLED: ${SWAGGER_ENABLED:-false}
+      # Files on the api-storage volume by default; set STORAGE_PROVIDER=r2|s3 and its keys to use a bucket.
+      STORAGE_PROVIDER: ${STORAGE_PROVIDER:-local}
+      STORAGE_LOCAL_DIR: /data/storage
+      STORAGE_LOCAL_PERSISTENT: "true"
+      STORAGE_PUBLIC_URL: ${PUBLIC_URL:-http://localhost}
+      STORAGE_BUCKET: ${STORAGE_BUCKET:-}
+      STORAGE_REGION: ${STORAGE_REGION:-}
+      STORAGE_ACCESS_KEY: ${STORAGE_ACCESS_KEY:-}
+      STORAGE_SECRET_KEY: ${STORAGE_SECRET_KEY:-}
+      STORAGE_ENDPOINT: ${STORAGE_ENDPOINT:-}
+      GEOCODER_URL: ${GEOCODER_URL:-}
+      GEOCODER_API_KEY: ${GEOCODER_API_KEY:-}
+      ROUTER_URL: ${ROUTER_URL:-}
+      PUSH_VAPID_PUBLIC_KEY: ${PUSH_VAPID_PUBLIC_KEY:-}
+      PUSH_VAPID_PRIVATE_KEY: ${PUSH_VAPID_PRIVATE_KEY:-}
+      PUSH_CONTACT: ${PUSH_CONTACT:-}
+      DISPATCH_SECRET: ${DISPATCH_SECRET:-}
+    volumes:
+      - api-storage:/data/storage
+    # backend for the database; frontend for Caddy and outbound calls (geocoding, push).
+    networks: [backend, frontend]
+    depends_on:
+      postgres:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+    security_opt: ["no-new-privileges:true"]
+    cap_drop: [ALL]
+    logging: *logging
+
+  web:
+    build:
+      context: .
+      dockerfile: apps/web/Dockerfile
+      args:
+        VITE_MAP_TILE_URL: ${VITE_MAP_TILE_URL:-}
+    restart: unless-stopped
+    environment:
+      # What Caddy serves; defaults to PUBLIC_URL (see .env.example for the port escape hatch).
+      SITE_ADDRESS: ${SITE_ADDRESS:-${PUBLIC_URL:-http://localhost}}
+    ports:
+      - "${HTTP_PORT:-80}:80"
+      - "${HTTPS_PORT:-443}:443"
+      - "${HTTPS_PORT:-443}:443/udp"
+    volumes:
+      - caddy-data:/data
+      - caddy-config:/config
+    networks: [frontend]
+    depends_on:
+      api:
+        condition: service_healthy
+    security_opt: ["no-new-privileges:true"]
+    logging: *logging
+
+networks:
+  backend:
+    internal: true
+  frontend:
+
+volumes:
+  postgres-data:
+  api-storage:
+  caddy-data:
+  caddy-config:

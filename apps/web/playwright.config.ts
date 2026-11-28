@@ -11,7 +11,8 @@ const ci = !!process.env.CI;
 
 export default defineConfig({
   testDir: "./e2e",
-  timeout: 60_000,
+  // Generous: a sign-up may wait out the API's rate limit (helpers.ts).
+  timeout: 150_000,
   expect: { timeout: 10_000 },
   // One file at a time: the API allows 10 sign-ups a minute per address (helpers.ts retries).
   fullyParallel: false,

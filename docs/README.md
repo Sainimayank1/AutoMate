@@ -7,7 +7,9 @@ Start with the [project README](../README.md). This folder holds everything deep
 - [Environment variables](development/environment-variables.md): every setting the API and web app read.
 - [Database](development/database.md): migrations, seeding (including the demo data), resets and backups.
 - [Troubleshooting](development/troubleshooting.md): common problems and fixes.
-- [Deployment](architecture/deployment.md): the managed-hosting setup (Cloudflare Pages, Render, Neon, R2).
+- [Self-hosting with Docker](deployment/self-hosting.md): one server, automatic HTTPS, updates and rollback.
+- [Backup and restore](deployment/backup-and-restore.md): the backup script, restoring, checking a backup.
+- [Managed hosting](architecture/deployment.md): Cloudflare Pages, Render, Neon and R2.
 
 ## Contributing
 

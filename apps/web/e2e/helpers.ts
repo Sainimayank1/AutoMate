@@ -24,8 +24,11 @@ export async function signUp(request: APIRequestContext, name: string): Promise<
   const email = `e2e-${id}@automate.test`;
   const password = `Drive${id}9`;
   let res = await register(request, { name, email, password, acceptedTerms: true });
-  for (let attempt = 0; res.status() === 429 && attempt < 8; attempt++) {
-    await new Promise((resolve) => setTimeout(resolve, 10_000));
+  for (let attempt = 0; res.status() === 429 && attempt < 6; attempt++) {
+    // Wait as long as the API asks (its window is a minute), then try again.
+    const headers = res.headers();
+    const wait = Number(headers["retry-after"] ?? headers["x-ratelimit-reset"] ?? 10);
+    await new Promise((resolve) => setTimeout(resolve, Math.min(Math.max(wait, 1), 60) * 1000));
     res = await register(request, { name, email, password, acceptedTerms: true });
   }
   expect(res.ok(), await res.text()).toBe(true);

@@ -8,8 +8,11 @@ AutoMate reads configuration from environment variables, validated at startup:
   JavaScript bundle that browsers download, so **never put a secret in a `VITE_` variable**.
 
 Templates: [`apps/api/.env.example`](../../apps/api/.env.example) and
-[`apps/web/.env.example`](../../apps/web/.env.example). Copy them to `.env` in the same folder.
-`.env` files are git-ignored; never commit one.
+[`apps/web/.env.example`](../../apps/web/.env.example) for development; copy them to `.env` in the
+same folder. The Docker stack (`docker-compose.prod.yml`) instead reads a `.env` at the repository
+root, from [`.env.example`](../../.env.example), and fills in the database URL, storage folder and
+proxy settings itself ([self-hosting](../deployment/self-hosting.md)). `.env` files are
+git-ignored; never commit one.
 
 Generate secrets with `openssl rand -base64 48`.
 
