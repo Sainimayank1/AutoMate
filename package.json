@@ -39,6 +39,7 @@
     "db:migrate": "pnpm --filter @automate/api prisma:migrate",
     "db:deploy": "pnpm --filter @automate/api prisma:deploy",
     "db:seed": "pnpm --filter @automate/api prisma:seed",
+    "db:seed:demo": "pnpm --filter @automate/api prisma:seed:demo",
     "db:studio": "pnpm --filter @automate/api prisma:studio",
     "build": "pnpm -r build",
     "lint": "pnpm -r lint",

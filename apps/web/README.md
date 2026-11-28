@@ -1,61 +1,62 @@
-# @automate/web
+# AutoMate web app (`apps/web`)
 
-AutoMate's frontend: React 19 + Vite 8 + TypeScript (strict), shadcn/ui + Tailwind CSS v4.
+AutoMate's frontend: React 19, Vite, TypeScript (strict), shadcn/ui and Tailwind CSS 4, with
+TanStack Query for server state. Every module is built: Dashboard, Garage, Fuel, Expenses,
+Maintenance, Documents, Trips, Analytics, Notifications, Settings, and Backup & Export.
 
-Status: infrastructure, the Stitch "Cockpit" theme and email/password sign-in and registration are built. All 12 module pages are placeholders. Screens are built from the Stitch project (see the `automate-design` skill).
+Setup for the whole repository is in the root [README](../../README.md#quick-start) and
+[CONTRIBUTING.md](../../CONTRIBUTING.md).
 
-## Run it
+## Running it
 
-Requirements: Node ≥ 24, pnpm 12.
+From the repository root, with `apps/web/.env` in place (copy `apps/web/.env.example`):
 
 ```bash
-# from the repo root
-pnpm install
-pnpm --filter @automate/shared build   # web imports the API types from the built shared package
-cp apps/web/.env.example apps/web/.env
-pnpm dev                               # http://localhost:5173
+pnpm codegen      # once on a fresh clone: the web app imports the built shared package
+pnpm dev          # http://localhost:5173
 ```
 
-Sign-in needs the API running too (`docker compose up -d`, then `pnpm dev:api`). Open http://localhost:5173 and create an account on `/register`; the session survives reloads through an httpOnly refresh cookie.
+The app needs the API running (`pnpm dev:api`). The session survives reloads through an httpOnly
+refresh cookie, so use `localhost` for both the web app and the API.
 
-## Scripts (run in `apps/web`, or via `pnpm --filter @automate/web <script>`)
+## Scripts (here, or `pnpm --filter @automate/web <script>` from the root)
 
-| Script                          | What it does                                             |
-| ------------------------------- | -------------------------------------------------------- |
-| `pnpm dev`                      | Vite dev server on :5173                                 |
-| `pnpm build`                    | Type check (`tsc -b`) + production build into `dist/`    |
-| `pnpm preview`                  | Serve the production build locally                       |
-| `pnpm typecheck`                | TypeScript only                                          |
-| `pnpm lint`                     | ESLint (includes import ordering; `--fix` sorts imports) |
-| `pnpm test` / `pnpm test:watch` | Vitest + Testing Library                                 |
+| Script                | What it does                                                          |
+| --------------------- | --------------------------------------------------------------------- |
+| `dev`                 | Vite dev server on :5173                                              |
+| `build`               | Type check (`tsc -b`) and production build into `dist/`               |
+| `preview`             | Serve the production build locally                                    |
+| `typecheck` / `lint`  | TypeScript / ESLint (with import ordering; `--fix` sorts imports)     |
+| `test` / `test:watch` | Vitest and Testing Library                                            |
+| `test:e2e`            | Playwright browser tests (`e2e/`), desktop and phone                  |
+| `screenshots`         | Re-capture the README screenshots from the demo data (`screenshots/`) |
 
-Formatting is repo-wide: `pnpm format` / `pnpm format:check` from the root.
+Formatting is repository-wide: `pnpm format` / `pnpm format:check` from the root.
 
 ## Environment variables
 
-| Variable            | Required | Example                        | Notes                                     |
-| ------------------- | -------- | ------------------------------ | ----------------------------------------- |
-| `VITE_API_BASE_URL` | yes      | `http://localhost:3000/api/v1` | API base URL including the version prefix |
-
-Validated at startup by `src/lib/env.ts`. A missing or invalid value stops the app with a clear console error. Vite bakes `VITE_*` values in at **build** time, so set them in the hosting provider's build settings.
+`VITE_API_BASE_URL` (required) and `VITE_MAP_TILE_URL` (optional), validated at startup by
+`src/lib/env.ts`; see [environment variables](../../docs/development/environment-variables.md#web-app-appswebenv).
+Vite bakes `VITE_*` values into the bundle at build time, so they are public: never put a secret in
+one, and set them in the build environment when deploying.
 
 ## Where things live
 
 ```
 src/
-├── app/            # App.tsx, providers, router, module registry (modules.ts)
+├── app/            App.tsx, providers, router, module registry (modules.ts)
 ├── components/
-│   ├── ui/         # shadcn/ui primitives (generated; add via `pnpm dlx shadcn@latest add <name>`)
-│   ├── common/     # app-level building blocks: PageHeader, DataTable, FormField, StatCard…
-│   ├── feedback/   # Empty/Error/Loading states, error boundaries
-│   └── layout/     # AppShell, sidebar, header, theme toggle, user menu
-├── features/<id>/  # one folder per module; route.tsx is its lazily loaded entry
-├── hooks/          # shared hooks
-├── lib/            # env, API client, API errors, query client, form helpers
-├── stores/         # Zustand (client-only global state)
-├── styles/         # Tailwind entry + design tokens
-├── test/           # Vitest setup
-└── utils/          # pure helpers (Indian formatters)
+│   ├── ui/         shadcn/ui primitives (add with `pnpm dlx shadcn@latest add <name>`)
+│   ├── common/     app-level building blocks: PageHeader, FormField, StatCard, Pager…
+│   ├── feedback/   empty, error and loading states, error boundaries
+│   └── layout/     AppShell, sidebar, header, bottom navigation, search, user menu
+├── features/<id>/  one folder per module; route files are lazily loaded entries
+├── hooks/          shared hooks
+├── lib/            env, API client, API errors, query client, form helpers
+├── stores/         Zustand (client-only global state)
+├── styles/         Tailwind entry and design tokens
+├── test/           Vitest setup and API mocks
+└── utils/          pure helpers (Indian formatting, CSV, images)
 ```
 
 More detail:
