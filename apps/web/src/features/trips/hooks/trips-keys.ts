@@ -29,6 +29,7 @@ export const tripsKeys = {
   fuel: (tripId: string) => ["trips", "money", tripId, "fuel"] as const,
   candidates: (tripId: string) => ["trips", "money", tripId, "candidates"] as const,
   cost: (id: string) => ["trips", "cost", id] as const,
+  attachments: (tripId: string) => ["trips", "attachments", tripId] as const,
   allCosts: (params: TripCostListParams) => ["trips", "all-costs", params] as const,
   costsSummary: (params: TripCostSummaryParams) => ["trips", "costs-summary", params] as const,
 };

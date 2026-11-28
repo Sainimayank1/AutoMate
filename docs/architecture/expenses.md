@@ -63,7 +63,7 @@ Every top-level category has a **cost class**; subcategories inherit it. The cla
 
 ## 4. Phases
 
-Built: **1 · Core** (categories, add / edit / delete / duplicate, transactions with filters, sorting, paging and CSV export, details, shared expenses, refunds, bulk actions, manual loan split), **2 · Fuel link** (§5), **3 · Overview** (KPI strip, category breakdown, recent expenses, monthly trend against last year, upcoming payments; `GET /expenses/summary`, `GET /expenses/trend`) **4 · Recurring payments and the vehicle loan** (§6), **5 · Budgets** (§7) **6 · Ownership cost** (§8), **7 · Insights** (§9) and **8 · CSV import and the printable report** (§10). The module is complete; receipts wait for Documents (M6) and its file storage. Receipt attachments and receipt scanning are out of scope (no file storage in this project).
+Built: **1 · Core** (categories, add / edit / delete / duplicate, transactions with filters, sorting, paging and CSV export, details, shared expenses, refunds, bulk actions, manual loan split), **2 · Fuel link** (§5), **3 · Overview** (KPI strip, category breakdown, recent expenses, monthly trend against last year, upcoming payments; `GET /expenses/summary`, `GET /expenses/trend`) **4 · Recurring payments and the vehicle loan** (§6), **5 · Budgets** (§7) **6 · Ownership cost** (§8), **7 · Insights** (§9) and **8 · CSV import and the printable report** (§10). The module is complete. Receipts are attachments on the expense, shown in its details ([documents.md §2](documents.md#2-files-and-storage)); receipt scanning is out of scope.
 
 ## 5. Linked records (Fuel and Maintenance today; Trips later)
 

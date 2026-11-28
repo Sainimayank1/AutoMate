@@ -1,3 +1,6 @@
+import type { IncomingMessage } from "node:http";
+
+import { BACKUP_MAX_BYTES } from "@automate/shared";
 import { HttpStatus, VersioningType } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import type { NestExpressApplication } from "@nestjs/platform-express";
@@ -27,7 +30,18 @@ export function configureApp(app: NestExpressApplication): void {
   app.set("trust proxy", config.get("TRUST_PROXY", { infer: true }));
   app.use(helmet());
   app.use(cookieParser());
-  app.useBodyParser("json", { limit: JSON_BODY_LIMIT });
+  // Restoring a backup posts the whole file, so only those routes take a larger body.
+  const restore = `/${prefix}/${version}/backup/restore`;
+  const isJson = (req: IncomingMessage) => /\bjson\b/i.test(req.headers["content-type"] ?? "");
+  const isRestore = (req: IncomingMessage) => req.url?.startsWith(restore) ?? false;
+  app.useBodyParser("json", {
+    limit: JSON_BODY_LIMIT,
+    type: (req: IncomingMessage) => isJson(req) && !isRestore(req),
+  });
+  app.useBodyParser("json", {
+    limit: BACKUP_MAX_BYTES,
+    type: (req: IncomingMessage) => isJson(req) && isRestore(req),
+  });
   app.enableCors({
     // "*" is rejected in production by env validation.
     origin: origins.includes("*") ? true : origins,

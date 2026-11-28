@@ -4,6 +4,7 @@ import type {
   DashboardLayout,
   DashboardOverview,
   DashboardOverviewQuery,
+  DismissDashboardItemValues,
 } from "@automate/shared";
 
 import { request, requestPage } from "@/lib/api-client";
@@ -17,6 +18,9 @@ export const dashboardService = {
     requestPage<ActivityItem>({ url: "/dashboard/activity", params }),
   /** The signed-in user's layout (the default until they save one). */
   layout: () => request<DashboardLayout>({ url: "/dashboard/layout" }),
+  /** Hide an information-only action-centre item for a vehicle. */
+  dismiss: (values: DismissDashboardItemValues) =>
+    request<void>({ method: "POST", url: "/dashboard/dismissals", data: values }),
   saveLayout: (layout: DashboardLayout) =>
     request<DashboardLayout>({ url: "/dashboard/layout", method: "PUT", data: layout }),
 };

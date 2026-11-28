@@ -1,4 +1,4 @@
-import type { RecurringPayment, Vehicle, VehicleDocument } from "@automate/shared";
+import type { RecurringPayment, Reminder, Vehicle, VehicleDocument } from "@automate/shared";
 import { describe, expect, it } from "vitest";
 
 import { expiryDates, vehicleStatus } from "./vehicle-status";
@@ -375,5 +375,57 @@ describe("documents on the dashboard", () => {
       today,
     });
     expect(withoutPolicy.map((item) => item.id)).toEqual(["document:d1", "insurance"]);
+  });
+});
+
+describe("reminders and dismissals in the action centre", () => {
+  const reminder = (overrides: Partial<Reminder>) =>
+    ({
+      id: "m1",
+      vehicleId: "car",
+      title: "Get the tyres rotated",
+      dueDate: "2026-11-29",
+      remindDaysBefore: 3,
+      notes: null,
+      doneAt: null,
+      state: "DUE",
+      daysLeft: 2,
+      ...overrides,
+    }) as Reminder;
+
+  it("lists the user's due and overdue reminders, not upcoming ones", () => {
+    const { items } = vehicleStatus({
+      vehicle: vehicle(),
+      insurance: null,
+      maintenance: NONE,
+      reminders: [
+        reminder({}),
+        reminder({ id: "m2", state: "OVERDUE", dueDate: "2026-11-20", daysLeft: -7 }),
+        reminder({ id: "m3", state: "UPCOMING", dueDate: "2026-12-20", daysLeft: 23 }),
+      ],
+      today: TODAY,
+    });
+    expect(items.map((item) => [item.id, item.severity, item.state, item.title])).toEqual([
+      ["reminder:m2", "critical", "overdue", "Get the tyres rotated was due on 20 Nov 2026"],
+      ["reminder:m1", "warning", "due_soon", "Get the tyres rotated is due in 2 days"],
+    ]);
+    expect(items[0]?.action).toEqual({
+      label: "Open reminder",
+      href: "/notifications/reminders?reminder=m2",
+    });
+  });
+
+  it("hides dismissed information, never something to do", () => {
+    const status = (dismissed: string[]) =>
+      vehicleStatus({
+        vehicle: vehicle({ warrantyExpiryDate: "2028-03-14" }),
+        insurance: insurance("2026-12-10"),
+        maintenance: NONE,
+        dismissed,
+        today: TODAY,
+      }).items.map((item) => item.id);
+    expect(status([])).toEqual(["insurance", "warranty"]);
+    // The warranty is information; the insurance expiring in 13 days is a warning.
+    expect(status(["warranty", "insurance"])).toEqual(["insurance"]);
   });
 });

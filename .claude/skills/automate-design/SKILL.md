@@ -93,11 +93,9 @@ All paths are relative to `.claude/skills/automate-design/references/`.
 
 Apply each item the first time a task touches that area, in the same change, and update `docs/architecture/design-system.md` with it:
 
-| Gap                                             | Current                                  | Target                                                                                              | Where                                                          |
-| ----------------------------------------------- | ---------------------------------------- | --------------------------------------------------------------------------------------------------- | -------------------------------------------------------------- |
-| Mobile bottom nav                               | none; phones only get the sidebar drawer | `BottomNav` + `QuickAddSheet` as specified in `application-navigation.md`                           | new `components/layout/bottom-nav.tsx`, rendered in `AppShell` |
-| Missing primitives                              | none                                     | `drawer` (vaul), `command` (cmdk), `scroll-area` (`chart`, `progress`, `toggle-group` are done)     | Add with the shadcn CLI when first needed                      |
-| Compact currency                                | none                                     | `formatCurrencyCompact` (₹1.2L, ₹45K) for chart axes                                                | `utils/format.ts`, with a test                                 |
-| Auth: forgot/reset password, email verification | not built (needs an email provider)      | Generate the Stitch screens, then build them in `features/auth` (see `module-design-guidelines.md`) | `features/auth`, `apps/api` auth module                        |
+| Gap                                             | Current                             | Target                                                                                              | Where                                     |
+| ----------------------------------------------- | ----------------------------------- | --------------------------------------------------------------------------------------------------- | ----------------------------------------- |
+| Missing primitives                              | none                                | `drawer` (vaul), `command` (cmdk), `scroll-area` (`chart`, `progress`, `toggle-group` are done)     | Add with the shadcn CLI when first needed |
+| Auth: forgot/reset password, email verification | not built (needs an email provider) | Generate the Stitch screens, then build them in `features/auth` (see `module-design-guidelines.md`) | `features/auth`, `apps/api` auth module   |
 
-Done already: the `chart` primitive (Fuel), the Stitch palette and fonts, the radius, the `elevated`/`insight`/`brand` tokens, `hero-glow`, dark as the default theme, the Stitch nav groups, the logo and favicon, and the sign-in and registration screens.
+Done already: the mobile bottom nav with the quick-add sheet (and the header's "+" menu), `formatCurrencyCompact` on money chart axes, the `chart` primitive (Fuel), the Stitch palette and fonts, the radius, the `elevated`/`insight`/`brand` tokens, `hero-glow`, dark as the default theme, the Stitch nav groups, the logo and favicon, and the sign-in and registration screens.

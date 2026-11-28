@@ -16,7 +16,12 @@ import {
 import { Progress } from "@/components/ui/progress";
 import { CategoryIcon } from "@/features/expenses/components/category-icon";
 import { categoryTone } from "@/features/expenses/constants";
-import { formatCurrency, formatDateRange, formatNumber } from "@/utils/format";
+import {
+  formatCurrency,
+  formatCurrencyCompact,
+  formatDateRange,
+  formatNumber,
+} from "@/utils/format";
 
 /** The five fixed series (shared `SpendGroup`), in the expense colours. */
 const SERIES = {
@@ -112,7 +117,7 @@ export function SpendingSection({
                   tickLine={false}
                   axisLine={false}
                   width={56}
-                  tickFormatter={(value: number) => `₹${formatNumber(value)}`}
+                  tickFormatter={(value: number) => formatCurrencyCompact(value)}
                 />
                 <ChartTooltip
                   cursor={false}

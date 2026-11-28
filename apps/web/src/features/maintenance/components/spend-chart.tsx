@@ -8,7 +8,7 @@ import {
   ChartTooltip,
   ChartTooltipContent,
 } from "@/components/ui/chart";
-import { formatCurrency, formatNumber } from "@/utils/format";
+import { formatCurrency, formatCurrencyCompact } from "@/utils/format";
 
 const config = {
   maintenance: { label: "Maintenance", color: "var(--chart-1)" },
@@ -51,7 +51,7 @@ export function SpendChart({ months }: { months: MaintenanceSpendMonth[] }) {
           tickLine={false}
           axisLine={false}
           width={48}
-          tickFormatter={(value: number) => formatNumber(value, { maxFractionDigits: 0 })}
+          tickFormatter={(value: number) => formatCurrencyCompact(value)}
         />
         <ChartTooltip
           cursor={false}

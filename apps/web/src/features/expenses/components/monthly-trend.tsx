@@ -15,7 +15,7 @@ import {
 import { Skeleton } from "@/components/ui/skeleton";
 import { SPEND_GROUP_SERIES } from "@/features/expenses/constants";
 import { useExpenseTrend } from "@/features/expenses/hooks/use-expenses";
-import { formatCurrency, formatNumber } from "@/utils/format";
+import { formatCurrency, formatCurrencyCompact } from "@/utils/format";
 
 const CONFIG = {
   ...SPEND_GROUP_SERIES,
@@ -92,7 +92,7 @@ export function MonthlyTrend({
                 tickLine={false}
                 axisLine={false}
                 width={56}
-                tickFormatter={(value: number) => `₹${formatNumber(value)}`}
+                tickFormatter={(value: number) => formatCurrencyCompact(value)}
               />
               <ChartTooltip
                 cursor={false}

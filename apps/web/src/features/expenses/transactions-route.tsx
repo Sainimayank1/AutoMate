@@ -42,7 +42,7 @@ import {
   useExpenses,
   useExportExpenses,
 } from "@/features/expenses/hooks/use-expenses";
-import { downloadCsv, expensesToCsv } from "@/features/expenses/utils/csv";
+import { expensesToCsv } from "@/features/expenses/utils/csv";
 import {
   categoryPair,
   deleteText,
@@ -52,6 +52,7 @@ import {
 import { PAYMENT_METHOD_LABELS } from "@/features/fuel/constants";
 import { vehicleName } from "@/features/garage/constants";
 import { useVehicles } from "@/features/garage/hooks/use-vehicles";
+import { downloadCsv } from "@/utils/csv";
 import { formatDate, formatNumber } from "@/utils/format";
 
 const SEARCH_DELAY_MS = 300;

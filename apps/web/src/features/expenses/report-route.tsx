@@ -2,7 +2,7 @@ import { ExpenseKind, OWNERSHIP_PERIODS, type OwnershipPeriod } from "@automate/
 import { cn } from "cn";
 import { format, parseISO } from "date-fns";
 import { ArrowLeft, Printer } from "lucide-react";
-import { type ReactNode, useEffect } from "react";
+import type { ReactNode } from "react";
 import { Link, useSearchParams } from "react-router";
 
 import { Segmented } from "@/components/common/segmented";
@@ -14,6 +14,7 @@ import { useAllExpenses, useExpenseReport } from "@/features/expenses/hooks/use-
 import { PAYMENT_METHOD_LABELS } from "@/features/fuel/constants";
 import { vehicleName } from "@/features/garage/constants";
 import { useActiveVehicle } from "@/hooks/use-active-vehicle";
+import { useLightPage } from "@/hooks/use-light-page";
 import { formatCurrency, formatDate, formatRegistration } from "@/utils/format";
 
 const PERIOD_LABELS: Record<OwnershipPeriod, string> = {
@@ -21,21 +22,6 @@ const PERIOD_LABELS: Record<OwnershipPeriod, string> = {
   this_year: "This year",
   all_time: "Since purchase",
 };
-
-/** Paper is light: the page drops the dark theme while it's open, and restores it after. */
-function useLightPage() {
-  useEffect(() => {
-    const root = document.documentElement;
-    const dark = root.classList.contains("dark");
-    const scheme = root.style.colorScheme;
-    root.classList.remove("dark");
-    root.style.colorScheme = "light";
-    return () => {
-      if (dark) root.classList.add("dark");
-      root.style.colorScheme = scheme;
-    };
-  }, []);
-}
 
 /**
  * `/expenses/report?vehicle=&period=` (Stitch "Expense Report"): a printable sheet outside the

@@ -23,10 +23,11 @@ import { JourneyPoint } from "@/features/trips/components/journey-point";
 import { LazyTripMap } from "@/features/trips/components/lazy-trip-map";
 import { PlannedVsActual } from "@/features/trips/components/planned-vs-actual";
 import { RoadTripSummary } from "@/features/trips/components/road-trip-summary";
+import { TripAttachments } from "@/features/trips/components/trip-attachments";
 import type { MapPlace } from "@/features/trips/components/trip-map";
 import { CostsCard, FuelCard, SpendingCard } from "@/features/trips/components/trip-money";
 import { METHOD_LABELS } from "@/features/trips/constants";
-import { useDeleteTrip, useTrip } from "@/features/trips/hooks/use-trips";
+import { useDeleteTrip, useTrip, useTripCosts } from "@/features/trips/hooks/use-trips";
 import { durationText } from "@/features/trips/utils/trip-text";
 import { formatDate, formatDateTime, formatDistance, formatNumber } from "@/utils/format";
 
@@ -42,6 +43,7 @@ export function Component() {
   const { data: trip, isPending } = useTrip(tripId);
   const vehicles = [...(useVehicles().data ?? []), ...(useVehicles({ archived: true }).data ?? [])];
   const remove = useDeleteTrip();
+  const { data: costs } = useTripCosts(tripId);
   const [deleting, setDeleting] = useState(false);
 
   if (isPending) {
@@ -265,6 +267,7 @@ export function Component() {
           </Card>
           <CostsCard trip={trip} readOnly={readOnly} />
           <FuelCard trip={trip} readOnly={readOnly} />
+          <TripAttachments tripId={trip.id} costs={costs ?? []} readOnly={readOnly} />
         </div>
         <div className="flex flex-col gap-6 lg:col-span-4">
           <Card>

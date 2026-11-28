@@ -28,6 +28,7 @@ import type { Prisma } from "@/generated/prisma/client";
 import { VehiclesService } from "@/modules/vehicles/vehicles.service";
 import { SIGNATURE_BYTES, sniffType } from "@/storage/file-signature";
 import { STORAGE_PROVIDER, type StorageProvider } from "@/storage/storage.provider";
+import { StorageSweepService } from "@/storage/storage-sweep.service";
 
 import { stateWindow } from "./document-state";
 import {
@@ -59,6 +60,7 @@ export class DocumentsService {
     private readonly prisma: PrismaService,
     private readonly vehicles: VehiclesService,
     @Inject(STORAGE_PROVIDER) private readonly storage: StorageProvider,
+    private readonly sweep: StorageSweepService,
   ) {}
 
   async list(userId: string, query: DocumentListQuery): Promise<Paginated<VehicleDocument>> {
@@ -119,6 +121,26 @@ export class DocumentsService {
       },
       include: DOCUMENT_WITH,
       orderBy: [{ expiryDate: "asc" }, { id: "asc" }],
+    });
+    return rows.map((row) => toDocument(row, today));
+  }
+
+  /**
+   * Documents a reminder could be due for (Notifications): expiring within the longest reminder
+   * lead (365 days) or already expired, or with a remind-on date that has come.
+   */
+  async toRemind(userId: string): Promise<VehicleDocument[]> {
+    const today = istToday(new Date());
+    const rows = await this.prisma.document.findMany({
+      where: {
+        userId,
+        OR: [
+          { expiryDate: { lte: toDbDate(addDays(today, 365)) } },
+          { remindOn: { lte: toDbDate(today) } },
+        ],
+      },
+      include: DOCUMENT_WITH,
+      orderBy: [{ expiryDate: { sort: "asc", nulls: "last" } }, { id: "asc" }],
     });
     return rows.map((row) => toDocument(row, today));
   }
@@ -217,8 +239,8 @@ export class DocumentsService {
       maxBytes: values.size,
       expiresInSeconds: UPLOAD_SECONDS,
     });
-    // shortcut: uploads never confirmed (or never attached) stay until a cleanup job; add one with
-    // the Notifications scheduler.
+    // Uploads never confirmed (or never attached) are swept after a day.
+    this.sweep.soon();
     return {
       fileId: file.id,
       url,

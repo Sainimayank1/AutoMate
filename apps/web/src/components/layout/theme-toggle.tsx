@@ -20,15 +20,30 @@ const THEMES = [
   { value: "system", label: "System", icon: Monitor },
 ] as const;
 
-export function ThemeToggle({ className }: { className?: string }) {
+/** Light, dark or system; the account keeps the choice too, so it follows the user. */
+export function ThemeMenuItems() {
   const { theme = "dark", setTheme } = useTheme();
   const save = useUpdatePreferences();
-  // The account keeps the choice too, so it follows the user to other devices.
   const choose = (value: string) => {
     setTheme(value);
     save.mutate({ theme: value.toUpperCase() as ThemePreference });
   };
+  return (
+    <>
+      <DropdownMenuLabel>Theme</DropdownMenuLabel>
+      <DropdownMenuRadioGroup value={theme} onValueChange={choose}>
+        {THEMES.map(({ value, label, icon: Icon }) => (
+          <DropdownMenuRadioItem key={value} value={value}>
+            <Icon />
+            {label}
+          </DropdownMenuRadioItem>
+        ))}
+      </DropdownMenuRadioGroup>
+    </>
+  );
+}
 
+export function ThemeToggle({ className }: { className?: string }) {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
@@ -43,15 +58,7 @@ export function ThemeToggle({ className }: { className?: string }) {
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end">
-        <DropdownMenuLabel>Theme</DropdownMenuLabel>
-        <DropdownMenuRadioGroup value={theme} onValueChange={choose}>
-          {THEMES.map(({ value, label, icon: Icon }) => (
-            <DropdownMenuRadioItem key={value} value={value}>
-              <Icon />
-              {label}
-            </DropdownMenuRadioItem>
-          ))}
-        </DropdownMenuRadioGroup>
+        <ThemeMenuItems />
       </DropdownMenuContent>
     </DropdownMenu>
   );

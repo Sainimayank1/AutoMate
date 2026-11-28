@@ -6,12 +6,13 @@ import type {
   VehicleStatus,
 } from "@automate/shared";
 import { cn } from "cn";
-import { CircleAlert, Clock, Info, ShieldCheck, TriangleAlert } from "lucide-react";
+import { CircleAlert, Clock, Info, ShieldCheck, TriangleAlert, X } from "lucide-react";
 import { useState } from "react";
 import { Link } from "react-router";
 
 import { StatusBadge, type StatusTone } from "@/components/common/status-badge";
 import { Button } from "@/components/ui/button";
+import { useDismissStatusItem } from "@/features/dashboard/hooks/use-dashboard";
 
 const TITLES: Record<VehicleStatus["level"], string> = {
   attention: "Attention required",
@@ -36,6 +37,7 @@ const SOURCE: Record<ItemSource, string> = {
   warranty: "Warranty",
   payment: "Payment",
   document: "Document",
+  reminder: "Your reminder",
 };
 
 /** Row surface by state (Stitch: red for overdue, amber for due, neutral otherwise). */
@@ -59,7 +61,7 @@ const untrackedText = (areas: UntrackedArea[]) =>
  * carries the one action that fits. While something is untracked it says so instead of calling
  * the car healthy.
  */
-export function StatusPanel({ status }: { status: VehicleStatus }) {
+export function StatusPanel({ status, vehicleId }: { status: VehicleStatus; vehicleId: string }) {
   const [expanded, setExpanded] = useState(false);
   const hidden = status.items.length - VISIBLE;
   const shown = expanded ? status.items : status.items.slice(0, VISIBLE);
@@ -89,7 +91,7 @@ export function StatusPanel({ status }: { status: VehicleStatus }) {
           <ul id="up-next" className="flex flex-col gap-2">
             {shown.map((item) => (
               <li key={item.id}>
-                <ActionRow item={item} />
+                <ActionRow item={item} vehicleId={vehicleId} />
               </li>
             ))}
           </ul>
@@ -116,8 +118,9 @@ export function StatusPanel({ status }: { status: VehicleStatus }) {
   );
 }
 
-function ActionRow({ item }: { item: ActionItem }) {
+function ActionRow({ item, vehicleId }: { item: ActionItem; vehicleId: string }) {
   const state = STATE[item.state];
+  const dismiss = useDismissStatusItem();
   const text = (
     <span className="flex min-w-0 flex-col gap-0.5">
       <span className="text-sm font-medium">{item.title}</span>
@@ -140,6 +143,19 @@ function ActionRow({ item }: { item: ActionItem }) {
             className="shrink-0 bg-card max-md:h-10 max-md:px-3"
           >
             <Link to={item.action.href}>{item.action.label}</Link>
+          </Button>
+        )}
+        {/* Only information can be dismissed; anything to do stays until it's done. */}
+        {item.severity === "info" && (
+          <Button
+            variant="ghost"
+            size="icon"
+            className="size-10 shrink-0 md:size-6"
+            aria-label={`Dismiss: ${item.title}`}
+            disabled={dismiss.isPending}
+            onClick={() => dismiss.mutate({ vehicleId, itemId: item.id })}
+          >
+            <X />
           </Button>
         )}
       </div>

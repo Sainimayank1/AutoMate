@@ -1,6 +1,6 @@
 import { type NotificationPreferences, ThemePreference } from "@automate/shared";
 import { formatDistanceToNowStrict } from "date-fns";
-import { DatabaseBackup, Monitor } from "lucide-react";
+import { ArrowRight, Laptop, Smartphone } from "lucide-react";
 import { useTheme } from "next-themes";
 import { useRef, useState } from "react";
 import { Link } from "react-router";
@@ -71,6 +71,11 @@ const REMINDERS: {
   },
   { key: "trips", label: "Trip reminders", detail: "Before a planned trip" },
   {
+    key: "fuel",
+    label: "Mileage drops",
+    detail: "When a full tank's mileage is well below your vehicle's average",
+  },
+  {
     key: "monthlySummary",
     label: "Monthly summary",
     detail: "An in-app summary of last month's running cost on the 1st",
@@ -78,11 +83,10 @@ const REMINDERS: {
 ];
 
 /**
- * `/settings` (Stitch "Settings & Profile"): the profile and photo, preferences that follow the
- * account, reminder switches (Notifications reads them), security and the account itself.
- * Deviations: no plan badge or phone number (we keep neither); regional formats are shown fixed
- * (the app is built for India); FASTag alerts and an email digest aren't offered (not built).
- * The Security section and the theme / default-vehicle row are to design in Stitch.
+ * `/settings` (Stitch "Settings — Security & Preferences"): the profile and photo, preferences
+ * that follow the account, reminder switches (Notifications reads them), security and the
+ * account. Deviations: switches instead of the design's checkboxes, each reminder with a line on
+ * when it fires; no plan badge or phone number (we keep neither).
  */
 export function Component() {
   const user = useSessionStore((state) => state.session?.user);
@@ -95,7 +99,7 @@ export function Component() {
     <PageContainer className="max-w-5xl">
       <PageHeader
         title="Settings"
-        description="Your profile, preferences, reminders and account security"
+        description="Profile, preferences, reminders and account security"
       />
       <ProfileCard onEdit={() => setDialog("profile")} />
       {preferences.isError && !preferences.data ? (
@@ -114,25 +118,20 @@ export function Component() {
       )}
       <SecurityCard onChangePassword={() => setDialog("password")} />
       <Card>
-        <CardHeader>
-          <CardTitle role="heading" aria-level={2}>
-            Your data
-          </CardTitle>
-          <CardDescription>Export or back up everything you&apos;ve recorded</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <Button asChild variant="outline">
-            <Link to="/backup">
-              <DatabaseBackup data-icon="inline-start" />
-              Backup &amp; Export
-            </Link>
-          </Button>
+        <CardContent className="flex flex-wrap items-center justify-between gap-4">
+          <h2 className="font-heading text-base font-semibold">Your data</h2>
+          <Link
+            to="/backup"
+            className="inline-flex items-center gap-1.5 text-sm font-medium text-primary hover:underline max-md:min-h-10"
+          >
+            Backup &amp; Export <ArrowRight className="size-4" aria-hidden />
+          </Link>
         </CardContent>
       </Card>
-      <Card className="border-destructive/40">
+      <Card className="border-destructive/50">
         <CardHeader className="flex flex-wrap items-center justify-between gap-4">
           <div className="flex flex-col gap-1">
-            <CardTitle role="heading" aria-level={2}>
+            <CardTitle role="heading" aria-level={2} className="text-destructive">
               Account
             </CardTitle>
             <CardDescription>
@@ -174,7 +173,9 @@ function ProfileCard({ onEdit }: { onEdit: () => void }) {
         <div className="flex min-w-0 items-center gap-4">
           <Avatar className="size-16">
             {user.avatarUrl && <AvatarImage src={user.avatarUrl} alt="" />}
-            <AvatarFallback className="text-lg">{initials(user.name)}</AvatarFallback>
+            <AvatarFallback className="border border-primary/25 bg-primary/15 text-lg text-primary">
+              {initials(user.name)}
+            </AvatarFallback>
           </Avatar>
           <div className="min-w-0">
             <h2 className="truncate font-heading text-lg font-semibold">{user.name}</h2>
@@ -287,10 +288,7 @@ function PreferencesCard() {
           </div>
         </div>
         <div className="flex flex-col gap-2 rounded-lg border bg-elevated p-4">
-          <p className="flex items-center gap-2 text-sm font-medium">
-            <Monitor className="size-4 text-muted-foreground" aria-hidden />
-            Regional format
-          </p>
+          <h3 className="text-sm font-medium">Regional format</h3>
           <dl className="grid grid-cols-2 gap-x-6 gap-y-1.5 text-sm sm:grid-cols-3">
             {regional.map((row) => (
               <div key={row.label}>
@@ -299,7 +297,7 @@ function PreferencesCard() {
               </div>
             ))}
           </dl>
-          <p className="text-xs text-muted-foreground">
+          <p className="border-t pt-2 text-xs text-muted-foreground">
             AutoMate is built for India; these are fixed for now.
           </p>
         </div>
@@ -398,23 +396,33 @@ function SecurityCard({ onChangePassword }: { onChangePassword: () => void }) {
           ) : !sessions.data ? (
             <Skeleton className="h-24 w-full" />
           ) : (
-            <ul className="flex flex-col divide-y rounded-lg border">
+            <ul className="flex flex-col divide-y rounded-lg border bg-elevated">
               {items.map((session) => (
                 <li
                   key={session.id}
                   className="flex flex-wrap items-center justify-between gap-2 px-4 py-3"
                 >
-                  <div className="min-w-0">
-                    <p className="flex items-center gap-2 text-sm font-medium">
-                      {session.device}
-                      {session.current && <Badge variant="outline">This device</Badge>}
-                    </p>
-                    <p className="text-xs text-muted-foreground">
-                      {session.current
-                        ? "Active now"
-                        : `Last active ${formatDistanceToNowStrict(new Date(session.lastUsedAt), { addSuffix: true })}`}
-                      {` · signed in ${formatDate(session.createdAt)}`}
-                    </p>
+                  <div className="flex min-w-0 items-center gap-3">
+                    <DeviceIcon device={session.device} />
+                    <div className="min-w-0">
+                      <p className="flex items-center gap-2 text-sm font-medium">
+                        {session.device}
+                        {session.current && (
+                          <Badge
+                            variant="outline"
+                            className="border-transparent bg-primary/15 text-primary"
+                          >
+                            This device
+                          </Badge>
+                        )}
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        {session.current
+                          ? "Active now"
+                          : `Last active ${formatDistanceToNowStrict(new Date(session.lastUsedAt), { addSuffix: true })}`}
+                        {` · signed in ${formatDate(session.createdAt)}`}
+                      </p>
+                    </div>
                   </div>
                   {!session.current && (
                     <Button
@@ -449,4 +457,10 @@ function SecurityCard({ onChangePassword }: { onChangePassword: () => void }) {
       </CardContent>
     </Card>
   );
+}
+
+/** Phones and tablets by the name the API gives the device ("Safari on iPhone"). */
+function DeviceIcon({ device }: { device: string }) {
+  const Icon = /iphone|ipad|android/i.test(device) ? Smartphone : Laptop;
+  return <Icon className="size-5 shrink-0 text-muted-foreground" aria-hidden />;
 }

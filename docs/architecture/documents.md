@@ -28,7 +28,11 @@ File bytes never pass through the JSON API and are never stored in PostgreSQL; a
 - `r2` / `s3`: presigned PUT and GET with `aws4fetch` (path-style `<endpoint>/<bucket>/<key>`). A presigned PUT can't cap the size, so confirm re-checks it. The bucket stays private and its CORS rules must allow the web origin to PUT and GET.
 - Production without a bucket: documents work, file routes answer 503.
 
-Not built yet: a cleanup job for uploads never confirmed or attached (`shortcut:` comment in `documents.service.ts`), image resizing, and receipts on expenses.
+**Attachments** (`/attachments`, `AttachmentsService`): receipts, invoices, job cards and photos on an expense, a service record, a tracked part or an inspection use the same flow, types and 10 MB limit, up to `MAX_ATTACHMENTS` (10) per record. One `attachments` table with a column per owner (a check constraint allows exactly one); a file goes with its record (cascade). Trips keeps its own `trip_attachments` (trips.md). The web shows them with the shared `AttachmentsPanel` (`features/attachments`).
+
+**Storage cleanup** (`StorageSweepService`, tested in `test/attachments.e2e-spec.ts`): delete triggers on `document_files`, `attachments` and `trip_attachments` queue every removed row's key in `storage_orphans`, whatever removed it (the record, its vehicle, the account). A sweep drops uploads not confirmed within a day (and document files never attached), which queues them too, then deletes queued objects and their queue rows; a failed delete stays queued. It runs at start-up and, at most every ten minutes, after an upload is announced: no scheduler.
+
+Not built yet: image resizing and thumbnails generated on the server.
 
 ## 3. API
 

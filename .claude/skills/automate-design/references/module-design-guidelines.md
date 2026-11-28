@@ -262,33 +262,22 @@ Use a vertical stepped layout or 3 tiles connected by "+"/"−" operators so the
 
 **Job:** one calm inbox for everything that needs attention.
 
-**Layout:**
+**As built** (`/notifications`, from the Stitch "Notifications", "Notifications — Reminders", "Add Reminder Dialog" and "Notifications Popover" screens; rules in `docs/architecture/notifications.md`):
 
-- PageHeader with "Mark all as read" and Preferences.
-- Filter chips: All · Unread · Maintenance · Documents · Fuel · Expenses · Trips · Insights.
-- A list grouped by Today / This week / Earlier.
+- **Layout:** `max-w-4xl`; PageHeader ("N unread", Preferences link to Settings, "Mark all as read") and two tabs, Inbox and Reminders.
+- **Inbox:** chips (`ToggleGroup`) All · Unread · Maintenance · Documents · Expenses · Fuel · Trips · Reminders · Snoozed, kept in the URL; grouped Today / This week / Earlier (snoozed ones on their own, with when they come back).
+- **Card:** the category icon on a tile tinted by priority (High `destructive`, Medium `warning`, Low muted), a priority border while unread, the title (semibold with the cyan dot while unread), the body, the vehicle and relative time; "Open" goes to the record and marks it read; the menu marks read/unread, snoozes (1 day, 3 days, 1 week) or dismisses.
+- **Reminders tab:** Open / Done `Segmented`; rows with a calendar tile tinted by state, a `StatusBadge` ("Due in 2 days", "Overdue", "Upcoming"), date · lead · vehicle, "Mark done" and a menu (Edit, Delete with confirmation). The dialog: what, date, "Remind me" (on the day … 1 month before), vehicle (optional), notes.
+- **Bell** (header): the unread count ("9+" past nine); desktop opens a `w-96` popover with the latest six, "Mark all as read" and "View all notifications"; phones go to the inbox.
+- **Empty:** "You're all caught up" with `BellOff`; reminders: "No reminders yet" with `BellPlus`.
 
-**Notification row:**
-
-- A priority dot (High `destructive`, Medium `warning`, Low muted), the category icon tile, a title (`font-medium` if unread), a one-line body, the relative time and an unread cyan dot.
-- Hover or swipe actions: Snooze (`AlarmClock`; options 1 day, 3 days, 1 week, custom), Dismiss (`X`), Mark read/unread.
-- Insight notifications (rule-based) use the `insight` tint and `Lightbulb`, never `Sparkles`.
-
-**Categories:** Maintenance upcoming, Maintenance overdue, Insurance expiry, PUC expiry, Fuel efficiency change, Expense reminder, Trip reminder, Custom reminder, AI insight.
-
-**Behaviour:**
-
-- Clicking a notification deep-links to the record (a document, a maintenance item, a fuel trend) and marks it read.
-- Snoozed items move to a "Snoozed" filter with their wake time.
-- **Details (`Sheet`):** the full message, related record preview and actions.
-- **Preferences:** a matrix with categories as rows and channels as columns (In-app, Email, Push later) using `Switch`es, plus lead times and quiet hours.
-- **Empty:** "You're all caught up" with `BellOff`.
+**Not built:** the details `Sheet` (the card holds the whole message), per-item action buttons ("Renew", "Upload PUC": they live on the record "Open" leads to), a preferences matrix with channels and quiet hours (the switches are in Settings; push and email aren't built), swipe actions.
 
 ---
 
 ## M11 · Settings and personalisation
 
-**As built** (`/settings`, from the Stitch "Settings & Profile" screen; rules in `docs/architecture/settings.md`): one scrolling page of Cards in this order, `max-w-5xl`.
+**As built** (`/settings`, from the Stitch "Settings — Security & Preferences" screens; rules in `docs/architecture/settings.md`): one scrolling page of Cards in this order, `max-w-5xl`.
 
 - **Profile:** avatar (photo or initials) with "Add/Change photo" and "Remove" links, name, email, member since, and "Edit profile" (a dialog; the current password field appears only when the email changes).
 - **Preferences:** theme as a `Segmented` (Dark, Light, System) and the default vehicle `Select`, both saving immediately; below them a read-only regional format panel (₹, km, L/kg/kWh, DD/MM/YYYY, IST, English (India)) explaining it's fixed for India.
@@ -297,7 +286,7 @@ Use a vertical stepped layout or 3 tiles connected by "+"/"−" operators so the
 - **Your data:** a link to Backup & Export.
 - **Account:** a danger-zone Card (`border-destructive/40`) with "Sign out" and "Delete account"; the confirmation says what is deleted, suggests backing up first and requires the password plus `DELETE`.
 
-**Not built:** per-section sub-pages on mobile (the single page stacks), preview cards for themes, biometric lock / PIN (mobile app), privacy settings. The Security section and the theme / default-vehicle row are still to design in Stitch.
+**Not built:** per-section sub-pages on mobile (the single page stacks), preview cards for themes, biometric lock / PIN (mobile app), privacy settings.
 
 ---
 
@@ -305,27 +294,14 @@ Use a vertical stepped layout or 3 tiles connected by "+"/"−" operators so the
 
 **Job:** make data portability and restoration **understandable and safe**.
 
-**Backup overview (`/backup`):** cards for Export data, Import CSV, Backups (last backup time, "Back up now") and Restore, plus a Backup history table (date, size, type, status, Download / Restore).
+**As built** (`/backup`, from the Stitch "Backup & Export" screens; rules in `docs/architecture/backup.md`): one page, `max-w-5xl`, with the vehicle `Select` in the page header.
 
-**Export:**
+- **Export:** a Card of rows (icon tile, title, one-line description, outline button on the right; full width under the text on phones): fuel, expenses, service history and vehicle details as CSV, trip history (links to Trips, which owns its CSV), the ownership report (links to the printable report) and the vehicle archive (JSON). Each button shows "Preparing…" while it fetches.
+- **Full backup:** a Card with what's included (and that document files aren't) and the one primary "Download backup".
+- **Restore a backup:** a dashed drop zone (icon, "Choose an AutoMate backup file (.json, up to 10 MB)", "Choose file"). After choosing: a preview panel with "Backup from <date, time>" and the file name, one row per vehicle (name, plate in mono, counts, a `StatusBadge`: "Will be restored", "Already in your garage, skipped", "Can't be read"), an expandable warning row "N rows can't be restored" listing "Fill-up 12: <reason>", and Cancel / "Restore N vehicles" in the panel's footer. Restoring shows "Restoring… don't close this page"; success shows "Restored N vehicles" with links to them.
+- **Data management:** links to the Garage (archive or delete a vehicle) and Settings (delete the account, in destructive text).
 
-- Choose the scope (vehicle(s), modules, date range) and the format: CSV per module, a PDF report (monthly or annual) or a complete account archive (ZIP).
-- Show an estimate of the contents, then a progress state, then a ready-to-download state (toast plus a list entry).
-
-**Import CSV:** a full-route stepper with 5 steps.
-
-1. **Upload:** `FileUpload` with a CSV template download link.
-2. **Map columns:** a two-column table (CSV header → AutoMate field `Select`), auto-matched with confidence badges. Required unmapped fields are highlighted.
-3. **Validate:** a summary row of counts (Valid 120 · Warnings 4 · Errors 2), then a `DataTable` of problem rows with inline messages. Error rows are skipped; the user can download an error report.
-4. **Duplicates:** suspected duplicates shown side by side (existing vs incoming), with Skip, Import anyway, or apply the choice to all.
-5. **Confirm:** the final counts by module and a single primary "Import 120 records". Then progress, then the result.
-
-**Restore:**
-
-- Pick a backup, then a preview of what will change, then an explicit warning ("Restoring replaces current data for the selected scope. We'll create a backup of your current data first.") with a typed confirmation.
-- **Progress:** a step list with live status (`Spinner` → `CircleCheck`).
-- **Result:** success (counts) or partial failure (what failed and how to retry).
-- Never start a destructive restore without an automatic pre-restore backup step.
+**Not built:** CSV import for modules other than Expenses and Trips (they have their own dialogs), a backup history, replacing current data on restore (restore only adds vehicles that aren't there), ZIP archives with files.
 
 ---
 

@@ -5,6 +5,8 @@ import {
   type ExpiryItem,
   PaymentState,
   type RecurringPayment,
+  type Reminder,
+  ReminderState,
   type StatusItem,
   type StatusSeverity,
   type UntrackedArea,
@@ -43,6 +45,8 @@ export function vehicleStatus({
   maintenance,
   payments = [],
   documents = [],
+  reminders = [],
+  dismissed = [],
   today,
 }: {
   vehicle: Vehicle;
@@ -51,6 +55,10 @@ export function vehicleStatus({
   documents?: VehicleDocument[];
   /** Recurring payments and EMIs (Expenses): only due and overdue ones become items. */
   payments?: RecurringPayment[];
+  /** The user's own reminders for this vehicle (Notifications): due and overdue ones become items. */
+  reminders?: Reminder[];
+  /** Ids of information-only items the user dismissed for this vehicle. */
+  dismissed?: string[];
   /** From MaintenanceService.snapshot().status: due and overdue schedules; tracked = has an active one. */
   maintenance: { items: StatusItem[]; tracked: boolean };
   today: string;
@@ -62,8 +70,11 @@ export function vehicleStatus({
     has(DocumentType.WARRANTY) ? null : warrantyItem(vehicle, today),
     ...maintenance.items.map(maintenanceItem),
     ...payments.map((payment) => paymentItem(payment, today)),
+    ...reminders.map(reminderItem),
   ]
     .filter((item): item is ActionItem => item !== null)
+    // Only information can be dismissed; anything to do stays until it's done.
+    .filter((item) => item.severity !== "info" || !dismissed.includes(item.id))
     .sort((a, b) => RANK[a.severity] - RANK[b.severity]);
   const untracked: UntrackedArea[] = [
     ...(maintenance.tracked ? [] : ["maintenance" as const]),
@@ -223,6 +234,26 @@ function documentItem(document: VehicleDocument): ActionItem | null {
     source: "document",
     state: expired ? "overdue" : left === 0 ? "due_today" : "due_soon",
     action: { label: "Renew", href: `/documents/${document.id}/edit?renew=1` },
+  };
+}
+
+/** One of the user's own reminders in its window (a warning) or overdue (critical). */
+function reminderItem(reminder: Reminder): ActionItem | null {
+  const overdue = reminder.state === ReminderState.OVERDUE;
+  if (!overdue && reminder.state !== ReminderState.DUE) return null;
+  const left = reminder.daysLeft;
+  const href = `/notifications/reminders?reminder=${reminder.id}`;
+  return {
+    id: `reminder:${reminder.id}`,
+    severity: overdue ? "critical" : "warning",
+    title: overdue
+      ? `${reminder.title} was due on ${day(reminder.dueDate)}`
+      : `${reminder.title} is due ${inDays(left)}`,
+    detail: reminder.notes,
+    href,
+    source: "reminder",
+    state: overdue ? "overdue" : left === 0 ? "due_today" : "due_soon",
+    action: { label: "Open reminder", href },
   };
 }
 

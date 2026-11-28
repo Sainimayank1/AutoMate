@@ -9,10 +9,12 @@ import {
   type ApiErrorResponse,
   type ApiSuccessResponse,
   type DashboardOverview,
+  type FileLink,
   istToday,
   type PageMeta,
   type Trip,
   type TripAnalytics,
+  type TripAttachment,
   type TripCategory,
   type TripCost,
   type TripCostsSummary,
@@ -22,6 +24,7 @@ import {
   type TripOverview,
   type TripPlan,
   type TripSpending,
+  type UploadSlot,
   type Vehicle,
 } from "@automate/shared";
 import { ServiceUnavailableException } from "@nestjs/common";
@@ -115,6 +118,9 @@ describe("Trips (e2e)", () => {
       request(app.getHttpServer()).patch(url).auth(token, { type: "bearer" }).send(body),
     delete: (url: string) =>
       request(app.getHttpServer()).delete(url).auth(token, { type: "bearer" }),
+    /** Straight to storage (the local provider in tests): no API credentials. */
+    put: (url: string, body: Buffer, headers: Record<string, string>) =>
+      request(app.getHttpServer()).put(new URL(url).pathname).set(headers).send(body),
   });
   const dataOf = <T>(res: request.Response) => (res.body as ApiSuccessResponse<T>).data;
   const metaOf = (res: request.Response) =>
@@ -1150,6 +1156,80 @@ describe("Trips (e2e)", () => {
       );
       expect(cancelled).toMatchObject([{ status: "CANCELLED", budget: { total: "1450.00" } }]);
     });
+  });
+
+  it("keeps a trip's photos and receipts, checked and private", async () => {
+    const PDF = Buffer.from("%PDF-1.7\n1 0 obj << /Type /Catalog >> endobj\ntrailer\n%%EOF\n");
+    const car = await vehicle(arjun, 60000);
+    const done = dataOf<Trip>(
+      await as(arjun)
+        .post("/api/v1/trips", trip(car.id, { startKm: 60000, endKm: 60120 }))
+        .expect(201),
+    );
+    const cost = dataOf<TripCost>(
+      await as(arjun)
+        .post(`/api/v1/trips/${done.id}/costs`, {
+          category: "TOLL",
+          amount: "320",
+          date: done.date,
+        })
+        .expect(201),
+    );
+    const base = `/api/v1/trips/${done.id}/attachments`;
+    const upload = async (body: Buffer, contentType = "application/pdf", costId?: string) => {
+      const slot = dataOf<UploadSlot>(
+        await as(arjun)
+          .post(`${base}/uploads`, {
+            fileName: "toll receipt.pdf",
+            contentType,
+            size: body.length,
+            costId,
+          })
+          .expect(201),
+      );
+      await as(arjun).put(slot.url, body, slot.headers).expect(200);
+      return slot;
+    };
+
+    const slot = await upload(PDF, "application/pdf", cost.id);
+    // Unconfirmed uploads aren't listed.
+    expect(dataOf<TripAttachment[]>(await as(arjun).get(base).expect(200))).toEqual([]);
+    const file = dataOf<TripAttachment>(
+      await as(arjun).post(`${base}/${slot.fileId}/confirm`).expect(200),
+    );
+    expect(file).toMatchObject({
+      tripId: done.id,
+      costId: cost.id,
+      contentType: "application/pdf",
+      size: PDF.length,
+    });
+    expect(dataOf<TripAttachment[]>(await as(arjun).get(base).expect(200))).toHaveLength(1);
+
+    const link = dataOf<FileLink>(await as(arjun).get(`${base}/${file.id}/link`).expect(200));
+    const served = await request(app.getHttpServer()).get(new URL(link.url).pathname).expect(200);
+    expect(Buffer.from(served.body as Buffer).equals(PDF)).toBe(true);
+
+    // A file that isn't what it says is refused and dropped.
+    const fake = await upload(Buffer.from("not really a photo"), "image/jpeg");
+    await as(arjun).post(`${base}/${fake.fileId}/confirm`).expect(400);
+    await as(arjun).get(`${base}/${fake.fileId}/link`).expect(404);
+
+    // Someone else sees nothing and changes nothing.
+    await as(priya).get(base).expect(404);
+    await as(priya).get(`${base}/${file.id}/link`).expect(404);
+    await as(priya).post(`${base}/${file.id}/confirm`).expect(404);
+    await as(priya).delete(`${base}/${file.id}`).expect(404);
+    await as(priya)
+      .post(`${base}/uploads`, { fileName: "x.pdf", contentType: "application/pdf", size: 10 })
+      .expect(404);
+
+    // Deleting the cost takes its receipt with it.
+    await as(arjun).delete(`/api/v1/trips/${done.id}/costs/${cost.id}`).expect(204);
+    expect(dataOf<TripAttachment[]>(await as(arjun).get(base).expect(200))).toEqual([]);
+    const photo = await upload(PDF);
+    await as(arjun).post(`${base}/${photo.fileId}/confirm`).expect(200);
+    await as(arjun).delete(`${base}/${photo.fileId}`).expect(204);
+    expect(dataOf<TripAttachment[]>(await as(arjun).get(base).expect(200))).toEqual([]);
   });
 
   it("keeps the system trip types and the user's own, unique by name", async () => {

@@ -685,3 +685,43 @@ describe("categories", () => {
     );
   });
 });
+
+describe("receipts", () => {
+  it("shows an expense's receipts and deletes one after confirming", async () => {
+    const wash = expense({ title: "3M Car Care", amount: "850.00" });
+    const receipt = {
+      id: "0190d4a2-0000-7000-8000-0000000a0001",
+      fileName: "car-care-invoice.pdf",
+      contentType: "application/pdf",
+      size: 182_000,
+      createdAt: "2026-11-21T08:05:00.000Z",
+    };
+    const calls = api({
+      ...base,
+      "GET /expenses": () => okPage([wash]),
+      [`GET /expenses/${wash.id}`]: () => ok(detail(wash)),
+      "GET /attachments": () => okPage([receipt]),
+      [`DELETE /attachments/${receipt.id}`]: () => ok(null, 204),
+    });
+    renderApp(`/expenses/transactions/${wash.id}`);
+    const user = userEvent.setup();
+
+    const sheet = within(await screen.findByRole("dialog"));
+    const files = within(await sheet.findByRole("list", { name: "Receipts" }));
+    expect(files.getByText("car-care-invoice.pdf")).toBeInTheDocument();
+    expect(calls.find((call) => call.url === "/attachments")?.params).toMatchObject({
+      owner: "expense",
+      ownerId: wash.id,
+    });
+
+    await user.click(files.getByRole("button", { name: "Actions for car-care-invoice.pdf" }));
+    await user.click(await screen.findByRole("menuitem", { name: "Delete" }));
+    const confirm = within(await screen.findByRole("alertdialog"));
+    await user.click(confirm.getByRole("button", { name: "Delete" }));
+    await waitFor(() =>
+      expect(calls.some((call) => call.method === "delete" && call.url?.endsWith(receipt.id))).toBe(
+        true,
+      ),
+    );
+  });
+});

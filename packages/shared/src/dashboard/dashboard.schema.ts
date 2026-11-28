@@ -69,7 +69,9 @@ export interface StatusItem {
 
 /** Where an action-centre item comes from (Documents, EMI and reminders join later). */
 /** `payment`: a recurring payment or loan EMI due or overdue (Expenses). */
-export type ItemSource = "maintenance" | "insurance" | "warranty" | "payment" | "document";
+/** `reminder`: one of the user's own reminders, due or overdue (Notifications). */
+export type ItemSource =
+  "maintenance" | "insurance" | "warranty" | "payment" | "document" | "reminder";
 
 /** How soon: overdue (or expired), due today, due soon, or just worth knowing. */
 export type DueState = "overdue" | "due_today" | "due_soon" | "info";
@@ -387,3 +389,13 @@ export function normalizeDashboardLayout(saved: unknown): DashboardLayout {
     metrics: chosen.length ? METRICS.filter((metric) => chosen.includes(metric)) : METRICS,
   };
 }
+
+/**
+ * `POST /dashboard/dismissals`: hide an information-only action-centre item (severity `info`) for
+ * that vehicle. Items that need doing can't be dismissed: they go when they're done.
+ */
+export const dismissDashboardItemSchema = z.object({
+  vehicleId: z.uuid(),
+  itemId: z.string().trim().min(1).max(120),
+});
+export type DismissDashboardItemValues = z.output<typeof dismissDashboardItemSchema>;

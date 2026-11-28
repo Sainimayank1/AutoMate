@@ -66,6 +66,8 @@ export interface NotificationPreferences {
   maintenance: boolean;
   payments: boolean;
   trips: boolean;
+  /** A full tank's mileage well below the vehicle's average. */
+  fuel: boolean;
   monthlySummary: boolean;
 }
 
@@ -79,6 +81,7 @@ export const updatePreferencesSchema = z.object({
       maintenance: z.boolean(),
       payments: z.boolean(),
       trips: z.boolean(),
+      fuel: z.boolean(),
       monthlySummary: z.boolean(),
     })
     .partial()

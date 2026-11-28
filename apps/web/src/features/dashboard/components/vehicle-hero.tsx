@@ -1,5 +1,5 @@
 import type { Vehicle } from "@automate/shared";
-import { FileUp, Fuel, Gauge, ReceiptIndianRupee, Route, Wrench } from "lucide-react";
+import { BellPlus, FileUp, Fuel, Gauge, ReceiptIndianRupee, Route, Wrench } from "lucide-react";
 import { Link } from "react-router";
 
 import { PlateBadge } from "@/components/common/plate-badge";
@@ -98,6 +98,12 @@ export function VehicleHero({ vehicle }: { vehicle: Vehicle }) {
               <Link to="/documents/new">
                 <FileUp data-icon="inline-start" />
                 Add document
+              </Link>
+            </Button>
+            <Button asChild size="sm" variant="outline" className={action}>
+              <Link to={`/notifications/reminders?new=1&vehicle=${vehicle.id}`}>
+                <BellPlus data-icon="inline-start" />
+                Add reminder
               </Link>
             </Button>
             <Button asChild size="sm" variant="outline" className={action}>

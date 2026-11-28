@@ -11,6 +11,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
+import { RecordAttachments } from "@/features/attachments/components/record-attachments";
 import {
   INSPECTION_CONDITION_META,
   INSPECTION_KIND_LABELS,
@@ -211,6 +212,7 @@ export function Component() {
           </CardContent>
         </Card>
       </div>
+      <RecordAttachments owner="inspection" ownerId={inspection.id} title="Photos" />
 
       <ConfirmDialog
         open={deleting}

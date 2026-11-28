@@ -24,6 +24,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Skeleton } from "@/components/ui/skeleton";
+import { RecordAttachments } from "@/features/attachments/components/record-attachments";
 import { PAYMENT_METHOD_LABELS } from "@/features/fuel/constants";
 import { RECORD_TYPE_LABELS } from "@/features/maintenance/constants";
 import {
@@ -179,6 +180,11 @@ export function Component() {
               )}
             </CardContent>
           </Card>
+          <RecordAttachments
+            owner="service-record"
+            ownerId={record.id}
+            title="Invoice, job card & photos"
+          />
         </div>
       </div>
 

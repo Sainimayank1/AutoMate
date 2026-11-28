@@ -2,9 +2,9 @@ import { istToday, type Trip, tripLabel, TripSort } from "@automate/shared";
 import { cn } from "cn";
 import { format, parseISO } from "date-fns";
 import { Download, ListIcon, Plus, Route, SearchX, Trash2, Upload, Waypoints } from "lucide-react";
-import { toast } from "sonner";
 import { useState } from "react";
 import { Link } from "react-router";
+import { toast } from "sonner";
 
 import { ConfirmDialog } from "@/components/common/confirm-dialog";
 import { Pager } from "@/components/common/pager";
@@ -24,24 +24,24 @@ import {
 import { Skeleton } from "@/components/ui/skeleton";
 import { Spinner } from "@/components/ui/spinner";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
-import { downloadCsv } from "@/features/expenses/utils/csv";
 import { vehicleName } from "@/features/garage/constants";
 import { useVehicles } from "@/features/garage/hooks/use-vehicles";
 import { TripFilters } from "@/features/trips/components/trip-filters";
 import { TripImportDialog } from "@/features/trips/components/trip-import-dialog";
 import { TripsLayout } from "@/features/trips/components/trips-layout";
 import { ALL_VEHICLES, useTripHistory } from "@/features/trips/hooks/use-trip-history";
-import { tripsService } from "@/features/trips/services/trips-service";
-import { tripsToCsv } from "@/features/trips/utils/trip-csv";
-import { normalizeApiError } from "@/lib/api-error";
 import {
   useBulkTrips,
   useTripCategories,
   useTrips,
   useTripSummary,
 } from "@/features/trips/hooks/use-trips";
+import { tripsService } from "@/features/trips/services/trips-service";
+import { tripsToCsv } from "@/features/trips/utils/trip-csv";
 import { durationText } from "@/features/trips/utils/trip-text";
 import { useActiveVehicle } from "@/hooks/use-active-vehicle";
+import { normalizeApiError } from "@/lib/api-error";
+import { downloadCsv } from "@/utils/csv";
 import { formatCurrency, formatDate, formatDistance, formatNumber } from "@/utils/format";
 
 const ANY = "any";

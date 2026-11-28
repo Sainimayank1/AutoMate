@@ -13,14 +13,17 @@ import { loggerConfig } from "./config/logger.config";
 import { DatabaseModule } from "./database/database.module";
 import { HealthModule } from "./health/health.module";
 import { AnalyticsModule } from "./modules/analytics/analytics.module";
+import { AttachmentsModule } from "./modules/attachments/attachments.module";
 import { AuthModule } from "./modules/auth/auth.module";
 import { JwtAuthGuard } from "./modules/auth/guards/jwt-auth.guard";
+import { BackupModule } from "./modules/backup/backup.module";
 import { DashboardModule } from "./modules/dashboard/dashboard.module";
 import { DocumentsModule } from "./modules/documents/documents.module";
 import { ExpensesModule } from "./modules/expenses/expenses.module";
 import { FuelModule } from "./modules/fuel/fuel.module";
 import { GeocodingModule } from "./modules/geocoding/geocoding.module";
 import { MaintenanceModule } from "./modules/maintenance/maintenance.module";
+import { NotificationsModule } from "./modules/notifications/notifications.module";
 import { SettingsModule } from "./modules/settings/settings.module";
 import { TripsModule } from "./modules/trips/trips.module";
 import { UsersModule } from "./modules/users/users.module";
@@ -50,6 +53,9 @@ import { StorageModule } from "./storage/storage.module";
     TripsModule,
     DocumentsModule,
     AnalyticsModule,
+    BackupModule,
+    NotificationsModule,
+    AttachmentsModule,
     SettingsModule,
     StorageModule,
     DashboardModule,

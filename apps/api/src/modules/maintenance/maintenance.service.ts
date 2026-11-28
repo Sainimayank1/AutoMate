@@ -41,6 +41,13 @@ const ACTIVE_DUE: ScheduleStatus[] = [
   ScheduleStatus.UPCOMING,
 ];
 
+/** The stages Notifications reminds about. */
+const REMINDED: ScheduleStatus[] = [
+  ScheduleStatus.OVERDUE,
+  ScheduleStatus.DUE,
+  ScheduleStatus.DUE_SOON,
+];
+
 /** Columns from validated input (create, or a merged PATCH). */
 const rowData = (values: CreateScheduleValues) => ({
   name: values.name,
@@ -296,6 +303,14 @@ export class MaintenanceService {
       recordCount: records.count,
       lastService: records.recent[0] ?? null,
     };
+  }
+
+  /** Schedules with reminders on that are due soon, due or overdue (Notifications reads these). */
+  async reminders(userId: string, vehicleId: string): Promise<MaintenanceSchedule[]> {
+    const vehicle = await this.vehicles.findOwned(userId, vehicleId);
+    return (await this.computed(vehicle)).filter(
+      (schedule) => schedule.remindersEnabled && REMINDED.includes(schedule.due.status),
+    );
   }
 
   /** The schedule under its vehicle's lock; archived vehicles are read-only. */

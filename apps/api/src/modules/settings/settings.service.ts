@@ -45,6 +45,7 @@ const DEFAULT_NOTIFICATIONS: NotificationPreferences = {
   maintenance: true,
   payments: true,
   trips: true,
+  fuel: true,
   monthlySummary: false,
 };
 
@@ -160,6 +161,7 @@ export class SettingsService {
       notifyMaintenance: notifications.maintenance,
       notifyPayments: notifications.payments,
       notifyTrips: notifications.trips,
+      notifyFuel: notifications.fuel,
       notifyMonthlySummary: notifications.monthlySummary,
     };
     const row = await this.prisma.userPreference.upsert({
@@ -280,6 +282,7 @@ function toPreferences(row: UserPreference | null): UserPreferences {
           maintenance: row.notifyMaintenance,
           payments: row.notifyPayments,
           trips: row.notifyTrips,
+          fuel: row.notifyFuel,
           monthlySummary: row.notifyMonthlySummary,
         }
       : DEFAULT_NOTIFICATIONS,

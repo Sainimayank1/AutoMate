@@ -17,6 +17,7 @@ export const PREFERENCES_SCHEMA: Schema = {
         maintenance: flag,
         payments: flag,
         trips: flag,
+        fuel: flag,
         monthlySummary: flag,
       },
     },

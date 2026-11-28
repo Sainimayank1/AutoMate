@@ -1,13 +1,7 @@
 import type { Trip } from "@automate/shared";
 
 import { METHOD_LABELS } from "@/features/trips/constants";
-
-/** One CSV cell (RFC 4180), with text a spreadsheet would run as a formula made inert. */
-const cell = (value: string | number | null | undefined) => {
-  let text = value === null || value === undefined ? "" : String(value);
-  if (/^[=+\-@\t\r]/.test(text) && !/^-?\d+(\.\d+)?$/.test(text)) text = `'${text}`;
-  return /[",\r\n]/.test(text) ? `"${text.replace(/"/g, '""')}"` : text;
-};
+import { toCsv } from "@/utils/csv";
 
 /**
  * Trips as CSV, in the columns the import reads back (its column guess matches them). Dates
@@ -52,5 +46,5 @@ export function tripsToCsv(trips: Trip[], vehicleLabel: (id: string) => string):
     trip.actualCost,
     trip.notes,
   ]);
-  return [header, ...rows].map((row) => row.map(cell).join(",")).join("\r\n");
+  return toCsv([header, ...rows]);
 }

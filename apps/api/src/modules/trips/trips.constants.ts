@@ -299,3 +299,16 @@ export const TRIP_IMPORT_RESULT_SCHEMA: Schema = {
     },
   },
 };
+
+export const TRIP_ATTACHMENT_SCHEMA: Schema = {
+  type: "object",
+  properties: {
+    id: { type: "string", format: "uuid" },
+    tripId: { type: "string", format: "uuid" },
+    costId: { type: "string", format: "uuid", nullable: true },
+    fileName: { type: "string", example: "toll-ghaggar.pdf" },
+    contentType: { type: "string", example: "application/pdf" },
+    size: { type: "integer", example: 188416 },
+    createdAt: { type: "string", format: "date-time" },
+  },
+};

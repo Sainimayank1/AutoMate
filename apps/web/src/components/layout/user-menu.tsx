@@ -1,11 +1,13 @@
 import { LogOut, Settings } from "lucide-react";
 import { Link } from "react-router";
 
+import { ThemeMenuItems } from "@/components/layout/theme-toggle";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
   DropdownMenuContent,
+  DropdownMenuGroup,
   DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuSeparator,
@@ -49,6 +51,11 @@ export function UserMenu() {
           <span className="truncate font-medium text-foreground">{user.name}</span>
           <span className="truncate text-xs font-normal text-muted-foreground">{user.email}</span>
         </DropdownMenuLabel>
+        {/* Phones have no header theme switch: it lives here (application-navigation.md). */}
+        <DropdownMenuGroup className="md:hidden">
+          <DropdownMenuSeparator />
+          <ThemeMenuItems />
+        </DropdownMenuGroup>
         <DropdownMenuSeparator />
         <DropdownMenuItem asChild>
           <Link to="/settings">

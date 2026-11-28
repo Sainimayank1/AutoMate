@@ -581,6 +581,8 @@ Provide a complete understanding of the cost, usage, and ownership economics of 
 
 > **Dashboard:** when this module is built, add custom reminders and dismissal of informational items to the dashboard's action centre in the same change: [docs/architecture/dashboard.md §6](architecture/dashboard.md#6-pending-integrations-do-these-when-the-module-is-built).
 
+> **Design, API and what is not built:** [docs/architecture/notifications.md](architecture/notifications.md).
+
 Centralized notifications for all AutoMate modules.
 
 ### Notification types
@@ -619,6 +621,8 @@ Centralized notifications for all AutoMate modules.
 ---
 
 ## Module 11 — Settings & Personalization
+
+> **Design, API and what is not built:** [docs/architecture/settings.md](architecture/settings.md).
 
 Manage user preferences, application configuration, and security.
 
@@ -663,6 +667,8 @@ Manage user preferences, application configuration, and security.
 ---
 
 ## Module 12 — Backup, Import & Export
+
+> **Design, API and what is not built:** [docs/architecture/backup.md](architecture/backup.md).
 
 Data portability and backup management.
 

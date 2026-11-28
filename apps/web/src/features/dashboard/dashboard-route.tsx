@@ -115,7 +115,7 @@ export function Component() {
             </div>
             <div className="min-w-0 lg:col-span-4">
               <SectionState section={overview.data.status} onRetry={retry} className="h-full">
-                {(status) => <StatusPanel status={status} />}
+                {(status) => <StatusPanel status={status} vehicleId={overview.data.vehicle.id} />}
               </SectionState>
             </div>
           </div>

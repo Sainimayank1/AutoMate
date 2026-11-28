@@ -187,7 +187,7 @@ Nothing runs in the background yet, and Redis is optional (`REDIS_ENABLED=false`
 
 ## 11. File storage (strategy)
 
-Files (RC, insurance PDFs, PUC, invoices, receipts, photos) are stored in private object storage (Cloudflare R2, S3-compatible), never in PostgreSQL. `src/storage/storage.provider.ts` defines the contract and the `STORAGE_PROVIDER` injection token; `StorageModule` binds the local provider (development and tests) or the R2/S3 one. As built for Documents: [documents.md §2](documents.md#2-files-and-storage).
+Files (RC, insurance PDFs, PUC, invoices, receipts, photos) are stored in private object storage (Cloudflare R2, S3-compatible), never in PostgreSQL. `src/storage/storage.provider.ts` defines the contract and the `STORAGE_PROVIDER` injection token; `StorageModule` binds the local provider (development and tests) or the R2/S3 one. As built for Documents and attachments, with the storage cleanup: [documents.md §2](documents.md#2-files-and-storage).
 
 Planned flow:
 

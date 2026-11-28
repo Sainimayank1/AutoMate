@@ -1,5 +1,5 @@
 import type { DashboardActivityQuery, DashboardOverviewQuery } from "@automate/shared";
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { dashboardService } from "@/features/dashboard/services/dashboard-service";
 
@@ -35,5 +35,14 @@ export function useDashboardActivity(params: DashboardActivityQuery) {
     queryFn: () => dashboardService.activity(params),
     staleTime: 60 * 1000,
     placeholderData: (previous) => previous,
+  });
+}
+
+/** Hides an information-only item in the action centre (that vehicle only). */
+export function useDismissStatusItem() {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: dashboardService.dismiss,
+    onSuccess: () => client.invalidateQueries({ queryKey: dashboardKeys.all }),
   });
 }

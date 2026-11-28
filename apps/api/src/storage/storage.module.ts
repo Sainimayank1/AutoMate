@@ -7,6 +7,7 @@ import { BucketStorageProvider } from "./bucket-storage.provider";
 import { LocalStorageController } from "./local-storage.controller";
 import { LocalStorageProvider } from "./local-storage.provider";
 import { STORAGE_PROVIDER, type StorageProvider } from "./storage.provider";
+import { StorageSweepService } from "./storage-sweep.service";
 
 /** Production without a bucket: documents work, files don't (env validation allows it). */
 const unavailable = () => {
@@ -25,6 +26,7 @@ const NO_STORAGE: StorageProvider = {
 @Module({
   controllers: [LocalStorageController],
   providers: [
+    StorageSweepService,
     {
       provide: STORAGE_PROVIDER,
       inject: [ConfigService],
@@ -54,6 +56,6 @@ const NO_STORAGE: StorageProvider = {
       },
     },
   ],
-  exports: [STORAGE_PROVIDER],
+  exports: [STORAGE_PROVIDER, StorageSweepService],
 })
 export class StorageModule {}

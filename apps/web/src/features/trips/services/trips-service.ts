@@ -2,7 +2,9 @@ import type {
   CompleteTripPlanValues,
   CreateTripCostValues,
   CreateTripPlanValues,
+  CreateTripUploadValues,
   CreateTripValues,
+  FileLink,
   PaginationQuery,
   PlaceResult,
   RoutePoint,
@@ -10,6 +12,7 @@ import type {
   Trip,
   TripAnalytics,
   TripAnalyticsQuery,
+  TripAttachment,
   TripBulkValues,
   TripCategory,
   TripCategoryValues,
@@ -32,6 +35,7 @@ import type {
   UpdateTripCostValues,
   UpdateTripPlanValues,
   UpdateTripValues,
+  UploadSlot,
 } from "@automate/shared";
 
 import { request, requestAllPages, requestPage } from "@/lib/api-client";
@@ -111,6 +115,33 @@ export const tripsService = {
     request<void>({ method: "POST", url: `/trips/${tripId}/fuel-entries`, data: { fuelEntryId } }),
   unlinkFuel: (tripId: string, fuelEntryId: string) =>
     request<void>({ method: "DELETE", url: `/trips/${tripId}/fuel-entries/${fuelEntryId}` }),
+  /** A trip's photos and receipts (up to 20; read whole). */
+  attachments: (tripId: string) =>
+    requestAllPages<TripAttachment>({ url: `/trips/${tripId}/attachments` }),
+  attachmentLink: (tripId: string, id: string) =>
+    request<FileLink>({ url: `/trips/${tripId}/attachments/${id}/link` }),
+  removeAttachment: (tripId: string, id: string) =>
+    request<void>({ method: "DELETE", url: `/trips/${tripId}/attachments/${id}` }),
+  /** Announce, PUT straight to storage (no API credentials go there), confirm. */
+  async uploadAttachment(tripId: string, file: File, costId?: string): Promise<TripAttachment> {
+    const announced: CreateTripUploadValues = {
+      fileName: file.name,
+      contentType: file.type as CreateTripUploadValues["contentType"],
+      size: file.size,
+      ...(costId && { costId }),
+    };
+    const slot = await request<UploadSlot>({
+      method: "POST",
+      url: `/trips/${tripId}/attachments/uploads`,
+      data: announced,
+    });
+    const put = await fetch(slot.url, { method: "PUT", headers: slot.headers, body: file });
+    if (!put.ok) throw new Error("The upload didn't go through. Try again.");
+    return request<TripAttachment>({
+      method: "POST",
+      url: `/trips/${tripId}/attachments/${slot.fileId}/confirm`,
+    });
+  },
   /** Costs across trips (the Costs tab), a page at a time. */
   allCosts: (params: TripCostListParams = {}) =>
     requestPage<TripCost>({ url: "/trip-costs", params }),

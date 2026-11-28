@@ -84,7 +84,7 @@ The order is fixed. Keep it compact: no nested sub-menus in the sidebar. Sub-vie
 - Hide it on full-screen flows: forms and wizards, document preview. Those show their own sticky action bar.
 - The page content gets `pb-20 md:pb-0` so nothing hides behind it.
 
-**QuickAddSheet.** A bottom `Drawer` with a 2-column grid of large tiles (icon + label). The order is Fuel entry, Expense, Service record, Trip, Document, Reminder. Each opens the add form for the active vehicle. On desktop, the same list renders as the header `Plus` `DropdownMenu`.
+**QuickAddSheet** (Stitch "Quick Add Sheet — Mobile"). A bottom `Sheet` (shadcn's, rounded top; a vaul `Drawer` would add drag-to-dismiss and a dependency) with a 2-column grid of large tiles (icon + label) and a "Cancel" button. The order is Fuel entry, Expense, Service record, Trip, Document, Reminder. Each opens the add form for the active vehicle. On desktop, the same list renders as the header `Plus` `DropdownMenu`.
 
 **Drawer navigation.** "More" opens the shadcn sidebar's mobile `Sheet` (already implemented) with the same groups, `VehicleSelector` at the top and the user summary at the bottom.
 

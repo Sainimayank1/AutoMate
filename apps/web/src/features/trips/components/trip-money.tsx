@@ -1,7 +1,8 @@
-import { FUEL_UNIT, type Trip, type TripCost } from "@automate/shared";
-import { Fuel, Link2, Pencil, Plus, Trash2, Unlink } from "lucide-react";
+import { DOCUMENT_FILE_TYPES, FUEL_UNIT, type Trip, type TripCost } from "@automate/shared";
+import { Fuel, Link2, Paperclip, Pencil, Plus, Trash2, Unlink } from "lucide-react";
 import { useState } from "react";
 import { Link } from "react-router";
+import { toast } from "sonner";
 
 import { ConfirmDialog } from "@/components/common/confirm-dialog";
 import { Badge } from "@/components/ui/badge";
@@ -15,6 +16,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Spinner } from "@/components/ui/spinner";
 import { efficiencyUnit } from "@/features/fuel/constants";
 import { TripCostDialog } from "@/features/trips/components/trip-cost-dialog";
 import { COST_COLORS, COST_LABELS, isVehicleCost } from "@/features/trips/constants";
@@ -22,10 +24,13 @@ import {
   useDeleteTripCost,
   useFuelCandidates,
   useLinkFuel,
+  useTripAttachments,
   useTripCosts,
   useTripFuel,
   useTripSpending,
+  useUploadTripAttachment,
 } from "@/features/trips/hooks/use-trips";
+import { normalizeApiError } from "@/lib/api-error";
 import { formatCurrency, formatDate, formatDateTime, formatNumber } from "@/utils/format";
 
 /**
@@ -101,8 +106,11 @@ export function SpendingCard({ trip }: { trip: Trip }) {
 export function CostsCard({ trip, readOnly }: { trip: Trip; readOnly: boolean }) {
   const { data: costs } = useTripCosts(trip.id);
   const remove = useDeleteTripCost(trip.id);
+  const { data: files } = useTripAttachments(trip.id);
+  const attach = useUploadTripAttachment(trip.id);
   const [editing, setEditing] = useState<TripCost | "new" | null>(null);
   const [deleting, setDeleting] = useState<TripCost | null>(null);
+  const receipts = (costId: string) => files?.filter((file) => file.costId === costId).length ?? 0;
   return (
     <Card>
       <CardHeader>
@@ -147,6 +155,46 @@ export function CostsCard({ trip, readOnly }: { trip: Trip; readOnly: boolean })
                   </span>
                   {!readOnly && (
                     <>
+                      <Button
+                        size="icon-sm"
+                        variant="ghost"
+                        asChild
+                        disabled={attach.isPending}
+                        title="Attach receipt"
+                      >
+                        <label className="relative cursor-pointer">
+                          {attach.isPending && attach.variables?.costId === cost.id ? (
+                            <Spinner />
+                          ) : (
+                            <Paperclip />
+                          )}
+                          {receipts(cost.id) > 0 && (
+                            <span className="absolute -top-1 -right-1 rounded-full bg-primary px-1 text-[10px] leading-4 text-primary-foreground tabular-nums">
+                              {receipts(cost.id)}
+                            </span>
+                          )}
+                          <input
+                            type="file"
+                            accept={DOCUMENT_FILE_TYPES.join(",")}
+                            className="sr-only"
+                            aria-label={`Attach a receipt to ${COST_LABELS[cost.category]} ${formatCurrency(cost.amount)}`}
+                            onChange={(event) => {
+                              const file = event.target.files?.[0];
+                              event.target.value = "";
+                              if (file) {
+                                attach.mutate(
+                                  { file, costId: cost.id },
+                                  {
+                                    onSuccess: () => toast.success("Receipt attached."),
+                                    onError: (failure) =>
+                                      toast.error(normalizeApiError(failure).message),
+                                  },
+                                );
+                              }
+                            }}
+                          />
+                        </label>
+                      </Button>
                       <Button
                         size="icon-sm"
                         variant="ghost"

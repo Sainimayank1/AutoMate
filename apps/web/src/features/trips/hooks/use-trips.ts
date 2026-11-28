@@ -324,3 +324,32 @@ export function useLinkFuel(tripId: string) {
     },
   });
 }
+
+export function useTripAttachments(tripId: string) {
+  return useQuery({
+    queryKey: tripsKeys.attachments(tripId),
+    queryFn: () => tripsService.attachments(tripId),
+  });
+}
+
+export function useUploadTripAttachment(tripId: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ file, costId }: { file: File; costId?: string }) =>
+      tripsService.uploadAttachment(tripId, file, costId),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: tripsKeys.attachments(tripId) }),
+    // The panel shows the error on the file.
+    onError: handledByForm,
+  });
+}
+
+export function useDeleteTripAttachment(tripId: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => tripsService.removeAttachment(tripId, id),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: tripsKeys.attachments(tripId) });
+      toast.success("File deleted.");
+    },
+  });
+}

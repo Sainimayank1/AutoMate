@@ -15,6 +15,7 @@ import {
   SheetTitle,
 } from "@/components/ui/sheet";
 import { Skeleton } from "@/components/ui/skeleton";
+import { RecordAttachments } from "@/features/attachments/components/record-attachments";
 import { CategoryIcon } from "@/features/expenses/components/category-icon";
 import { RefundDialog } from "@/features/expenses/components/refund-dialog";
 import {
@@ -224,6 +225,7 @@ export function Component() {
                   )}
                 </Block>
               )}
+              <RecordAttachments owner="expense" ownerId={expense.id} title="Receipts" />
             </div>
 
             <SheetFooter className="flex-row flex-wrap gap-2 border-t">

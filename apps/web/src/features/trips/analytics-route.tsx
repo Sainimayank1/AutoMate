@@ -14,6 +14,7 @@ import {
   type LucideIcon,
   MapPin,
   PieChart,
+  Printer,
   Route,
   TrendingUp,
 } from "lucide-react";
@@ -87,9 +88,17 @@ export function Component() {
     <TripsLayout
       tab="analytics"
       actions={
-        <Button variant="outline" asChild>
-          <Link to="/trips/new">Log trip</Link>
-        </Button>
+        <>
+          <Button variant="outline" asChild>
+            <Link to={`/trips/report?vehicle=${vehicleId ?? ALL}&period=${period}`}>
+              <Printer data-icon="inline-start" />
+              Report
+            </Link>
+          </Button>
+          <Button variant="outline" asChild>
+            <Link to="/trips/new">Log trip</Link>
+          </Button>
+        </>
       }
     >
       <section className="flex flex-wrap items-center gap-2" aria-label="Filters">

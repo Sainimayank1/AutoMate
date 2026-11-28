@@ -19,6 +19,7 @@ const preferences: UserPreferences = {
     maintenance: true,
     payments: true,
     trips: true,
+    fuel: true,
     monthlySummary: false,
   },
   regional: {

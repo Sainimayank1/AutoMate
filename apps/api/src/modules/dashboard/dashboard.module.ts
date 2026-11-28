@@ -4,6 +4,7 @@ import { DocumentsModule } from "@/modules/documents/documents.module";
 import { ExpensesModule } from "@/modules/expenses/expenses.module";
 import { FuelModule } from "@/modules/fuel/fuel.module";
 import { MaintenanceModule } from "@/modules/maintenance/maintenance.module";
+import { NotificationsModule } from "@/modules/notifications/notifications.module";
 import { TripsModule } from "@/modules/trips/trips.module";
 import { VehiclesModule } from "@/modules/vehicles/vehicles.module";
 
@@ -19,6 +20,7 @@ import { DashboardLayoutService } from "./dashboard-layout.service";
     MaintenanceModule,
     TripsModule,
     DocumentsModule,
+    NotificationsModule,
   ],
   controllers: [DashboardController],
   providers: [DashboardService, DashboardLayoutService],

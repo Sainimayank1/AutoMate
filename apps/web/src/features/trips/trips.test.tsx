@@ -4,7 +4,9 @@ import {
   istToday,
   type Trip,
   type TripAnalytics,
+  type TripAttachment,
   type TripCategory,
+  type TripImportPreview,
   type TripOverview,
   type TripPlan,
 } from "@automate/shared";
@@ -17,6 +19,12 @@ import { useSessionStore } from "@/stores/session-store";
 import { useActiveVehicleStore } from "@/stores/vehicle-store";
 import { fail, mockApi, type MockReply, ok, okPage, testUser, testVehicle } from "@/test/mock-api";
 import { renderApp } from "@/test/render-app";
+
+const downloads = vi.hoisted(() => [] as { filename: string; csv: string }[]);
+vi.mock("@/utils/csv", async (original) => ({
+  ...(await original<typeof import("@/utils/csv")>()),
+  downloadCsv: (filename: string, csv: string) => downloads.push({ filename, csv }),
+}));
 
 // Leaflet doesn't render in jsdom; the map's inputs are what matter here.
 vi.mock("@/features/trips/components/trip-map", () => ({
@@ -1083,4 +1091,254 @@ describe("trip analytics", () => {
     renderApp("/trips/analytics");
     expect(await screen.findByText("No trips in this period")).toBeInTheDocument();
   });
+});
+
+describe("trip import, export and report", () => {
+  it("exports the filtered history as CSV, every page", async () => {
+    const calls = api({
+      "GET /vehicles": () => okPage([victoris]),
+      "GET /trip-categories": () => okPage(types),
+      "GET /trips": () => okPage([jaipur, errand], { total: 2 }),
+      "GET /trips/summary": () => ok({ trips: 2, distanceKm: "280.5" }),
+    });
+    renderApp("/trips/history?vehicle=all&type=" + types[2]!.id);
+    const user = userEvent.setup();
+
+    await user.click(await screen.findByRole("button", { name: "Export CSV" }));
+    await waitFor(() => expect(downloads).toHaveLength(1));
+    const [header, first] = downloads[0]!.csv.split("\r\n");
+    expect(header).toBe(
+      "Date,End date,Start time,End time,Vehicle,Type,Title,From,To,Stops,Method,Start km,End km,Distance (km),Duration (min),Actual cost (INR),Notes",
+    );
+    expect(first).toContain("2026-11-22,,06:10,10:22,");
+    expect(first).toContain(
+      ",Road trip,,Gurugram,Jaipur,,Odometer readings,8464,8732,268.0,252,,Breakfast stop near Behror.",
+    );
+    // The export asked for the history's filters, a full page at a time.
+    expect(calls.filter((call) => call.url === "/trips").at(-1)!.params).toMatchObject({
+      categoryId: types[2]!.id,
+      pageSize: 100,
+    });
+  });
+
+  it(
+    "maps a CSV's columns, previews it and imports the ready rows",
+    { timeout: 15_000 },
+    async () => {
+      const preview: TripImportPreview = {
+        counts: { ready: 1, duplicate: 0, skipped: 0, error: 1 },
+        rows: [
+          {
+            line: 3,
+            date: "2026-11-21",
+            label: "Home → Moon",
+            distanceKm: null,
+            status: "error",
+            message: "Enter the distance in km, e.g. 268.5",
+          },
+          {
+            line: 2,
+            date: "2026-11-20",
+            label: "Home → Office",
+            distanceKm: "20",
+            status: "ready",
+            message: null,
+          },
+        ],
+      };
+      const calls = api({
+        "GET /vehicles": () => okPage([victoris]),
+        "GET /trip-categories": () => okPage(types),
+        "GET /trips": () => okPage([]),
+        "GET /trips/summary": () => ok({ trips: 0, distanceKm: "0.0" }),
+        "POST /trips/import/preview": () => ok(preview),
+        "POST /trips/import": () => ok({ imported: 1, notImported: 1, failed: [] }, 201),
+      });
+      renderApp("/trips/history");
+      const user = userEvent.setup();
+
+      await user.click(await screen.findByRole("button", { name: "Import" }));
+      const dialog = within(await screen.findByRole("dialog", { name: "Import trips" }));
+      const csv = "When,KM,From,To\n20/11/2026,20,Home,Office\n21/11/2026,far,Home,Moon";
+      await user.upload(
+        dialog.getByLabelText("CSV file"),
+        new File([csv], "trips.csv", { type: "text/csv" }),
+      );
+      // Guessed from the headers; "When" isn't a known name, so the date is matched by hand.
+      expect(await dialog.findByText(/Match columns · trips.csv · 2 rows/)).toBeInTheDocument();
+      await user.click(dialog.getByRole("combobox", { name: /^Date/ }));
+      await user.click(await screen.findByRole("option", { name: "When" }));
+      await user.click(dialog.getByRole("button", { name: "Check file" }));
+
+      expect(await dialog.findByText("Enter the distance in km, e.g. 268.5")).toBeInTheDocument();
+      expect(bodyOf(calls.find((call) => call.url === "/trips/import/preview"))).toEqual({
+        vehicleId: victoris.id,
+        csv,
+        columns: { date: "When", distanceKm: "KM", origin: "From", destination: "To" },
+        includeDuplicates: false,
+      });
+      await user.click(dialog.getByRole("button", { name: "Import 1 trip" }));
+      await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
+      expect(await screen.findByText("1 trip imported.")).toBeInTheDocument();
+    },
+  );
+
+  it("prints a light report of the period with every trip", async () => {
+    const analytics = {
+      period: { ...overview().period, period: "this_year", from: "2026-01-01" },
+      vehicleId: victoris.id,
+      current: { trips: 2, distanceKm: "280.5", actualCost: "1520.00" },
+      previous: { trips: 0, distanceKm: "0.0", actualCost: null },
+      change: { distance: null, trips: null, cost: null },
+      distance: {
+        averageKm: "140.3",
+        perDayKm: "0.9",
+        shortest: null,
+        longest: null,
+        bands: [
+          { band: "UNDER_10", trips: 0, distanceKm: "0.0" },
+          { band: "10_50", trips: 1, distanceKm: "12.5" },
+          { band: "50_100", trips: 0, distanceKm: "0.0" },
+          { band: "100_300", trips: 1, distanceKm: "268.0" },
+          { band: "300_PLUS", trips: 0, distanceKm: "0.0" },
+        ],
+      },
+      time: {
+        averageMinutes: null,
+        longest: null,
+        byWeekday: [],
+        byTimeOfDay: [],
+        untimedTrips: 1,
+      },
+      cost: {
+        actual: "1520.00",
+        perKm: "5.67",
+        perTrip: "1520.00",
+        tripsWithCost: 1,
+        fuelEstimate: "2900.00",
+      },
+      byVehicle: [],
+      topDestinations: [],
+      insights: [],
+    } satisfies TripAnalytics;
+    const calls = api({
+      "GET /vehicles": () => okPage([victoris]),
+      "GET /trips/analytics": () => ok(analytics),
+      "GET /trips": () => okPage([{ ...jaipur, actualCost: "1520.00" }, errand]),
+    });
+    renderApp(`/trips/report?vehicle=${victoris.id}&period=this_year`);
+
+    expect(await screen.findByRole("heading", { name: "Trips report" })).toBeInTheDocument();
+    expect(document.documentElement).not.toHaveClass("dark");
+    expect(await screen.findByText("2 trips · 280.5 km")).toBeInTheDocument();
+    expect(screen.getByText("Estimate, not spending")).toBeInTheDocument();
+    expect(screen.getByText("Gurugram → Jaipur")).toBeInTheDocument();
+    expect(calls.filter((call) => call.url === "/trips").at(-1)!.params).toMatchObject({
+      vehicleId: victoris.id,
+      from: "2026-01-01",
+      sort: "oldest",
+    });
+    expect(screen.getByRole("button", { name: "Print or save as PDF" })).toBeEnabled();
+  });
+});
+
+describe("trip photos and receipts", () => {
+  it(
+    "uploads straight to storage, confirms, and labels a cost's receipt",
+    { timeout: 15_000 },
+    async () => {
+      const toll = {
+        id: "0190d4a2-0000-7000-8000-0000000c1001",
+        tripId: jaipur.id,
+        vehicleId: victoris.id,
+        category: "TOLL",
+        amount: "320.00",
+        date: jaipur.date,
+        vendor: "Kherki Daula",
+        paymentMethod: null,
+        notes: null,
+        expenseId: null,
+      };
+      const receipt: TripAttachment = {
+        id: "0190d4a2-0000-7000-8000-0000000c2001",
+        tripId: jaipur.id,
+        costId: toll.id,
+        fileName: "toll.pdf",
+        contentType: "application/pdf",
+        size: 188416,
+        createdAt: "2026-11-22T06:00:00.000Z",
+      };
+      let files = [receipt];
+      const put = vi
+        .spyOn(globalThis, "fetch")
+        .mockResolvedValue(new Response(null, { status: 200 }));
+      const calls = api({
+        "GET /vehicles": () => okPage([victoris]),
+        [`GET /trips/${jaipur.id}`]: () => ok(jaipur),
+        [`GET /trips/${jaipur.id}/costs`]: () => okPage([toll]),
+        [`GET /trips/${jaipur.id}/fuel-entries`]: () => okPage([]),
+        [`GET /trips/${jaipur.id}/spending`]: () => fail(404, "NOT_FOUND", "Not found"),
+        [`GET /trips/${jaipur.id}/attachments`]: () => okPage(files),
+        [`POST /trips/${jaipur.id}/attachments/uploads`]: () =>
+          ok(
+            {
+              fileId: "f2",
+              url: "http://storage.test/put/f2",
+              headers: { "content-type": "image/png" },
+              expiresAt: "",
+            },
+            201,
+          ),
+        [`POST /trips/${jaipur.id}/attachments/f2/confirm`]: () => {
+          const photo: TripAttachment = {
+            ...receipt,
+            id: "f2",
+            costId: null,
+            fileName: "pass.png",
+            contentType: "image/png",
+          };
+          files = [...files, photo];
+          return ok(photo);
+        },
+        [`GET /trips/${jaipur.id}/attachments/f2/link`]: () =>
+          ok({ url: "http://storage.test/get/f2", expiresAt: "" }),
+      });
+      renderApp(`/trips/${jaipur.id}`);
+      const user = userEvent.setup();
+
+      const panel = within(
+        (await screen.findByText("Photos & receipts")).closest("[data-slot=card]") as HTMLElement,
+      );
+      expect(await panel.findByText("toll.pdf")).toBeInTheDocument();
+      expect(panel.getByText("Receipt for Toll · ₹320.00")).toBeInTheDocument();
+      expect(panel.getByText("1 of 20")).toBeInTheDocument();
+
+      // A wrong type is refused before anything is sent.
+      // As a browser's "All files" choice would: past the picker's own filter.
+      await userEvent
+        .setup({ applyAccept: false })
+        .upload(
+          panel.getByLabelText("Upload photos & receipts"),
+          new File(["x"], "notes.txt", { type: "text/plain" }),
+        );
+      expect(await panel.findByText("Use a PDF, JPEG, PNG, WebP or HEIC file")).toBeInTheDocument();
+
+      await user.upload(
+        panel.getByLabelText("Upload photos & receipts"),
+        new File(["png"], "pass.png", { type: "image/png" }),
+      );
+      expect(await panel.findByText("pass.png")).toBeInTheDocument();
+      expect(bodyOf(calls.find((call) => call.url?.endsWith("/attachments/uploads")))).toEqual({
+        fileName: "pass.png",
+        contentType: "image/png",
+        size: 3,
+      });
+      expect(put).toHaveBeenCalledWith(
+        "http://storage.test/put/f2",
+        expect.objectContaining({ method: "PUT" }),
+      );
+      expect(await panel.findByText("2 of 20")).toBeInTheDocument();
+      put.mockRestore();
+    },
+  );
 });

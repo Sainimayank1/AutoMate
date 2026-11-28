@@ -7,6 +7,7 @@ import {
   type DashboardOverview,
   type DashboardOverviewQuery,
   type DashboardSection,
+  type DismissDashboardItemValues,
   type DrivingOverview,
   type FuelOverview,
   istToday,
@@ -28,6 +29,7 @@ import { RecurringExpensesService } from "@/modules/expenses/recurring-expenses.
 import { FuelService } from "@/modules/fuel/fuel.service";
 import { MaintenanceService } from "@/modules/maintenance/maintenance.service";
 import { ServiceRecordsService } from "@/modules/maintenance/service-records.service";
+import { RemindersService } from "@/modules/notifications/reminders.service";
 import { TripsService } from "@/modules/trips/trips.service";
 import { VehiclesService } from "@/modules/vehicles/vehicles.service";
 
@@ -38,6 +40,7 @@ import {
   serviceActivity,
   tripActivity,
 } from "./activity";
+import { DashboardLayoutService } from "./dashboard-layout.service";
 import { buildInsights, type InsightInputs } from "./insights";
 import { buildMetrics, nextEmi, type WindowFigures } from "./metrics";
 import { drivingOverview, fuelOverview, spendingOverview, trendMonths } from "./spending";
@@ -73,6 +76,8 @@ export class DashboardService {
     private readonly recurring: RecurringExpensesService,
     private readonly documents: DocumentsService,
     private readonly trips: TripsService,
+    private readonly reminders: RemindersService,
+    private readonly layouts: DashboardLayoutService,
   ) {}
 
   async overview(
@@ -104,7 +109,7 @@ export class DashboardService {
     const [status, metrics, spending, fuel, maintenance, expiries, driving, insights] =
       await Promise.all([
         this.section("status", () =>
-          this.status(vehicle, insurance, upkeep, payments, papers, today),
+          this.status(userId, vehicle, insurance, upkeep, payments, papers, today),
         ),
         this.section("metrics", async () => {
           const [both, upcoming] = await Promise.all([figures, payments]);
@@ -185,6 +190,12 @@ export class DashboardService {
     );
   }
 
+  /** Hides an information-only action-centre item on that vehicle (the user's own vehicle). */
+  async dismiss(userId: string, values: DismissDashboardItemValues): Promise<void> {
+    await this.vehicles.findOwned(userId, values.vehicleId);
+    await this.layouts.dismiss(userId, values);
+  }
+
   /** One section, isolated: a failure is logged and shown in that section only. */
   private async section<T>(
     name: keyof typeof SECTION_ERRORS,
@@ -203,6 +214,7 @@ export class DashboardService {
   }
 
   private async status(
+    userId: string,
     vehicle: Vehicle,
     insurance: Promise<InsuranceOnRecord | null>,
     upkeep: Promise<Snapshot>,
@@ -210,11 +222,13 @@ export class DashboardService {
     papers: Promise<VehicleDocument[]>,
     today: string,
   ): Promise<VehicleStatus> {
-    const [policy, maintenance, upcoming, documents] = await Promise.all([
+    const [policy, maintenance, upcoming, documents, reminders, dismissed] = await Promise.all([
       insurance,
       upkeep,
       payments,
       papers,
+      this.reminders.open(userId, vehicle.id),
+      this.layouts.dismissed(userId, vehicle.id),
     ]);
     return vehicleStatus({
       vehicle,
@@ -222,6 +236,8 @@ export class DashboardService {
       maintenance: maintenance.status,
       payments: upcoming.items,
       documents,
+      reminders,
+      dismissed,
       today,
     });
   }

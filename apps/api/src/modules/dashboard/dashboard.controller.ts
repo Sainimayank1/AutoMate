@@ -1,5 +1,5 @@
 import type { ActivityItem, DashboardLayout, DashboardOverview } from "@automate/shared";
-import { Body, Controller, Get, Put, Query } from "@nestjs/common";
+import { Body, Controller, Get, HttpCode, HttpStatus, Post, Put, Query } from "@nestjs/common";
 import { ApiBearerAuth, ApiOperation, ApiTags } from "@nestjs/swagger";
 
 import {
@@ -21,6 +21,7 @@ import {
   DashboardActivityQueryDto,
   DashboardLayoutDto,
   DashboardOverviewQueryDto,
+  DismissDashboardItemDto,
 } from "./dto/dashboard.dto";
 
 @ApiTags("dashboard")
@@ -62,6 +63,17 @@ export class DashboardController {
   @ApiErrorResponses(401)
   layout(@CurrentUser() user: AuthUser): Promise<DashboardLayout> {
     return this.layouts.get(user.id);
+  }
+
+  @Post("dismissals")
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @ApiOperation({ summary: "Dismiss an information-only action-centre item for one vehicle" })
+  @ApiErrorResponses(400, 401, 404)
+  async dismiss(
+    @CurrentUser() user: AuthUser,
+    @Body() body: DismissDashboardItemDto,
+  ): Promise<void> {
+    await this.dashboard.dismiss(user.id, body);
   }
 
   @Put("layout")

@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   EMPTY_VALUE,
   formatCurrency,
+  formatCurrencyCompact,
   formatDate,
   formatDateRange,
   formatDateTime,
@@ -19,6 +20,14 @@ describe("Indian formatters", () => {
     expect(formatCurrency(125000)).toBe("₹1,25,000.00");
     expect(formatCurrency(12345678.9)).toBe("₹1,23,45,678.90");
     expect(formatCurrency(0)).toBe("₹0.00");
+  });
+
+  it("shortens rupees for chart axes in lakh and crore", () => {
+    expect(formatCurrencyCompact(850)).toBe("₹850");
+    expect(formatCurrencyCompact(45000)).toBe("₹45K");
+    expect(formatCurrencyCompact(120000)).toBe("₹1.2L");
+    expect(formatCurrencyCompact("11000000")).toBe("₹1.1Cr");
+    expect(formatCurrencyCompact(null)).toBe("—");
   });
 
   it("formats decimal strings exactly, without float rounding", () => {

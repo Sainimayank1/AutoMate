@@ -17,6 +17,7 @@ import { JourneyPoint } from "@/features/trips/components/journey-point";
 import { LazyTripMap } from "@/features/trips/components/lazy-trip-map";
 import { PlanBudget } from "@/features/trips/components/plan-budget";
 import { PlanMenu } from "@/features/trips/components/plan-menu";
+import { TripAttachments } from "@/features/trips/components/trip-attachments";
 import type { MapPlace } from "@/features/trips/components/trip-map";
 import { PLAN_STATUS } from "@/features/trips/constants";
 import { useTripPlan } from "@/features/trips/hooks/use-trip-plans";
@@ -189,6 +190,7 @@ export function Component() {
               </p>
             </CardContent>
           </Card>
+          <TripAttachments tripId={plan.id} readOnly={plan.status === "CANCELLED"} />
           {plan.notes && (
             <Card>
               <CardHeader>

@@ -40,9 +40,13 @@ model User {
   expenseBudgets       ExpenseBudget[]
   documents            Document[]
   documentFiles        DocumentFile[]
+  notifications        Notification[]
+  reminders            Reminder[]
   trips                Trip[]
   tripCategories       TripCategory[]
   tripCosts            TripCost[]
+  tripAttachments      TripAttachment[]
+  attachments          Attachment[]
 
   @@map("users")
 }
@@ -64,6 +68,9 @@ model UserPreference {
   notifyPayments       Boolean         @default(true) @map("notify_payments")
   notifyTrips          Boolean         @default(true) @map("notify_trips")
   notifyMonthlySummary Boolean         @default(false) @map("notify_monthly_summary")
+  notifyFuel           Boolean         @default(true) @map("notify_fuel")
+  /// Dashboard action-centre items the user dismissed ("<vehicleId>:<itemId>"); information only.
+  dashboardDismissed   String[]        @default([]) @map("dashboard_dismissed")
   createdAt            DateTime        @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt            DateTime        @updatedAt @map("updated_at") @db.Timestamptz(3)
 
@@ -173,6 +180,8 @@ model Vehicle {
   expenseBudgets       ExpenseBudget[]
   documents            Document[]
   preferredBy          UserPreference[]
+  notifications        Notification[]
+  reminders            Reminder[]
   maintenanceSchedules MaintenanceSchedule[]
   serviceRecords       ServiceRecord[]
   components           VehicleComponent[]
@@ -347,6 +356,7 @@ model Expense {
   subcategory ExpenseCategory?     @relation("ExpenseSubcategory", fields: [subcategoryId], references: [id], onDelete: Restrict)
   refundOf    Expense?             @relation("ExpenseRefunds", fields: [refundOfId], references: [id], onDelete: Cascade)
   refunds     Expense[]            @relation("ExpenseRefunds")
+  attachments Attachment[]
   loan        VehicleLoan?         @relation(fields: [loanId], references: [id], onDelete: SetNull)
   occurrence  RecurringOccurrence?
 
@@ -712,13 +722,14 @@ model ServiceRecord {
   createdAt      DateTime          @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt      DateTime          @updatedAt @map("updated_at") @db.Timestamptz(3)
 
-  user      User                @relation(fields: [userId], references: [id], onDelete: Cascade)
-  vehicle   Vehicle             @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
-  provider  ServiceProvider?    @relation(fields: [providerId], references: [id], onDelete: SetNull)
-  items     ServiceRecordItem[]
+  user        User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  vehicle     Vehicle             @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
+  provider    ServiceProvider?    @relation(fields: [providerId], references: [id], onDelete: SetNull)
+  items       ServiceRecordItem[]
+  attachments Attachment[]
   /// Parts this record fitted (replacements) and lifecycle events it backs.
-  installed VehicleComponent[]
-  events    ComponentEvent[]
+  installed   VehicleComponent[]
+  events      ComponentEvent[]
 
   /// Histories are read per vehicle in date order; also serves the cascade from vehicles.
   @@index([vehicleId, serviceDate])
@@ -811,6 +822,7 @@ model VehicleComponent {
   replacedBy      VehicleComponent?     @relation("ComponentReplacement", fields: [replacedById], references: [id], onDelete: SetNull)
   replaces        VehicleComponent?     @relation("ComponentReplacement")
   events          ComponentEvent[]
+  attachments     Attachment[]
   schedules       MaintenanceSchedule[]
   recordItems     ServiceRecordItem[]
   inspectionItems InspectionItem[]
@@ -877,10 +889,11 @@ model Inspection {
   createdAt    DateTime       @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt    DateTime       @updatedAt @map("updated_at") @db.Timestamptz(3)
 
-  user     User             @relation(fields: [userId], references: [id], onDelete: Cascade)
-  vehicle  Vehicle          @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
-  provider ServiceProvider? @relation(fields: [providerId], references: [id], onDelete: SetNull)
-  items    InspectionItem[]
+  user        User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  vehicle     Vehicle          @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
+  provider    ServiceProvider? @relation(fields: [providerId], references: [id], onDelete: SetNull)
+  items       InspectionItem[]
+  attachments Attachment[]
 
   @@index([vehicleId, date])
   @@index([providerId])
@@ -991,12 +1004,13 @@ model Trip {
   createdAt              DateTime   @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt              DateTime   @updatedAt @map("updated_at") @db.Timestamptz(3)
 
-  user        User         @relation(fields: [userId], references: [id], onDelete: Cascade)
-  vehicle     Vehicle      @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
-  category    TripCategory @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+  user        User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  vehicle     Vehicle          @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
+  category    TripCategory     @relation(fields: [categoryId], references: [id], onDelete: Restrict)
   costs       TripCost[]
   fuelEntries FuelEntry[]
   stops       TripStop[]
+  attachments TripAttachment[]
 
   @@index([vehicleId, date])
   @@index([userId, status, date])
@@ -1027,12 +1041,37 @@ model TripCost {
   createdAt     DateTime         @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt     DateTime         @updatedAt @map("updated_at") @db.Timestamptz(3)
 
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
-  trip Trip @relation(fields: [tripId], references: [id], onDelete: Cascade)
+  user        User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  trip        Trip             @relation(fields: [tripId], references: [id], onDelete: Cascade)
+  attachments TripAttachment[]
 
   @@index([tripId])
   @@index([userId, date])
   @@map("trip_costs")
+}
+
+/// A trip's photo or receipt (optionally a cost's): the browser uploads it straight to storage.
+model TripAttachment {
+  id          String    @id @default(uuid(7)) @db.Uuid
+  userId      String    @map("user_id") @db.Uuid
+  tripId      String    @map("trip_id") @db.Uuid
+  /// The cost it's the receipt for, if any (removed with the cost).
+  costId      String?   @map("cost_id") @db.Uuid
+  /// users/<userId>/<uuid>: server-made; the client's file name is metadata only.
+  key         String    @unique
+  fileName    String    @map("file_name")
+  contentType String    @map("content_type")
+  size        Int
+  /// Set once the upload is checked (it exists, its size and real type match).
+  confirmedAt DateTime? @map("confirmed_at") @db.Timestamptz(3)
+  createdAt   DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  user User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  trip Trip      @relation(fields: [tripId], references: [id], onDelete: Cascade)
+  cost TripCost? @relation(fields: [costId], references: [id], onDelete: Cascade)
+
+  @@index([tripId, createdAt])
+  @@map("trip_attachments")
 }
 
 /// A stop between a trip's origin and destination, in order (replaced whole on edit).
@@ -1056,4 +1095,109 @@ model TripStop {
 
   @@unique([tripId, position])
   @@map("trip_stops")
+}
+
+enum NotificationCategory {
+  MAINTENANCE
+  DOCUMENTS
+  EXPENSES
+  FUEL
+  TRIPS
+  REMINDERS
+}
+
+enum NotificationPriority {
+  HIGH
+  MEDIUM
+  LOW
+}
+
+/// The in-app inbox (M10). Rows are raised from the modules' records when the inbox is read; the
+/// dedupe key stops a reminder being raised twice and keeps a dismissal while it still applies.
+model Notification {
+  id           String               @id @default(uuid(7)) @db.Uuid
+  userId       String               @map("user_id") @db.Uuid
+  vehicleId    String?              @map("vehicle_id") @db.Uuid
+  category     NotificationCategory
+  kind         String               @db.VarChar(40)
+  priority     NotificationPriority
+  dedupeKey    String               @map("dedupe_key") @db.VarChar(200)
+  title        String               @db.VarChar(200)
+  body         String?              @db.VarChar(500)
+  href         String?              @db.VarChar(300)
+  /// When it (re)appeared: raised, or woken from a snooze.
+  activeAt     DateTime             @map("active_at") @db.Timestamptz(3)
+  readAt       DateTime?            @map("read_at") @db.Timestamptz(3)
+  snoozedUntil DateTime?            @map("snoozed_until") @db.Timestamptz(3)
+  dismissedAt  DateTime?            @map("dismissed_at") @db.Timestamptz(3)
+  createdAt    DateTime             @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt    DateTime             @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  user    User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  vehicle Vehicle? @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, dedupeKey])
+  @@index([userId, dismissedAt, activeAt])
+  @@map("notifications")
+}
+
+/// A reminder the user set themselves (M10): a date, an optional vehicle, a lead in days.
+model Reminder {
+  id               String    @id @default(uuid(7)) @db.Uuid
+  userId           String    @map("user_id") @db.Uuid
+  vehicleId        String?   @map("vehicle_id") @db.Uuid
+  title            String    @db.VarChar(120)
+  dueDate          DateTime  @map("due_date") @db.Date
+  remindDaysBefore Int       @default(1) @map("remind_days_before")
+  notes            String?
+  doneAt           DateTime? @map("done_at") @db.Timestamptz(3)
+  createdAt        DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt        DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  user    User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  vehicle Vehicle? @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
+
+  @@index([userId, doneAt, dueDate])
+  @@map("reminders")
+}
+
+/// A receipt, invoice, job card or photo on an expense, service record, part or inspection.
+/// Exactly one owner is set (the API makes sure); the file goes with its owner.
+model Attachment {
+  id              String    @id @default(uuid(7)) @db.Uuid
+  userId          String    @map("user_id") @db.Uuid
+  expenseId       String?   @map("expense_id") @db.Uuid
+  serviceRecordId String?   @map("service_record_id") @db.Uuid
+  componentId     String?   @map("component_id") @db.Uuid
+  inspectionId    String?   @map("inspection_id") @db.Uuid
+  /// users/<userId>/<uuid>: server-made; the client's file name is metadata only.
+  key             String    @unique
+  fileName        String    @map("file_name")
+  contentType     String    @map("content_type")
+  size            Int
+  /// Set once the upload is checked (it exists, its size and real type match).
+  confirmedAt     DateTime? @map("confirmed_at") @db.Timestamptz(3)
+  createdAt       DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  user          User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expense       Expense?          @relation(fields: [expenseId], references: [id], onDelete: Cascade)
+  serviceRecord ServiceRecord?    @relation(fields: [serviceRecordId], references: [id], onDelete: Cascade)
+  component     VehicleComponent? @relation(fields: [componentId], references: [id], onDelete: Cascade)
+  inspection    Inspection?       @relation(fields: [inspectionId], references: [id], onDelete: Cascade)
+
+  @@index([expenseId])
+  @@index([serviceRecordId])
+  @@index([componentId])
+  @@index([inspectionId])
+  @@index([confirmedAt, createdAt])
+  @@map("attachments")
+}
+
+/// Stored objects whose row is gone (filled by delete triggers on the file tables); the storage
+/// sweep deletes each object, then its row.
+model StorageOrphan {
+  key       String   @id
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  @@map("storage_orphans")
 }

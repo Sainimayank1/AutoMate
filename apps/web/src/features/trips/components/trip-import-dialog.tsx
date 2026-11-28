@@ -181,7 +181,7 @@ export function TripImportDialog({
               <legend className="px-1 text-sm font-medium">
                 Match columns · {file.name} · {file.rows} rows
               </legend>
-              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
                 {TRIP_IMPORT_FIELDS.map((field) => (
                   <div key={field} className="flex flex-col gap-1">
                     <Label htmlFor={`${id}-${field}`} className="text-xs">

@@ -340,6 +340,7 @@ export const appModules = [
     taskRoutes: [
       { path: "/trips/new", lazy: () => import("@/features/trips/new-trip-route") },
       { path: "/trips/plan", lazy: () => import("@/features/trips/new-plan-route") },
+      { path: "/trips/report", lazy: () => import("@/features/trips/report-route") },
       {
         path: "/trips/planner/:planId/edit",
         lazy: () => import("@/features/trips/edit-plan-route"),
@@ -372,6 +373,13 @@ export const appModules = [
     icon: Bell,
     navGroup: "personal",
     lazy: () => import("@/features/notifications/route"),
+    children: [
+      {
+        path: "reminders",
+        lazy: () => import("@/features/notifications/reminders-route"),
+        handle: { title: "Reminders" },
+      },
+    ],
   },
   {
     id: "settings",

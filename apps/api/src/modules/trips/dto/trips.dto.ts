@@ -3,6 +3,7 @@ import {
   createTripCostSchema,
   createTripPlanSchema,
   createTripSchema,
+  createTripUploadSchema,
   linkFuelEntrySchema,
   paginationQuerySchema,
   routeCalculateSchema,
@@ -42,3 +43,4 @@ export class TripPlanListQueryDto extends createZodDto(tripPlanListQuerySchema) 
 export class CompleteTripPlanDto extends createZodDto(completeTripPlanSchema) {}
 export class TripAnalyticsQueryDto extends createZodDto(tripAnalyticsQuerySchema) {}
 export class TripImportDto extends createZodDto(tripImportSchema) {}
+export class CreateTripUploadDto extends createZodDto(createTripUploadSchema) {}

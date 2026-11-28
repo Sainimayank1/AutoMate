@@ -24,6 +24,13 @@ const currencyFormatter = new Intl.NumberFormat(LOCALE, {
   maximumFractionDigits: 2,
 });
 
+const compactCurrencyFormatter = new Intl.NumberFormat(LOCALE, {
+  style: "currency",
+  currency: CURRENCY,
+  notation: "compact",
+  maximumFractionDigits: 1,
+});
+
 const numberFormatters = new Map<string, Intl.NumberFormat>();
 
 function getNumberFormatter(minFractionDigits: number, maxFractionDigits: number) {
@@ -52,6 +59,11 @@ function formatWith(formatter: Intl.NumberFormat, value: NumericValue | null | u
 /** ₹1,25,000.00 */
 export function formatCurrency(value: NumericValue | null | undefined): string {
   return formatWith(currencyFormatter, value) ?? EMPTY_VALUE;
+}
+
+/** ₹45K, ₹1.2L, ₹1.1Cr: chart axes and tight chips only, never tables or details. */
+export function formatCurrencyCompact(value: NumericValue | null | undefined): string {
+  return formatWith(compactCurrencyFormatter, value) ?? EMPTY_VALUE;
 }
 
 /** 1,25,000 (Indian digit grouping) */

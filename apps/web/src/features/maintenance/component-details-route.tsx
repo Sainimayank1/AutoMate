@@ -34,6 +34,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Progress } from "@/components/ui/progress";
 import { Skeleton } from "@/components/ui/skeleton";
+import { RecordAttachments } from "@/features/attachments/components/record-attachments";
 import { InspectDialog, RemoveDialog } from "@/features/maintenance/components/component-dialogs";
 import {
   COMPONENT_STATUS_META,
@@ -295,6 +296,7 @@ export function Component() {
               </CardContent>
             </Card>
           )}
+          <RecordAttachments owner="component" ownerId={part.id} title="Warranty card & photos" />
         </div>
       </div>
 
