@@ -292,7 +292,7 @@ describe("dashboard", () => {
     expect(
       await screen.findByRole("heading", { name: "Add your first vehicle" }),
     ).toBeInTheDocument();
-    expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent(/, Arjun$/);
+    expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent("Dashboard");
     expect(screen.getByRole("link", { name: "Add vehicle" })).toHaveAttribute(
       "href",
       "/garage/new",

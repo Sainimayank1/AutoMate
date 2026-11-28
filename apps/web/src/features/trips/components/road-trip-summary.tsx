@@ -24,7 +24,7 @@ export function RoadTripSummary({ trip }: { trip: Trip }) {
           {tiles.map(([label, value]) => (
             <div key={label} className="flex flex-col gap-1 rounded-lg bg-muted/40 p-3">
               <dt className="text-xs text-muted-foreground">{label}</dt>
-              <dd className="font-heading font-semibold tabular-nums">{value}</dd>
+              <dd className="font-heading font-medium tabular-nums">{value}</dd>
             </div>
           ))}
         </dl>

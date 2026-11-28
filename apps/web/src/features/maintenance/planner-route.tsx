@@ -106,7 +106,7 @@ export function Component() {
                 Estimated total · not counted as spend
               </p>
               {plan.data ? (
-                <p className="font-heading text-xl font-semibold tabular-nums">
+                <p className="font-heading text-xl font-medium tabular-nums">
                   {formatCurrency(plan.data.estimatedTotal)}
                 </p>
               ) : (
@@ -154,7 +154,7 @@ export function Component() {
 
       <section aria-labelledby="templates-title" className="flex flex-col gap-4">
         <div className="flex flex-col gap-1">
-          <h2 id="templates-title" className="font-heading text-lg font-semibold">
+          <h2 id="templates-title" className="font-heading text-lg font-medium">
             Schedule templates
           </h2>
           <p className="text-sm text-muted-foreground">
@@ -222,7 +222,7 @@ function PlannedJob({ job }: { job: MaintenanceSchedule }) {
         to={`/maintenance/schedules/${job.id}`}
         className="flex items-center gap-3.5 rounded-lg border bg-muted/30 p-3.5 transition-colors hover:bg-muted/60 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
       >
-        <span className="flex size-10 shrink-0 items-center justify-center rounded-md bg-muted text-primary">
+        <span className="flex size-10 shrink-0 items-center justify-center rounded-md bg-muted text-muted-foreground">
           <Icon className="size-5" aria-hidden />
         </span>
         <span className="flex min-w-0 flex-1 flex-col gap-0.5">

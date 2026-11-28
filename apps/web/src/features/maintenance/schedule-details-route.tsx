@@ -43,9 +43,7 @@ import { formatDate, formatDistance, formatNumber } from "@/utils/format";
 function Block({ title, children }: { title: string; children: ReactNode }) {
   return (
     <section className="flex flex-col gap-2 border-t pt-4">
-      <h3 className="text-xs font-semibold tracking-wider text-muted-foreground uppercase">
-        {title}
-      </h3>
+      <h3 className="text-xs font-medium text-muted-foreground">{title}</h3>
       {children}
     </section>
   );

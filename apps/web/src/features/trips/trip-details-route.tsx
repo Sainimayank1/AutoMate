@@ -115,9 +115,7 @@ export function Component() {
             Trips
           </Link>
           <div className="flex flex-wrap items-center gap-2.5">
-            <h1 className="font-heading text-2xl font-semibold tracking-tight">
-              {tripLabel(trip)}
-            </h1>
+            <h1 className="font-heading text-2xl font-medium">{tripLabel(trip)}</h1>
             <Badge variant="secondary">{trip.category.name}</Badge>
           </div>
           <p className="text-sm text-muted-foreground tabular-nums">
@@ -324,7 +322,7 @@ function Stat({
   return (
     <div className="flex flex-col gap-1 rounded-xl border bg-card p-4">
       <span className="text-sm text-muted-foreground">{label}</span>
-      <span className="font-heading text-xl font-semibold tabular-nums">{children}</span>
+      <span className="font-heading text-xl font-medium tabular-nums">{children}</span>
       {caption && <span className="text-xs text-muted-foreground">{caption}</span>}
     </div>
   );

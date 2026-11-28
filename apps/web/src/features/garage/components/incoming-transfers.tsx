@@ -74,7 +74,7 @@ function TransferCard({ transfer }: { transfer: VehicleTransfer }) {
             </Badge>
             <h2
               id={`transfer-${transfer.id}`}
-              className="mt-1.5 font-heading text-lg font-semibold text-balance [overflow-wrap:anywhere]"
+              className="mt-1.5 font-heading text-lg font-medium text-balance [overflow-wrap:anywhere]"
             >
               {sender} wants to move {transfer.vehicleName} ·{" "}
               {formatRegistration(transfer.registrationNumber)} to your garage

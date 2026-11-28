@@ -359,7 +359,7 @@ function DocumentFormPage({
               data-dragging={dragging}
               className="flex flex-col items-center justify-center gap-2 rounded-lg border border-dashed bg-elevated p-6 text-center data-[dragging=true]:border-primary"
             >
-              <CloudUpload className="size-7 text-primary" aria-hidden />
+              <CloudUpload className="size-7 text-muted-foreground" aria-hidden />
               <p className="text-sm font-medium">Drop a PDF or photo here</p>
               <p className="text-xs text-muted-foreground">
                 PDF, JPEG, PNG, WebP or HEIC, up to 10 MB each, {MAX_DOCUMENT_FILES} files at most.

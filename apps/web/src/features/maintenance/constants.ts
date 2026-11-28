@@ -186,15 +186,6 @@ export const INSPECTION_KIND_LABELS: Record<InspectionKind, string> = {
   PROFESSIONAL: "Professional",
 };
 
-/** A flagged finding's card border. */
-export const TONE_BORDER: Record<Tone, string> = {
-  destructive: "border-destructive/40",
-  warning: "border-warning/40",
-  info: "border-info/40",
-  success: "border-success/40",
-  neutral: "border-border",
-};
-
 /** A tinted control or chip in a tone (the condition select, condition chips). */
 export const TONE_SOFT: Record<Tone, string> = {
   destructive: "border-destructive/30 bg-destructive/15 text-destructive",

@@ -5,7 +5,7 @@
   "start_url": "/dashboard",
   "scope": "/",
   "display": "standalone",
-  "background_color": "#101419",
-  "theme_color": "#101419",
+  "background_color": "#141415",
+  "theme_color": "#141415",
   "icons": [{ "src": "/favicon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" }]
 }

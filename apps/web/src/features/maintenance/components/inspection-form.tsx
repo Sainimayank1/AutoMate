@@ -64,7 +64,6 @@ import {
   INSPECTION_CONDITION_META,
   INSPECTION_KIND_LABELS,
   TONE_ACCENT,
-  TONE_BORDER,
   TONE_SOFT,
   TONE_TEXT,
 } from "@/features/maintenance/constants";
@@ -357,9 +356,7 @@ function InspectionFields({
           {shownAreas.map(([area, name], index) => (
             <div key={area} className={cn("flex flex-col gap-3", index > 0 && "border-t pt-4")}>
               <div className="flex items-center justify-between">
-                <h3 className="text-xs font-semibold tracking-wider text-muted-foreground uppercase">
-                  {name}
-                </h3>
+                <h3 className="text-xs font-medium text-muted-foreground">{name}</h3>
                 <Button
                   type="button"
                   variant="link"
@@ -444,7 +441,7 @@ function InspectionFields({
 
       <aside className="flex flex-col gap-4 rounded-xl border bg-card p-5 lg:sticky lg:top-24 lg:col-span-4">
         <div className="flex items-center justify-between gap-2">
-          <h2 className="font-heading text-lg font-semibold">Summary</h2>
+          <h2 className="font-heading text-lg font-medium">Summary</h2>
           <Badge variant="secondary">{INSPECTION_KIND_LABELS[values.kind ?? "SELF_CHECK"]}</Badge>
         </div>
         <div className="grid grid-cols-2 gap-2.5">
@@ -458,9 +455,7 @@ function InspectionFields({
           />
         </div>
         <div className="flex flex-col gap-2 border-t pt-3">
-          <span className="text-xs font-semibold tracking-wider text-muted-foreground uppercase">
-            Flagged items
-          </span>
+          <span className="text-xs font-medium text-muted-foreground">Flagged items</span>
           {flagged.length === 0 ? (
             <p className="text-sm text-muted-foreground">Nothing flagged.</p>
           ) : (
@@ -493,8 +488,8 @@ function InspectionFields({
 function Count({ label, value, className }: { label: string; value: number; className: string }) {
   return (
     <div className="rounded-lg border bg-muted/40 p-3">
-      <span className={cn("block text-xs font-semibold", className)}>{label}</span>
-      <span className="font-heading text-lg font-semibold tabular-nums">{value}</span>
+      <span className={cn("block text-xs font-medium", className)}>{label}</span>
+      <span className="font-heading text-lg font-medium tabular-nums">{value}</span>
     </div>
   );
 }
@@ -519,12 +514,7 @@ function ItemCard({
   const name = label || "item";
 
   return (
-    <div
-      className={cn(
-        "flex flex-col gap-2.5 rounded-lg border bg-muted/40 p-3.5",
-        flagged && TONE_BORDER[meta.tone],
-      )}
-    >
+    <div className={cn("flex flex-col gap-2.5 rounded-lg border bg-muted/40 p-3.5")}>
       <div className="flex flex-wrap items-start justify-between gap-2">
         <Controller
           control={control}

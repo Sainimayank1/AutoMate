@@ -4,11 +4,11 @@ Run this before calling any UI task done. If any answer is **no**, fix it first,
 
 ## 1. The twelve questions
 
-1. Does it match the AutoMate brand and its Stitch screen (graphite surfaces, one ice-blue accent, Manrope/Inter/Geist Mono, Lucide)? If no Stitch screen existed, was one generated first?
+1. Does it match the Night dash theme (neutral graphite, neutral `primary`, cyan `brand` only where `color-system.md` lists it, Geist/Geist Mono, Lucide) and its Stitch screen's layout? If no Stitch screen existed, was one generated first?
 2. Does it feel premium and futuristic, not like a generic admin template?
 3. Is the visual hierarchy clear, with one hero element and subordinate instruments?
 4. Is the layout uncluttered, without a wall of identical cards?
-5. Are colours consistent: tokens only, the status mapping followed, teal only for AI?
+5. Are colours consistent: tokens only, the status mapping followed, status colour only on badges and icon tiles, `insight` only for rule-based insights?
 6. Are typography and spacing consistent with the scales?
 7. Were existing components reused, with no duplicates?
 8. Is it responsive at 360 / 768 / 1280 px with no horizontal scroll?
@@ -22,13 +22,17 @@ Run this before calling any UI task done. If any answer is **no**, fix it first,
 **Tokens and styling**
 
 - [ ] No hex/rgb/oklch literals, `[#…]` colours or Tailwind palette classes in `features/` and `components/` (outside `components/ui`).
-- [ ] At most one `default` (cyan) button per region; destructive styling only in confirmations or the danger zone.
-- [ ] Gradients, glow and blur only from the allowed list in `visual-design-language.md`; at most one `hero-glow` per screen.
+- [ ] At most one `default` (neutral `primary`) button per region; destructive styling only in confirmations or the danger zone.
+- [ ] `brand` (cyan) only in the places `color-system.md` lists; no cyan buttons, links or headings.
+- [ ] No glow, no backdrop blur, no gradients beyond the chart area fade; no `transition-all`.
+- [ ] Cards and rows keep neutral hairlines: no coloured card borders or tinted row fills.
+- [ ] Badges keep the primitive's `rounded-md` (no pills); vehicles named by plate use `PlateBadge`.
 - [ ] No card shadows, no `rounded-3xl`, no card-in-card.
 
 **Typography and numbers**
 
 - [ ] One `h1` (`PageHeader`); sections use `SectionHeader`.
+- [ ] Weights 400 and 500 only (no `font-semibold`/`font-bold`); no `uppercase` or `tracking-*`; labels are sentence case `text-xs text-muted-foreground`.
 - [ ] Every number is formatted via `utils/format.ts`, has `tabular-nums` where aligned, and numeric columns are right-aligned.
 - [ ] Units, ₹, DD/MM/YYYY and Indian grouping are correct; Indian English spelling is used.
 
@@ -76,6 +80,9 @@ grep -rnE "#[0-9a-fA-F]{3,8}\b|rgba?\(|oklch\(|\b(bg|text|border|ring|fill|strok
 
 # Inline number/date formatting that bypasses utils/format.ts
 grep -rnE "toFixed\(|toLocaleString\(|new Intl\.|toLocaleDateString\(" apps/web/src --include='*.tsx' | grep -v components/ui/
+
+# Retired theme patterns (Night dash): heavy weights, tracked uppercase labels, glow, blur, transition-all (plate inputs may keep `uppercase`)
+grep -rnE "font-(semibold|bold)|\buppercase\b|tracking-(tight|wide|wider|widest)|hero-glow|backdrop-blur|transition-all" apps/web/src --include='*.tsx' | grep -v components/ui/
 
 # Arbitrary sizes, radii and z-indexes
 grep -rnE "\b(text|p[xytrbl]?|m[xytrbl]?|gap|w|h)-\[[0-9]+px\]|rounded-(3xl|\[)|z-\[" apps/web/src --include='*.tsx' | grep -v components/ui/

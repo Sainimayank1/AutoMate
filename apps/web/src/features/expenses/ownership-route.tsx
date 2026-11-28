@@ -164,7 +164,7 @@ function MoneyViews({ cost }: { cost: OwnershipCost }) {
                   </Badge>
                 )}
               </dt>
-              <dd className="font-heading text-2xl font-semibold tracking-tight tabular-nums">
+              <dd className="font-heading text-2xl font-medium tabular-nums">
                 {formatCurrency(view.value)}
               </dd>
               <dd className="text-xs text-muted-foreground">{view.note}</dd>
@@ -227,7 +227,7 @@ function Rates({ cost }: { cost: OwnershipCost }) {
         <dl className="grid grid-cols-2 gap-3">
           <div className="flex flex-col gap-1 rounded-lg border bg-elevated p-3">
             <dt className="text-xs text-muted-foreground">Per km</dt>
-            <dd className="font-heading text-xl font-semibold tabular-nums">
+            <dd className="font-heading text-xl font-medium tabular-nums">
               {cost.economicPerKm ? formatCurrency(cost.economicPerKm) : "—"}
             </dd>
             <dd className="text-xs text-muted-foreground tabular-nums">
@@ -238,7 +238,7 @@ function Rates({ cost }: { cost: OwnershipCost }) {
           </div>
           <div className="flex flex-col gap-1 rounded-lg border bg-elevated p-3">
             <dt className="text-xs text-muted-foreground">Per month</dt>
-            <dd className="font-heading text-xl font-semibold tabular-nums">
+            <dd className="font-heading text-xl font-medium tabular-nums">
               {formatCurrency(cost.perMonth)}
             </dd>
             <dd className="text-xs text-muted-foreground tabular-nums">
@@ -277,7 +277,7 @@ function Depreciation({ cost, vehicleId }: { cost: OwnershipCost; vehicleId: str
                 months
               </dd>
               <dt className="text-muted-foreground">Worth about</dt>
-              <dd className="text-right font-heading text-base font-semibold">
+              <dd className="text-right font-heading text-base font-medium">
                 {formatCurrency(value.estimatedValue)}
               </dd>
             </dl>

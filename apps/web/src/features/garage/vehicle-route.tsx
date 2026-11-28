@@ -128,7 +128,7 @@ function VehicleDetails({ vehicle }: { vehicle: Vehicle }) {
             </Link>
           </Button>
           <div className="min-w-0">
-            <h1 className="truncate font-heading text-lg font-semibold tracking-tight">
+            <h1 className="truncate font-heading text-lg font-medium">
               {name} {vehicle.variant}
             </h1>
             <p className="font-mono text-xs text-muted-foreground">
@@ -227,7 +227,7 @@ function VehicleDetails({ vehicle }: { vehicle: Vehicle }) {
         <div className="flex flex-col justify-between gap-5 p-5 sm:p-6 lg:col-span-7">
           <div className="flex flex-wrap items-start justify-between gap-4">
             <div className="flex min-w-0 flex-col gap-1">
-              <span className="text-xs font-semibold tracking-wider text-primary uppercase">
+              <span className="text-xs font-medium text-primary">
                 Profile {vehicle.profileCompletion}% complete
               </span>
               <div
@@ -243,13 +243,11 @@ function VehicleDetails({ vehicle }: { vehicle: Vehicle }) {
                   style={{ width: `${vehicle.profileCompletion}%` }}
                 />
               </div>
-              <h2 className="mt-1 font-heading text-2xl font-semibold tracking-tight sm:text-3xl">
-                {name}
-              </h2>
+              <h2 className="mt-1 font-heading text-2xl font-medium sm:text-3xl">{name}</h2>
               <p className="text-sm text-muted-foreground">{specsLine}</p>
             </div>
             <div className="sm:text-right">
-              <span className="block text-xs font-semibold tracking-wider text-muted-foreground uppercase">
+              <span className="block text-xs font-medium text-muted-foreground">
                 Current odometer
               </span>
               <span className="font-mono text-2xl font-medium tabular-nums">
@@ -501,16 +499,12 @@ function SpecificationsCard({ vehicle, editHref }: { vehicle: Vehicle; editHref:
       <CardContent className="flex flex-col divide-y">
         {groups.map((group) => (
           <section key={group.title} className="flex flex-col gap-3 py-5 first:pt-0">
-            <h3 className="text-xs font-semibold tracking-wider text-muted-foreground uppercase">
-              {group.title}
-            </h3>
+            <h3 className="text-xs font-medium text-muted-foreground">{group.title}</h3>
             <DetailList items={group.items} addHref={editHref} />
           </section>
         ))}
         <section className="flex flex-col gap-3 pt-5">
-          <h3 className="text-xs font-semibold tracking-wider text-muted-foreground uppercase">
-            Notes
-          </h3>
+          <h3 className="text-xs font-medium text-muted-foreground">Notes</h3>
           <DetailList
             items={[{ label: "Notes", value: vehicle.notes, field: "notes" }]}
             addHref={editHref}

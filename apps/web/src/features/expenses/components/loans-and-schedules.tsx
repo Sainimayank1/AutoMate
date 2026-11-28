@@ -46,7 +46,7 @@ export function LoansSection({ vehicleId }: { vehicleId: string | undefined }) {
   const items = loans.data?.items ?? [];
   return (
     <section aria-labelledby="loans-title" className="flex flex-col gap-3">
-      <h2 id="loans-title" className="font-heading text-base font-semibold">
+      <h2 id="loans-title" className="font-heading text-base font-medium">
         Loans
       </h2>
       {loans.isError && !loans.data ? (
@@ -116,7 +116,7 @@ function LoanCard({ loan }: { loan: VehicleLoan }) {
           {figures.map((figure) => (
             <div key={figure.label} className="rounded-lg border bg-elevated p-3">
               <dt className="text-xs text-muted-foreground">{figure.label}</dt>
-              <dd className="font-heading font-semibold tabular-nums">{figure.value}</dd>
+              <dd className="font-heading font-medium tabular-nums">{figure.value}</dd>
             </div>
           ))}
         </dl>

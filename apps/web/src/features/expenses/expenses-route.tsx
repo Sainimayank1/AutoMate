@@ -178,7 +178,7 @@ export function Component() {
               className="flex flex-col gap-5 rounded-xl border bg-card p-4 sm:p-5 lg:col-span-4"
             >
               <header>
-                <h2 id="breakdown-title" className="font-heading text-lg font-semibold">
+                <h2 id="breakdown-title" className="font-heading text-lg font-medium">
                   Category breakdown
                 </h2>
                 {data && (
@@ -232,7 +232,7 @@ export function Component() {
               )}
             >
               <header className="flex flex-wrap items-center justify-between gap-3">
-                <h2 id="recent-title" className="font-heading text-lg font-semibold">
+                <h2 id="recent-title" className="font-heading text-lg font-medium">
                   Recent expenses
                 </h2>
                 <div className="flex items-center gap-3 text-sm">
@@ -258,9 +258,9 @@ export function Component() {
                       <Button
                         key={category.id ?? "all"}
                         size="sm"
-                        variant="outline"
+                        variant={on ? "default" : "outline"}
                         aria-pressed={on}
-                        className={cn("shrink-0", on && "border-primary text-primary")}
+                        className="shrink-0"
                         onClick={() => setChip(category.id)}
                       >
                         {category.name}

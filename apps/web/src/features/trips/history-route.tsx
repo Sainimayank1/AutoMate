@@ -273,7 +273,7 @@ export function Component() {
                 <section key={group.month} aria-labelledby={`month-${group.month}`}>
                   <h2
                     id={`month-${group.month}`}
-                    className="mb-2 text-sm font-semibold text-muted-foreground"
+                    className="mb-2 text-sm font-medium text-muted-foreground"
                   >
                     {format(parseISO(`${group.month}-01`), "MMMM yyyy")}
                   </h2>

@@ -16,7 +16,6 @@ import {
   INSPECTION_CONDITION_META,
   INSPECTION_KIND_LABELS,
   SCHEDULE_STATUS_META,
-  TONE_BORDER,
   TONE_SOFT,
   TONE_TEXT,
 } from "@/features/maintenance/constants";
@@ -84,9 +83,7 @@ export function Component() {
             Inspections
           </Link>
           <div className="flex flex-wrap items-center gap-2.5">
-            <h1 className="font-heading text-2xl font-semibold tracking-tight">
-              {inspection.title}
-            </h1>
+            <h1 className="font-heading text-2xl font-medium">{inspection.title}</h1>
             <Badge variant={inspection.kind === "PROFESSIONAL" ? "outline" : "secondary"}>
               {INSPECTION_KIND_LABELS[inspection.kind]}
             </Badge>
@@ -167,9 +164,7 @@ export function Component() {
           <CardContent className="flex flex-col divide-y">
             {areas.map(({ area, name, items }) => (
               <div key={area} className="flex flex-col gap-2 py-3 first:pt-0 last:pb-0">
-                <h3 className="text-xs font-semibold tracking-wider text-muted-foreground uppercase">
-                  {name}
-                </h3>
+                <h3 className="text-xs font-medium text-muted-foreground">{name}</h3>
                 <ul className="flex flex-col gap-2">
                   {items.map((item) => {
                     const meta = INSPECTION_CONDITION_META[item.condition];
@@ -234,7 +229,7 @@ function Count({ label, value, className }: { label: string; value: number; clas
   return (
     <div className="flex items-center justify-between rounded-xl border bg-card p-4">
       <span className={cn("text-sm font-medium", className)}>{label}</span>
-      <span className="font-heading text-2xl font-semibold tabular-nums">{value}</span>
+      <span className="font-heading text-2xl font-medium tabular-nums">{value}</span>
     </div>
   );
 }
@@ -244,10 +239,7 @@ function Finding({ inspectionId, item }: { inspectionId: string; item: Inspectio
   const schedule = item.followUpSchedule;
   return (
     <article
-      className={cn(
-        "flex h-full flex-col justify-between gap-3 rounded-lg border bg-muted/40 p-4",
-        TONE_BORDER[meta.tone],
-      )}
+      className={cn("flex h-full flex-col justify-between gap-3 rounded-lg border bg-muted/40 p-4")}
     >
       <div className="flex flex-col gap-1.5">
         <div className="flex items-center justify-between gap-2">

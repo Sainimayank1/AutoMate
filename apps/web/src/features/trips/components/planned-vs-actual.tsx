@@ -83,7 +83,7 @@ function Figure({
   return (
     <div className="flex flex-col gap-1 rounded-lg bg-muted/40 p-3">
       <span className="text-sm text-muted-foreground">{label}</span>
-      <span className="font-heading text-lg font-semibold tabular-nums">{actual}</span>
+      <span className="font-heading text-lg font-medium tabular-nums">{actual}</span>
       <span className="text-xs text-muted-foreground tabular-nums">Planned {planned}</span>
       {difference && (
         <span

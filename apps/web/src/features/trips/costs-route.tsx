@@ -134,7 +134,7 @@ export function Component() {
           </CardHeader>
           <CardContent className="flex flex-col gap-4">
             <div>
-              <p className="font-heading text-2xl font-semibold tabular-nums">
+              <p className="font-heading text-2xl font-medium tabular-nums">
                 {formatCurrency(summary.data.total)}
               </p>
               <p className="text-sm text-muted-foreground">

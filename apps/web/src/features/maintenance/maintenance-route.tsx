@@ -149,17 +149,10 @@ function StateBanner({ overview }: { overview: MaintenanceOverview }) {
     ALL_CAUGHT_UP: "nothing due in the next 90 days",
     INCOMPLETE: "add schedules to track servicing",
   };
-  const banner = {
-    destructive: "border-destructive/35 bg-destructive/10",
-    warning: "border-warning/35 bg-warning/10",
-    info: "border-info/35 bg-info/10",
-    success: "border-success/35 bg-success/10",
-    neutral: "bg-card",
-  }[meta.tone];
   return (
     <div
       role="status"
-      className={cn("flex items-center justify-between gap-3 rounded-lg border px-4 py-3", banner)}
+      className="flex items-center justify-between gap-3 rounded-lg border bg-card px-4 py-3"
     >
       <p
         className={cn(
@@ -175,7 +168,7 @@ function StateBanner({ overview }: { overview: MaintenanceOverview }) {
       {overview.state === "OVERDUE" && (
         <a
           href="#overdue"
-          className={cn("shrink-0 text-xs font-semibold hover:underline", TONE_TEXT.destructive)}
+          className={cn("shrink-0 text-xs font-medium hover:underline", TONE_TEXT.destructive)}
         >
           View overdue
         </a>
@@ -183,7 +176,7 @@ function StateBanner({ overview }: { overview: MaintenanceOverview }) {
       {overview.state === "INCOMPLETE" && (
         <Link
           to="/maintenance/schedules/new"
-          className="shrink-0 text-xs font-semibold text-primary hover:underline"
+          className="shrink-0 text-xs font-medium text-primary hover:underline"
         >
           Add schedule
         </Link>
@@ -278,7 +271,7 @@ function DueCards({ overview, className }: { overview: MaintenanceOverview; clas
   return (
     <div className={cn("grid items-start gap-6 lg:grid-cols-12", className)}>
       {overdue.length > 0 && (
-        <Card id="overdue" className="border-destructive/35 lg:col-span-5">
+        <Card id="overdue" className="lg:col-span-5">
           <CardHeader className="flex flex-row items-center justify-between gap-2">
             <CardTitle className="flex items-center gap-2">
               Overdue

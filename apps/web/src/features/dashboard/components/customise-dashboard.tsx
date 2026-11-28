@@ -100,10 +100,7 @@ export function CustomiseDashboard({
         </SheetHeader>
         <div className="flex min-h-0 flex-1 flex-col gap-5 overflow-y-auto px-5 py-4">
           <section aria-labelledby={`${id}-sections`} className="flex flex-col gap-2">
-            <h3
-              id={`${id}-sections`}
-              className="text-xs font-medium tracking-wider text-muted-foreground uppercase"
-            >
+            <h3 id={`${id}-sections`} className="text-xs font-medium text-muted-foreground">
               Sections
             </h3>
             <p className="text-xs text-muted-foreground">
@@ -161,10 +158,7 @@ export function CustomiseDashboard({
             </p>
           </section>
           <section aria-labelledby={`${id}-metrics`} className="flex flex-col gap-2">
-            <h3
-              id={`${id}-metrics`}
-              className="text-xs font-medium tracking-wider text-muted-foreground uppercase"
-            >
+            <h3 id={`${id}-metrics`} className="text-xs font-medium text-muted-foreground">
               Key figures
             </h3>
             <p className="text-xs text-muted-foreground">Choose at least one.</p>

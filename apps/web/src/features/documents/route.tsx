@@ -99,7 +99,7 @@ export function Component() {
           <div key={tile.label} className="flex flex-col gap-1.5 rounded-xl border bg-card p-4">
             <span className="text-xs font-medium text-muted-foreground">{tile.label}</span>
             {summary.data ? (
-              <span className={cn("font-heading text-2xl font-semibold tabular-nums", tile.tone)}>
+              <span className={cn("font-heading text-2xl font-medium tabular-nums", tile.tone)}>
                 {tile.value}
               </span>
             ) : (
@@ -118,9 +118,9 @@ export function Component() {
         >
           <Button
             size="sm"
-            variant="outline"
+            variant={type ? "outline" : "default"}
             aria-pressed={!type}
-            className="shrink-0 aria-pressed:border-primary aria-pressed:text-primary max-md:h-10"
+            className="shrink-0 max-md:h-10"
             onClick={() => setType(undefined)}
           >
             All{summary.data ? ` (${summary.data.total})` : ""}
@@ -129,9 +129,9 @@ export function Component() {
             <Button
               key={value}
               size="sm"
-              variant="outline"
+              variant={type === value ? "default" : "outline"}
               aria-pressed={type === value}
-              className="shrink-0 aria-pressed:border-primary aria-pressed:text-primary max-md:h-10"
+              className="shrink-0 max-md:h-10"
               onClick={() => setType(value)}
             >
               {DOCUMENT_TYPES[value].label}
@@ -229,7 +229,6 @@ function DocumentCard({ document, vehicle }: { document: VehicleDocument; vehicl
       to={`/documents/${document.id}`}
       className={cn(
         "flex h-full flex-col justify-between gap-4 rounded-xl border bg-card p-5 transition-colors hover:bg-muted/40 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none",
-        state.card,
       )}
     >
       <div className="flex items-start justify-between gap-2">

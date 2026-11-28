@@ -48,7 +48,7 @@ export function SpendingCard({ trip }: { trip: Trip }) {
       <CardContent className="grid gap-6 md:grid-cols-12">
         <div className="flex flex-col gap-3 md:col-span-8">
           <div>
-            <p className="font-heading text-2xl font-semibold tabular-nums">
+            <p className="font-heading text-2xl font-medium tabular-nums">
               {data.actual ? formatCurrency(data.actual) : "No costs recorded"}
             </p>
             <p className="text-sm text-muted-foreground">
@@ -74,9 +74,7 @@ export function SpendingCard({ trip }: { trip: Trip }) {
           )}
         </div>
         <div className="flex flex-col gap-1 rounded-lg border border-dashed bg-muted/40 p-4 md:col-span-4">
-          <span className="text-xs font-semibold tracking-wider text-muted-foreground uppercase">
-            Estimated fuel
-          </span>
+          <span className="text-xs font-medium text-muted-foreground">Estimated fuel</span>
           {data.estimate ? (
             <>
               <p className="font-medium tabular-nums">

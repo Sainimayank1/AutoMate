@@ -21,10 +21,9 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
-import { greeting, PERIOD_LABELS } from "@/features/dashboard/constants";
+import { PERIOD_LABELS } from "@/features/dashboard/constants";
 import type { useDashboardPeriod } from "@/features/dashboard/hooks/use-dashboard-period";
 import { vehicleName } from "@/features/garage/constants";
-import { useSessionStore } from "@/stores/session-store";
 import { formatRegistration } from "@/utils/format";
 
 /** Records start in 2000 (the API's limit too). */
@@ -32,19 +31,14 @@ const EARLIEST = parseISO(EARLIEST_PERIOD_DATE);
 const iso = (date: Date | undefined) => (date ? format(date, "yyyy-MM-dd") : undefined);
 const day = (value: string | undefined) => (value ? parseISO(value) : undefined);
 
-/** The greeting and today's date (Stitch "Dashboard": "Good afternoon, Arjun · 27 Nov 2026"). */
-export function DashboardGreeting({ children }: { children?: React.ReactNode }) {
-  const name = useSessionStore((state) => state.session?.user.name.split(" ")[0]);
-  const now = new Date();
+/** The page title and today's date; the context names the page, not a greeting. */
+export function DashboardTitle({ children }: { children?: React.ReactNode }) {
   return (
     <section className="flex flex-wrap items-center justify-between gap-4">
       <div className="min-w-0">
-        <h1 className="font-heading text-2xl font-semibold tracking-tight sm:text-3xl">
-          {greeting(now)}
-          {name ? `, ${name}` : ""}
-        </h1>
+        <h1 className="font-heading text-2xl font-medium sm:text-3xl">Dashboard</h1>
         <p className="mt-0.5 text-sm text-muted-foreground">
-          {format(now, "d MMM yyyy")} · Your vehicle ownership overview
+          {format(new Date(), "EEEE, d MMM yyyy")}
         </p>
       </div>
       {children}

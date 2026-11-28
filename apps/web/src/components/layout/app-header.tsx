@@ -25,7 +25,7 @@ export function AppHeader() {
   }, [title]);
 
   return (
-    <header className="sticky top-0 z-10 flex h-14 shrink-0 md:h-16 items-center gap-2 border-b bg-background/80 px-2 backdrop-blur supports-backdrop-filter:bg-background/60 md:px-4">
+    <header className="sticky top-0 z-10 flex h-14 shrink-0 md:h-16 items-center gap-2 border-b bg-background px-2 md:px-4">
       {/* Phones open the full nav from the bottom bar's "More". */}
       <SidebarTrigger className="hidden size-8 md:inline-flex" />
       <Separator
@@ -41,11 +41,11 @@ export function AppHeader() {
                 <ArrowLeft />
               </Link>
             </Button>
-            <span className="truncate font-heading font-semibold">{title}</span>
+            <span className="truncate font-heading font-medium">{title}</span>
           </>
         ) : (
           <HeaderVehicleSelector
-            fallback={<span className="truncate font-heading font-semibold">{title}</span>}
+            fallback={<span className="truncate font-heading font-medium">{title}</span>}
           />
         )}
       </div>

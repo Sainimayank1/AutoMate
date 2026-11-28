@@ -1,45 +1,46 @@
 # Typography
 
-## Typefaces (Stitch)
+## Typefaces (Night dash)
 
-Three families, self-hosted through Fontsource (no third-party font requests):
+Two families, self-hosted through Fontsource (no third-party font requests). They replace Stitch's Manrope and Inter, which no longer apply:
 
-| Family                  | Tailwind              | Use                                                                                             |
-| ----------------------- | --------------------- | ----------------------------------------------------------------------------------------------- |
-| **Manrope Variable**    | `font-heading`        | Headings, the wordmark and metric values (geometric, automotive)                                |
-| **Inter Variable**      | `font-sans` (default) | All interface copy: body, labels, buttons, tables                                               |
-| **Geist Mono Variable** | `font-mono`           | Registration plates, VINs, engine numbers, odometer readouts and other machine-like identifiers |
+| Family                  | Tailwind                                 | Use                                                                                                                   |
+| ----------------------- | ---------------------------------------- | --------------------------------------------------------------------------------------------------------------------- |
+| **Geist Variable**      | `font-sans` (default) and `font-heading` | Everything: body, labels, buttons, tables, headings, the wordmark and metric values                                   |
+| **Geist Mono Variable** | `font-mono`                              | Figures that read as machine output: registration plates, VINs, engine numbers, odometer readouts, keyboard shortcuts |
 
-- Don't add a fourth family or use a family outside its role (no Manrope paragraphs, no mono for prices).
-- Weights: **400** body, **500** labels and buttons, **600** headings and metric values. **700** only for the display title on auth, onboarding and the empty Garage welcome.
+- `font-heading` maps to Geist as well. Keep it on headings so the heading face stays one token away.
+- Don't add a third family or use mono outside its role (no mono for prices or prose).
+- Weights: **400** body and **500** for everything that needs emphasis (labels, buttons, headings, metric values). Nothing heavier: no `font-semibold` or `font-bold`.
 - Every financial figure, distance and mileage uses `tabular-nums` so columns and live updates never jitter.
 
 ## Type scale
 
-| Role                  | Classes                                                                       | Size / line | Where                                                                      |
-| --------------------- | ----------------------------------------------------------------------------- | ----------- | -------------------------------------------------------------------------- |
-| Hero metric           | `font-heading text-4xl font-semibold tracking-tight tabular-nums md:text-5xl` | 36→48 px    | One per screen at most: dashboard odometer or headline cost, analytics TCO |
-| Display title         | `font-heading text-3xl font-semibold tracking-tight md:text-4xl`              | 30→36 px    | Auth, onboarding and the empty Garage welcome only                         |
-| Page title (h1)       | `font-heading text-2xl font-semibold tracking-tight`                          | 24 px       | `PageHeader`, once per page                                                |
-| Section title (h2)    | `font-heading text-base font-semibold`                                        | 16 px       | `SectionHeader`                                                            |
-| Card title (h3)       | `text-sm font-medium`                                                         | 14 px       | `CardTitle`, `ChartCard` titles                                            |
-| Metric value          | `font-heading text-2xl font-semibold tracking-tight tabular-nums`             | 24 px       | `StatCard`                                                                 |
-| Metric value, compact | `text-lg font-semibold tabular-nums`                                          | 18 px       | Nested tiles inside a hero, mobile stat rows                               |
-| Body                  | `text-sm`                                                                     | 14 px       | Default UI text                                                            |
-| Body, reading         | `text-base leading-7`                                                         | 16 px       | Long descriptions, help text blocks                                        |
-| Secondary             | `text-sm text-muted-foreground`                                               | 14 px       | Descriptions, meta                                                         |
-| Label                 | `text-sm font-medium`                                                         | 14 px       | Form labels (the `FieldLabel` primitive)                                   |
-| Overline              | `text-xs font-medium uppercase tracking-wider text-muted-foreground`          | 12 px       | Instrument labels on metrics, sidebar group labels, hero eyebrow           |
-| Caption               | `text-xs text-muted-foreground`                                               | 12 px       | Hints, timestamps, chart axes, helper text                                 |
+| Role                  | Classes                                                      | Size / line | Where                                                                      |
+| --------------------- | ------------------------------------------------------------ | ----------- | -------------------------------------------------------------------------- |
+| Hero metric           | `font-heading text-4xl font-medium tabular-nums md:text-5xl` | 36→48 px    | One per screen at most: dashboard odometer or headline cost, analytics TCO |
+| Display title         | `font-heading text-3xl font-medium md:text-4xl`              | 30→36 px    | Auth, onboarding and the empty Garage welcome only                         |
+| Page title (h1)       | `font-heading text-2xl font-medium`                          | 24 px       | `PageHeader`, once per page                                                |
+| Section title (h2)    | `font-heading text-base font-medium`                         | 16 px       | `SectionHeader`                                                            |
+| Card title (h3)       | `text-sm font-medium`                                        | 14 px       | `CardTitle`, `ChartCard` titles                                            |
+| Metric value          | `font-heading text-2xl font-medium tabular-nums`             | 24 px       | `StatCard`                                                                 |
+| Metric value, compact | `text-lg font-medium tabular-nums`                           | 18 px       | Nested tiles inside a hero, mobile stat rows                               |
+| Body                  | `text-sm`                                                    | 14 px       | Default UI text                                                            |
+| Body, reading         | `text-base leading-7`                                        | 16 px       | Long descriptions, help text blocks                                        |
+| Secondary             | `text-sm text-muted-foreground`                              | 14 px       | Descriptions, meta                                                         |
+| Label                 | `text-sm font-medium`                                        | 14 px       | Form labels (the `FieldLabel` primitive)                                   |
+| Small label           | `text-xs text-muted-foreground` (sentence case)              | 12 px       | Labels on metrics, sidebar group labels, hero labels ("Active vehicle")    |
+| Caption               | `text-xs text-muted-foreground`                              | 12 px       | Hints, timestamps, chart axes, helper text                                 |
 
 Rules:
 
-- Use at most **three sizes inside one card**: overline or label, value, caption.
-- Hierarchy comes from size and weight plus `foreground`/`muted-foreground`. Never colour a heading cyan.
+- Use at most **three sizes inside one card**: label, value, caption.
+- Hierarchy comes from size plus `foreground`/`muted-foreground`, with `font-medium` as the only extra weight. Never colour a heading.
+- **No overlines.** No `uppercase` and no letter-spacing utilities (`tracking-tight`, `tracking-wide`, `tracking-wider`, `tracking-widest`). Labels are sentence case in `text-xs text-muted-foreground`.
 - Use Tailwind's scale. Don't introduce arbitrary sizes (`text-[13px]`).
 - Form inputs keep the primitive's `text-base md:text-sm`, because 16 px on phones prevents iOS zoom.
 
-## Numbers: the cockpit feel
+## Numbers: the instrument feel
 
 Numbers are the product. Treat them like instrument read-outs.
 
@@ -71,9 +72,9 @@ Numbers are the product. Treat them like instrument read-outs.
 ## Text conventions
 
 - **Sentence case** for titles, buttons, labels, tabs and menu items ("Add fuel entry", not "Add Fuel Entry").
-- Exceptions: proper nouns and acronyms (AutoMate, RC, PUC, EMI, AI, FASTag, VIN) and overlines (uppercase via CSS, written in sentence case in code).
-- Registration numbers display uppercase with spaces (`HR 26 AB 1234`) in `PlateBadge` (see `component-guidelines.md`).
+- Exceptions: proper nouns and acronyms (AutoMate, RC, PUC, EMI, AI, FASTag, VIN). Small labels are sentence case too; nothing is uppercased by CSS.
+- Registration numbers display uppercase with hyphens (`HR-26-EV-4821`) in Geist Mono inside `PlateBadge` (see `component-guidelines.md`).
 - Prose stays within `max-w-prose` (about 65 characters).
 - Truncate single-line labels with `truncate` plus `min-w-0` on the flex parent, and show the full text in a `title` or tooltip when truncation is likely (station names, notes).
-- For long unbreakable strings (VIN, policy numbers), use `break-all` inside detail views and `font-medium tabular-nums tracking-wide`.
+- For long unbreakable strings (VIN, policy numbers), use `break-all` inside detail views and `font-mono tabular-nums`.
 - Indian English spelling throughout: kilometres, litres, licence (noun), tyres, colour, organise, cheque.

@@ -56,7 +56,7 @@ export function QuickAddSheet({
                 onClick={() => onOpenChange(false)}
                 className="flex min-h-20 flex-col items-center justify-center gap-2 rounded-xl border bg-card p-3 text-sm font-medium outline-none hover:bg-muted/50 focus-visible:ring-2 focus-visible:ring-ring"
               >
-                <span className="flex size-10 items-center justify-center rounded-md bg-muted text-primary">
+                <span className="flex size-10 items-center justify-center rounded-md bg-muted text-muted-foreground">
                   <Icon className="size-5" aria-hidden />
                 </span>
                 {label}

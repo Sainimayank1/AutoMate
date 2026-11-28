@@ -6,13 +6,13 @@ There is one shell for the whole product: `components/layout/AppShell` (shadcn `
 
 The navigation is driven by `apps/web/src/app/modules.ts`, the single registry for routes and the sidebar. The target grouping is below; update `NavGroup`, `NAV_GROUP_LABELS` and each module's `navGroup` when the shell is next touched.
 
-| Group (overline label) | Items (icon)                                                                                                  |
-| ---------------------- | ------------------------------------------------------------------------------------------------------------- |
-| **Overview**           | Dashboard (`LayoutDashboard`)                                                                                 |
-| **My vehicles**        | Garage (`Car`)                                                                                                |
-| **Management**         | Fuel (`Fuel`), Expenses (`ReceiptIndianRupee`), Maintenance (`Wrench`), Documents (`FileText`), Trips (`Map`) |
-| **Intelligence**       | Analytics (`ChartNoAxesCombined`)                                                                             |
-| **Personal**           | Notifications (`Bell`, with unread count), Settings (`Settings`), Backup & Export (`DatabaseBackup`)          |
+| Group (label)    | Items (icon)                                                                                                  |
+| ---------------- | ------------------------------------------------------------------------------------------------------------- |
+| **Overview**     | Dashboard (`LayoutDashboard`)                                                                                 |
+| **My vehicles**  | Garage (`Car`)                                                                                                |
+| **Management**   | Fuel (`Fuel`), Expenses (`ReceiptIndianRupee`), Maintenance (`Wrench`), Documents (`FileText`), Trips (`Map`) |
+| **Intelligence** | Analytics (`ChartNoAxesCombined`)                                                                             |
+| **Personal**     | Notifications (`Bell`, with unread count), Settings (`Settings`), Backup & Export (`DatabaseBackup`)          |
 
 The order is fixed. Keep it compact: no nested sub-menus in the sidebar. Sub-views are tabs inside the module.
 
@@ -20,32 +20,32 @@ The order is fixed. Keep it compact: no nested sub-menus in the sidebar. Sub-vie
 
 ```
 ┌──────────────┬────────────────────────────────────────────────────────┐
-│ ◔ AutoMate   │ ☰ │ Garage › Victoris › Fuel   [⌕ Search… ⌘K]  ＋  🔔 ◐ (A) │  ← header h-14 (md:h-16), sticky, translucent
+│ ◔ AutoMate   │ ☰ │ Garage › Victoris › Fuel   [⌕ Search ⌘K]   ＋  🔔 ◐ (A) │  ← header h-14 (md:h-16), sticky, solid
 │ ┌──────────┐ ├────────────────────────────────────────────────────────┤
 │ │▣ Victoris│ │ PageHeader: title · description          [Secondary][Primary] │
-│ │HR 26 AB..│ │                                                        │
+│ │▌HR-26-EV │ │                                                        │
 │ └──────────┘ │ page content (PageContainer, max-w-7xl)                 │
-│ OVERVIEW     │                                                        │
+│ Overview     │                                                        │
 │  Dashboard   │                                                        │
-│ MY VEHICLES  │                                                        │
+│ My vehicles  │                                                        │
 │  Garage      │                                                        │
-│ MANAGEMENT … │                                                        │
+│ Management … │                                                        │
 └──────────────┴────────────────────────────────────────────────────────┘
 ```
 
 **Sidebar** (`collapsible="icon"`, `SidebarRail`):
 
 - **Header:** `BrandLogo`, then `VehicleSelector` below it. When collapsed, it shows the mark and the vehicle thumb.
-- **Content:** the five groups with `SidebarGroupLabel` styled as overlines.
+- **Content:** the five groups with the plain `SidebarGroupLabel` (sentence case, muted; no uppercase or tracking).
 - **Footer:** nothing, or a compact plan/storage note later. The user menu lives in the header.
-- **Active item:** use the primitive's `isActive` (sidebar-accent fill) with the icon in `text-primary`. Use only that one cue: no left bars plus glows plus bold.
+- **Active item:** use the primitive's `isActive` (`sidebar-accent` fill) with only the icon in `sidebar-primary` (brand cyan): `data-active:[&_svg]:text-sidebar-primary`. The label stays foreground. Use only that one cue: no left bars, glows or bold.
 - **Collapsed:** icons only, with tooltips (the primitive handles this). The collapse state persists in the cookie (already implemented).
 
 **Header** (left → right):
 
 1. `SidebarTrigger`.
 2. `Breadcrumbs`.
-3. Global search trigger: a `SearchInput`-looking button "Search records…" with a `⌘K` / `Ctrl K` hint, `max-w-sm`, hidden below `lg` (icon button there).
+3. Global search trigger: a `SearchInput`-looking button "Search" with a `⌘K` / `Ctrl K` hint, `max-w-sm`, hidden below `lg` (icon button there).
 4. Spacer.
 5. Quick add `Plus` (opens the QuickAdd menu).
 6. Notifications `Bell` with an unread dot or count (cap "9+").
@@ -80,7 +80,7 @@ The order is fixed. Keep it compact: no nested sub-menus in the sidebar. Sub-vie
 
 - Five slots: **Dashboard** · **Fuel** · **Add** (centre, `bg-primary text-primary-foreground` circle `size-12`, opens `QuickAddSheet`) · **Expenses** · **More** (opens the sidebar drawer with the full grouped nav).
 - Each slot is ≥ 48 px tall. The icon is `size-5` and the label is `text-xs`.
-- The active slot has the icon and label in `text-primary`. The others are `text-muted-foreground`.
+- The active slot has the icon and label in `text-primary` (neutral, so it reads as foreground against the muted others). The others are `text-muted-foreground`. The bar is solid `bg-card` with a top hairline, no blur.
 - Hide it on full-screen flows: forms and wizards, document preview. Those show their own sticky action bar.
 - The page content gets `pb-20 md:pb-0` so nothing hides behind it.
 
@@ -107,7 +107,7 @@ The order is fixed. Keep it compact: no nested sub-menus in the sidebar. Sub-vie
 
 ## Notifications entry point
 
-- **Desktop:** the bell opens a `Popover` (`w-96`) with the latest 6 items (unread first, with a cyan dot), "Mark all as read" and "View all" linking to `/notifications`.
+- **Desktop:** the bell opens a `Popover` (`w-96`) with the latest 6 items (unread first, with a `primary` dot), "Mark all as read" and "View all" linking to `/notifications`.
 - **Mobile:** the bell navigates to `/notifications`.
 - Each item deep-links to its source record (see `module-design-guidelines.md`, Notifications).
 

@@ -39,23 +39,19 @@ export function AuthLayout({
     <div className="grid min-h-svh lg:grid-cols-12">
       <title>{`${title} · AutoMate`}</title>
 
-      <aside className="hero-glow relative hidden flex-col justify-between border-r bg-card lg:col-span-5 lg:flex">
+      <aside className="relative hidden flex-col justify-between border-r bg-card lg:col-span-5 lg:flex">
         <div className="p-8">
           <BrandLogo size="lg" />
         </div>
         <div className="flex max-w-md flex-col gap-6 p-8">
           <div>
-            <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-primary">
-              {eyebrow}
-            </p>
-            <p className="font-heading text-3xl font-semibold tracking-tight text-balance">
-              {headline}
-            </p>
+            <p className="mb-2 text-sm text-muted-foreground">{eyebrow}</p>
+            <p className="font-heading text-3xl font-medium text-balance">{headline}</p>
           </div>
           <ul className="flex flex-col gap-3 border-t pt-4">
             {highlights.map(({ icon: Icon, text }) => (
               <li key={text} className="flex items-center gap-3 text-sm text-muted-foreground">
-                <Icon aria-hidden className="size-4.5 shrink-0 text-primary" />
+                <Icon aria-hidden className="size-4.5 shrink-0 text-muted-foreground" />
                 {text}
               </li>
             ))}
@@ -71,7 +67,7 @@ export function AuthLayout({
 
         <div className="mx-auto my-auto flex w-full max-w-md flex-col gap-6">
           <div className="flex flex-col gap-1">
-            <h1 className="font-heading text-3xl font-semibold tracking-tight">{title}</h1>
+            <h1 className="font-heading text-3xl font-medium">{title}</h1>
             <p className="text-sm text-muted-foreground">{description}</p>
           </div>
           {children}

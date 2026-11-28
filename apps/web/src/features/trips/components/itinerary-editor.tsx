@@ -160,8 +160,8 @@ export function ItineraryEditor({
               className="flex flex-col gap-3 rounded-xl border bg-card p-5"
             >
               <div className="flex flex-wrap items-center justify-between gap-2">
-                <h2 className="flex items-center gap-2 font-heading font-semibold tabular-nums">
-                  <CalendarDays className="size-4 text-primary" aria-hidden />
+                <h2 className="flex items-center gap-2 font-heading font-medium tabular-nums">
+                  <CalendarDays className="size-4 text-muted-foreground" aria-hidden />
                   Day {day.day} · {weekdayDate(day.date)}
                   {day.from && (
                     <span className="font-normal text-muted-foreground">
@@ -196,9 +196,9 @@ export function ItineraryEditor({
         </div>
 
         <aside className="flex flex-col gap-4 rounded-xl border bg-card p-5 lg:sticky lg:top-24 lg:col-span-4">
-          <h2 className="font-heading text-lg font-semibold">Summary</h2>
+          <h2 className="font-heading text-lg font-medium">Summary</h2>
           <div>
-            <p className="font-heading text-2xl font-semibold tabular-nums">
+            <p className="font-heading text-2xl font-medium tabular-nums">
               {days} {days === 1 ? "day" : "days"} · {nights.length}{" "}
               {nights.length === 1 ? "night" : "nights"}
             </p>

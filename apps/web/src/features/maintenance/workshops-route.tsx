@@ -222,7 +222,7 @@ function WorkshopCard({ workshop }: { workshop: ProviderProfile }) {
                 href={`tel:${workshop.phone.replace(/[\s()-]/g, "")}`}
                 className="relative z-10 inline-flex items-center gap-1 hover:text-foreground hover:underline"
               >
-                <Phone className="size-3.5 text-primary" aria-hidden />
+                <Phone className="size-3.5 text-muted-foreground" aria-hidden />
                 {workshop.phone}
               </a>
             )}

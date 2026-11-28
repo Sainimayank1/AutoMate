@@ -14,7 +14,7 @@ import {
 } from "@/features/garage/constants";
 import { formatDistance, formatRegistration } from "@/utils/format";
 
-const label = "text-xs font-semibold tracking-wider uppercase";
+const label = "text-xs text-muted-foreground";
 
 /**
  * Stitch "Dashboard" vehicle hero: the active vehicle, its odometer and the quick actions that
@@ -51,24 +51,22 @@ export function VehicleHero({ vehicle }: { vehicle: Vehicle }) {
       <div className="flex flex-col justify-between gap-5 p-5 md:col-span-7">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div className="min-w-0">
-            <span className={`${label} text-primary`}>Active vehicle</span>
-            <h2 className="mt-1 font-heading text-xl font-semibold tracking-tight">
-              {vehicleName(vehicle)}
-            </h2>
+            <span className={label}>Active vehicle</span>
+            <h2 className="mt-1 font-heading text-xl font-medium">{vehicleName(vehicle)}</h2>
             {specs && <p className="mt-0.5 text-sm text-muted-foreground">{specs}</p>}
             <Badge variant="outline" className="mt-2 text-muted-foreground">
               {OWNERSHIP_LABELS[vehicle.ownershipType]}
             </Badge>
           </div>
           <div>
-            <span className={`${label} block text-muted-foreground`}>Odometer</span>
-            <span className="mt-0.5 block font-mono text-lg font-semibold tabular-nums">
+            <span className={`${label} block`}>Odometer</span>
+            <span className="mt-0.5 block font-mono text-lg font-medium text-brand tabular-nums">
               {formatDistance(vehicle.odometerKm)}
             </span>
           </div>
         </div>
         <div className="flex flex-col gap-2.5 border-t pt-4">
-          <span className={`${label} text-muted-foreground`}>Quick actions</span>
+          <span className={label}>Quick actions</span>
           <div className="flex flex-wrap gap-2">
             <Button asChild size="sm" className={action}>
               <Link to="/fuel/new">

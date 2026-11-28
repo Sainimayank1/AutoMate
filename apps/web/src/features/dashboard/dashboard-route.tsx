@@ -14,7 +14,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { CustomiseDashboard } from "@/features/dashboard/components/customise-dashboard";
 import {
   DashboardControls,
-  DashboardGreeting,
+  DashboardTitle,
 } from "@/features/dashboard/components/dashboard-header";
 import { DrivingCard } from "@/features/dashboard/components/driving-card";
 import { ExpiryCard } from "@/features/dashboard/components/expiry-card";
@@ -65,7 +65,7 @@ export function Component() {
   if (garage.isError && !garage.data) {
     return (
       <PageContainer>
-        <DashboardGreeting />
+        <DashboardTitle />
         <ErrorState
           title="Couldn't load your garage"
           error={garage.error}
@@ -78,7 +78,7 @@ export function Component() {
 
   return (
     <PageContainer>
-      <DashboardGreeting>
+      <DashboardTitle>
         <DashboardControls
           vehicles={garage.vehicles}
           vehicleId={garage.activeVehicle.id}
@@ -90,7 +90,7 @@ export function Component() {
         >
           <CustomiseDashboard layout={layout} disabled={!layoutLoaded} />
         </DashboardControls>
-      </DashboardGreeting>
+      </DashboardTitle>
       {overview.isError && !overview.data ? (
         <ErrorState
           title="Couldn't load the dashboard"
@@ -265,7 +265,7 @@ function NoFillUps() {
 function DashboardEmptyState() {
   return (
     <PageContainer>
-      <DashboardGreeting />
+      <DashboardTitle />
       <div className="mx-auto flex w-full max-w-xl flex-col items-center gap-6 rounded-xl border border-dashed bg-card p-6 text-center sm:p-10">
         <VehicleImage
           make=""
@@ -274,9 +274,7 @@ function DashboardEmptyState() {
           className="h-32 w-56 max-w-full rounded-xl border"
         />
         <div className="flex max-w-md flex-col gap-2">
-          <h2 className="font-heading text-xl font-semibold tracking-tight">
-            Add your first vehicle
-          </h2>
+          <h2 className="font-heading text-xl font-medium">Add your first vehicle</h2>
           <p className="text-sm text-muted-foreground">
             Your dashboard fills in as you log fill-ups and expenses for it.
           </p>

@@ -96,7 +96,7 @@ export function BudgetCard({
       </CardHeader>
       <CardContent className="flex flex-col gap-3">
         <div className="flex items-baseline justify-between gap-2 tabular-nums">
-          <p className="font-heading text-lg font-semibold">
+          <p className="font-heading text-lg font-medium">
             {formatCurrency(budget.spent)}{" "}
             <span className="font-sans text-sm font-normal text-muted-foreground">
               of {formatCurrency(budget.amount)}

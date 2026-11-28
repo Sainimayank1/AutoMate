@@ -188,7 +188,7 @@ export function Component() {
       ) : (
         <>
           <section className="overflow-hidden rounded-xl border bg-card">
-            <div className="hidden grid-cols-12 gap-4 border-b bg-muted/50 px-5 py-3 text-xs font-semibold tracking-wider text-muted-foreground uppercase md:grid">
+            <div className="hidden grid-cols-12 gap-4 border-b bg-muted/50 px-5 py-3 text-xs font-medium text-muted-foreground md:grid">
               <div className="col-span-4">Schedule</div>
               <div className="col-span-3">Interval &amp; baseline</div>
               <div className="col-span-3">Next due</div>

@@ -54,7 +54,7 @@ export function TaskPage({
             </Link>
           </Button>
           <div className="min-w-0">
-            <h1 className="truncate font-heading text-base font-semibold">
+            <h1 className="truncate font-heading text-base font-medium">
               {mobileTitle ? (
                 <>
                   <span className="md:hidden">{mobileTitle}</span>

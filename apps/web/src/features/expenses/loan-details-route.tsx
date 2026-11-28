@@ -97,7 +97,7 @@ export function Component() {
             </Link>
           </Button>
           <div className="min-w-0">
-            <h1 className="truncate font-heading text-2xl font-semibold tracking-tight">
+            <h1 className="truncate font-heading text-2xl font-medium">
               {data.lender}
               {data.accountNumber && ` · ${data.accountNumber}`}
             </h1>
@@ -170,10 +170,8 @@ function Position({ loan }: { loan: VehicleLoan }) {
         {tiles.map((tile) => (
           <Card key={tile.label} className="gap-1 py-4">
             <CardContent className="flex flex-col gap-1">
-              <dt className="text-xs tracking-wider text-muted-foreground uppercase">
-                {tile.label}
-              </dt>
-              <dd className="font-heading text-xl font-semibold tabular-nums">{tile.value}</dd>
+              <dt className="text-xs text-muted-foreground">{tile.label}</dt>
+              <dd className="font-heading text-xl font-medium tabular-nums">{tile.value}</dd>
               <dd className="text-xs text-muted-foreground tabular-nums">{tile.note}</dd>
             </CardContent>
           </Card>

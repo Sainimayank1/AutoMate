@@ -4,9 +4,9 @@ The target is **WCAG 2.2 AA** in both themes. Premium means usable by everyone. 
 
 ## Contrast
 
-- Every token pair in `color-system.md` was verified to be ≥ 4.5:1 for text. Re-verify if you change token values.
+- Every token pair in `color-system.md` was measured against ≥ 4.5:1 for text; the few that fall short are listed there as known gaps. Re-verify if you change token values.
 - Placeholder and disabled text are exempt but must still be legible. Don't go below `muted-foreground/70`.
-- Non-text UI (field borders, focus ring, chart lines, gauge tracks vs fills, status dots) must reach ≥ 3:1 against adjacent colours. The cyan focus ring and status fills meet this. The `border` hairline is decorative and must not be the only boundary of an input (inputs use `input`, which is stronger).
+- Non-text UI (field borders, focus ring, chart lines, gauge tracks vs fills, status dots) must reach ≥ 3:1 against adjacent colours. The cyan focus ring (`#0EA5E9` dark, `#0369A1` light) and status fills meet this. The `border` hairline is decorative. The `input` border (13% / 18% foreground) is stronger but still about 1.4:1, so an input also needs its label, placeholder and focus ring; see the known gaps in `color-system.md`.
 - Text on photos always sits on the photo scrim.
 
 ## Keyboard and focus
@@ -51,7 +51,7 @@ The target is **WCAG 2.2 AA** in both themes. Premium means usable by everyone. 
 
 ## Images and icons
 
-- Vehicle photos: `alt="Maruti Suzuki Victoris"` (make and model). Decorative imagery and the hero glow: `alt=""` / `aria-hidden`.
+- Vehicle photos: `alt="Maruti Suzuki Victoris"` (make and model). Decorative imagery and the `PlateBadge` strip: `alt=""` / `aria-hidden`.
 - Icon-only buttons need an `aria-label`, plus a `Tooltip` on desktop. Icons next to text get `aria-hidden`.
 - Document thumbnails: `alt="Insurance policy, page 1"`.
 

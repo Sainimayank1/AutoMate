@@ -5,7 +5,6 @@ import type {
   UntrackedArea,
   VehicleStatus,
 } from "@automate/shared";
-import { cn } from "cn";
 import { CircleAlert, Clock, Info, ShieldCheck, TriangleAlert, X } from "lucide-react";
 import { useState } from "react";
 import { Link } from "react-router";
@@ -41,13 +40,6 @@ const SOURCE: Record<ItemSource, string> = {
 };
 
 /** Row surface by state (Stitch: red for overdue, amber for due, neutral otherwise). */
-const BOX: Record<DueState, string> = {
-  overdue: "border-destructive/40 bg-destructive/10",
-  due_today: "border-warning/40 bg-warning/10",
-  due_soon: "border-warning/40 bg-warning/10",
-  info: "bg-muted/40",
-};
-
 const untrackedText = (areas: UntrackedArea[]) =>
   areas.length > 1
     ? "Maintenance and documents aren't tracked yet"
@@ -71,10 +63,8 @@ export function StatusPanel({ status, vehicleId }: { status: VehicleStatus; vehi
       className="flex h-full flex-col gap-4 rounded-xl border bg-card p-5"
     >
       <div className="flex flex-col gap-2">
-        <span className="text-xs font-semibold tracking-wider text-muted-foreground uppercase">
-          Vehicle status
-        </span>
-        <h2 id="vehicle-status-title" className="font-heading text-base font-semibold">
+        <span className="text-xs font-medium text-muted-foreground">Vehicle status</span>
+        <h2 id="vehicle-status-title" className="font-heading text-base font-medium">
           {TITLES[status.level]}
         </h2>
         {status.untracked.length > 0 && (
@@ -85,9 +75,7 @@ export function StatusPanel({ status, vehicleId }: { status: VehicleStatus; vehi
       </div>
       {status.items.length > 0 ? (
         <div className="flex flex-col gap-2">
-          <h3 className="text-xs font-semibold tracking-wider text-muted-foreground uppercase">
-            Up next
-          </h3>
+          <h3 className="text-xs font-medium text-muted-foreground">Up next</h3>
           <ul id="up-next" className="flex flex-col gap-2">
             {shown.map((item) => (
               <li key={item.id}>
@@ -128,7 +116,7 @@ function ActionRow({ item, vehicleId }: { item: ActionItem; vehicleId: string })
     </span>
   );
   return (
-    <div className={cn("flex flex-col gap-1.5 rounded-lg border p-3", BOX[item.state])}>
+    <div className={"flex flex-col gap-1.5 rounded-lg border bg-muted/40 p-3"}>
       {/* State, source and the action on one line; the title opens the record (never nested). */}
       <div className="flex items-center justify-between gap-2">
         <span className="flex min-w-0 items-center gap-2">

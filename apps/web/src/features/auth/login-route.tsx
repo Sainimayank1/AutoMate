@@ -35,7 +35,7 @@ export function Component() {
 
   return (
     <AuthLayout
-      title="Welcome back"
+      title="Log in"
       description="Sign in to access your garage and vehicle records."
       eyebrow="Intelligent ownership"
       headline="Know your car, track every rupee, stay ahead of service."

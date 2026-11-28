@@ -300,7 +300,7 @@ function ComponentFields({ creating, vehicle }: { creating: boolean; vehicle: Ve
       </div>
 
       <aside className="flex flex-col gap-4 rounded-xl border bg-card p-5 lg:sticky lg:top-24 lg:col-span-4">
-        <h2 className="font-heading text-lg font-semibold">Summary</h2>
+        <h2 className="font-heading text-lg font-medium">Summary</h2>
         <div className="flex flex-col gap-1 rounded-lg border bg-muted/40 p-3.5">
           <span className="font-medium">
             {values.name || (values.kind ? componentKindName(values.kind) : "New component")}

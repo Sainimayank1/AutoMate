@@ -52,7 +52,7 @@ export function DrivingCard({
       </CardHeader>
       <CardContent className="flex flex-1 flex-col gap-4">
         <div>
-          <p className="font-heading text-2xl font-semibold tracking-tight tabular-nums">
+          <p className="font-heading text-2xl font-medium tabular-nums">
             {driving.distanceKm === null ? "—" : formatDistance(driving.distanceKm)}
             <span className="text-sm font-normal text-muted-foreground"> in {range}</span>
           </p>
@@ -102,7 +102,7 @@ function TripsSummary({ trips, vehicleId }: { trips: DrivingTrips | null; vehicl
   const total = Number(trips.distanceKm);
   return (
     <div className="mt-auto flex flex-col gap-2.5 border-t pt-3">
-      <p className="text-xs font-semibold tracking-wider text-muted-foreground uppercase">Trips</p>
+      <p className="text-xs font-medium text-muted-foreground">Trips</p>
       <p className="text-sm tabular-nums">
         {trips.count} {trips.count === 1 ? "trip" : "trips"}
         {trips.averageKm && ` · avg ${formatDistance(trips.averageKm)}`}

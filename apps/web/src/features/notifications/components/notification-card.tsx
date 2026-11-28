@@ -54,10 +54,7 @@ export function NotificationCard({
   return (
     <article
       aria-label={item.title}
-      className={cn(
-        "flex items-start gap-3.5 rounded-xl border bg-card p-4",
-        unread && priority.border,
-      )}
+      className={cn("flex items-start gap-3.5 rounded-xl border bg-card p-4")}
     >
       <span
         className={cn(
@@ -71,9 +68,7 @@ export function NotificationCard({
         </span>
       </span>
       <div className="flex min-w-0 flex-1 flex-col gap-0.5">
-        <p
-          className={cn("flex items-start gap-2 text-sm", unread ? "font-semibold" : "font-medium")}
-        >
+        <p className={cn("flex items-start gap-2 text-sm", unread ? "font-medium" : "font-normal")}>
           {unread && (
             <span className="mt-1.5 size-2 shrink-0 rounded-full bg-primary" aria-label="Unread" />
           )}

@@ -128,7 +128,7 @@ export function Component() {
             </div>
             <div className="min-w-0">
               <div className="flex flex-wrap items-center gap-2">
-                <h1 className="font-heading text-2xl font-semibold tracking-tight">{part.name}</h1>
+                <h1 className="font-heading text-2xl font-medium">{part.name}</h1>
                 <StatusBadge tone={meta.tone} icon={meta.icon} label={meta.label} />
               </div>
               <p className="text-sm text-muted-foreground">
@@ -240,7 +240,7 @@ export function Component() {
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
-                <ShieldCheck className="size-4 text-primary" aria-hidden />
+                <ShieldCheck className="size-4 text-muted-foreground" aria-hidden />
                 Warranty
               </CardTitle>
             </CardHeader>

@@ -31,7 +31,7 @@ export function NotificationBell() {
     <span className="relative">
       <Bell />
       {unread > 0 && (
-        <span className="absolute -top-1.5 -right-2 min-w-4 rounded-full bg-primary px-1 text-center text-[10px] leading-4 font-semibold text-primary-foreground tabular-nums">
+        <span className="absolute -top-1.5 -right-2 min-w-4 rounded-full bg-primary px-1 text-center text-[10px] leading-4 font-medium text-primary-foreground tabular-nums">
           {unread > 9 ? "9+" : unread}
         </span>
       )}
@@ -56,7 +56,7 @@ export function NotificationBell() {
       </PopoverTrigger>
       <PopoverContent align="end" className="w-96 p-0">
         <div className="flex items-center justify-between border-b px-4 py-3">
-          <p className="font-heading text-sm font-semibold">Notifications</p>
+          <p className="font-heading text-sm font-medium">Notifications</p>
           <Button
             variant="link"
             size="sm"
@@ -86,7 +86,7 @@ export function NotificationBell() {
                     <span
                       className={cn(
                         "flex items-center gap-1.5 truncate text-sm",
-                        read ? "font-normal" : "font-semibold",
+                        read ? "font-normal" : "font-medium",
                       )}
                     >
                       {!read && (

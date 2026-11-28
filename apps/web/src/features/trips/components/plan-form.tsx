@@ -399,11 +399,11 @@ function PlanFields({
 
       <aside className="flex flex-col gap-4 rounded-xl border bg-card p-5 lg:sticky lg:top-24 lg:col-span-4">
         <div className="flex items-center justify-between gap-2">
-          <h2 className="font-heading text-lg font-semibold">Budget estimate</h2>
+          <h2 className="font-heading text-lg font-medium">Budget estimate</h2>
           {category && <Badge variant="secondary">{category.name}</Badge>}
         </div>
         <div className="flex flex-col gap-1 border-b pb-3">
-          <p className="font-heading text-3xl font-semibold tabular-nums">
+          <p className="font-heading text-3xl font-medium tabular-nums">
             {budget.total ? formatCurrency(budget.total) : "—"}
           </p>
           <p className="text-sm text-muted-foreground tabular-nums">

@@ -45,13 +45,12 @@ export const DOCUMENT_TYPES: Record<
 /** The state's badge, and the tint of the card and its icon (design skill: amber soon, red late). */
 export const DOCUMENT_STATE: Record<
   DocumentState,
-  { label: string; tone: StatusTone; icon: LucideIcon; card: string; tile: string; date: string }
+  { label: string; tone: StatusTone; icon: LucideIcon; tile: string; date: string }
 > = {
   [DocumentState.EXPIRED]: {
     label: "Expired",
     tone: "destructive",
     icon: CircleAlert,
-    card: "border-destructive/60",
     tile: "bg-destructive/10 text-destructive",
     date: "text-destructive",
   },
@@ -59,7 +58,6 @@ export const DOCUMENT_STATE: Record<
     label: "Expiring",
     tone: "warning",
     icon: Clock,
-    card: "border-warning/60",
     tile: "bg-warning/10 text-warning",
     date: "text-warning",
   },
@@ -67,7 +65,6 @@ export const DOCUMENT_STATE: Record<
     label: "Valid",
     tone: "success",
     icon: CircleCheck,
-    card: "",
     tile: "bg-success/10 text-success",
     date: "",
   },
@@ -75,7 +72,6 @@ export const DOCUMENT_STATE: Record<
     label: "No expiry",
     tone: "neutral",
     icon: Minus,
-    card: "",
     tile: "bg-muted text-muted-foreground",
     date: "text-muted-foreground",
   },

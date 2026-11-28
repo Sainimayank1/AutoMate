@@ -65,7 +65,7 @@ function writeRecent(items: string[]) {
 const isMac = typeof navigator !== "undefined" && /mac|iphone|ipad/i.test(navigator.userAgent);
 
 /**
- * App-wide search (application-navigation.md "Global search"): the header's "Search records…"
+ * App-wide search (application-navigation.md "Global search"): the header's "Search"
  * (a search icon on smaller screens) or Ctrl/⌘ K. Empty: recent searches, quick actions and "Go
  * to"; typing: the user's records from `GET /search`, grouped by kind, each opening its page.
  * Deviation: no Stitch screen yet; built on the shadcn command palette and the design tokens.
@@ -117,7 +117,7 @@ export function SearchCommand() {
         onClick={() => setOpen(true)}
       >
         <Search data-icon="inline-start" />
-        Search records…
+        Search
         <CommandShortcut className="ml-auto">{isMac ? "⌘K" : "Ctrl K"}</CommandShortcut>
       </Button>
       <Button
@@ -141,7 +141,7 @@ export function SearchCommand() {
         {/* Results come from the API, already matched: the palette mustn't filter them again. */}
         <Command label="Search records" shouldFilter={false}>
           <CommandInput
-            placeholder="Search records…"
+            placeholder="Search"
             value={text}
             onValueChange={setText}
             aria-label="Search records"

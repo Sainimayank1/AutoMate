@@ -251,11 +251,9 @@ function MetricCard({
               <PopoverContent className="w-72 text-sm">{info}</PopoverContent>
             </Popover>
           </span>
-          <Icon className="size-4 shrink-0 text-primary" aria-hidden />
+          <Icon className="size-4 shrink-0 text-muted-foreground" aria-hidden />
         </div>
-        <div className="font-heading text-2xl font-semibold tracking-tight tabular-nums">
-          {value}
-        </div>
+        <div className="font-heading text-2xl font-medium tabular-nums">{value}</div>
         <div className="text-xs tabular-nums">
           {compared ? (
             <>

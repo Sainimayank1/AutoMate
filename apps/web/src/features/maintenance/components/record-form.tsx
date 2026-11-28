@@ -130,7 +130,7 @@ export function RecordForm({
         >
           {completing && (
             <div className="flex items-center gap-2.5 rounded-lg border border-primary/30 bg-primary/10 px-4 py-2.5 text-sm lg:col-span-12">
-              <CalendarCheck className="size-4 text-primary" aria-hidden />
+              <CalendarCheck className="size-4 text-muted-foreground" aria-hidden />
               Completing {completing.name}
             </div>
           )}
@@ -467,7 +467,7 @@ function RecordFields({
               <div className="flex flex-col gap-1.5">
                 <span className="text-sm font-medium text-primary">Total</span>
                 <p
-                  className="rounded-md border bg-muted px-3 py-2 font-mono text-sm font-semibold tabular-nums"
+                  className="rounded-md border bg-muted px-3 py-2 font-mono text-sm font-medium tabular-nums"
                   aria-live="polite"
                 >
                   {formatCurrency(total)}
@@ -566,7 +566,7 @@ function RecordFields({
 
       <aside className="flex flex-col gap-4 rounded-xl border bg-card p-5 lg:sticky lg:top-24 lg:col-span-4">
         <div className="flex items-center justify-between gap-2">
-          <h2 className="font-heading text-lg font-semibold">Summary</h2>
+          <h2 className="font-heading text-lg font-medium">Summary</h2>
           <span className="rounded-full bg-muted px-2.5 py-0.5 text-xs text-muted-foreground">
             {RECORD_TYPE_LABELS[values.type ?? ServiceRecordType.ROUTINE_SERVICE]}
           </span>
@@ -589,7 +589,7 @@ function RecordFields({
         </dl>
         <div className="flex items-baseline justify-between gap-2 border-t pt-3">
           <span className="text-sm text-muted-foreground">Total</span>
-          <span className="font-heading text-2xl font-semibold tabular-nums">
+          <span className="font-heading text-2xl font-medium tabular-nums">
             {formatCurrency(total)}
           </span>
         </div>

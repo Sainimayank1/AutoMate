@@ -1,5 +1,4 @@
 import type { Vehicle } from "@automate/shared";
-import { cn } from "cn";
 import { Car, Plus } from "lucide-react";
 import { useState } from "react";
 import { Link } from "react-router";
@@ -107,15 +106,11 @@ export function Component() {
             ].map((chip) => (
               <Button
                 key={chip.id}
-                variant="outline"
+                variant={chip.id === activeFilterId ? "default" : "outline"}
                 size="sm"
                 aria-pressed={chip.id === activeFilterId}
                 onClick={() => setFilterId(chip.id)}
-                className={cn(
-                  "shrink-0",
-                  chip.id === activeFilterId &&
-                    "border-primary bg-secondary text-primary hover:text-primary",
-                )}
+                className="shrink-0"
               >
                 {chip.label} ({formatNumber(chip.count)})
               </Button>
@@ -161,7 +156,7 @@ function GarageEmptyState() {
         className="h-36 w-64 max-w-full rounded-xl border"
       />
       <div className="flex max-w-md flex-col gap-2">
-        <h2 className="font-heading text-xl font-semibold tracking-tight">No vehicles yet</h2>
+        <h2 className="font-heading text-xl font-medium">No vehicles yet</h2>
         <p className="text-sm text-muted-foreground">
           Add your first vehicle to start tracking fuel, expenses, service and documents.
         </p>

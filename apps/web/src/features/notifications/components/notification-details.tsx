@@ -68,9 +68,7 @@ function Details({ item, onClose }: { item: NotificationItem; onClose: () => voi
   return (
     <>
       <SheetHeader className="gap-4 p-6 pb-4">
-        <span className="text-xs font-medium tracking-wide text-muted-foreground uppercase">
-          Notification details
-        </span>
+        <span className="text-xs font-medium text-muted-foreground">Notification details</span>
         <div className="flex items-start gap-3.5">
           <span
             className={cn(
@@ -98,7 +96,7 @@ function Details({ item, onClose }: { item: NotificationItem; onClose: () => voi
       <div className="flex flex-col gap-5 px-6 pb-6">
         {snoozed && (
           <p className="flex items-center gap-2.5 rounded-lg border bg-muted/40 px-3.5 py-2.5 text-sm tabular-nums">
-            <AlarmClock className="size-4 shrink-0 text-primary" aria-hidden />
+            <AlarmClock className="size-4 shrink-0 text-muted-foreground" aria-hidden />
             Snoozed until {formatDateTime(item.snoozedUntil)}
           </p>
         )}

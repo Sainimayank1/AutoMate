@@ -202,9 +202,7 @@ function Timeline({ records }: { records: ServiceRecord[] }) {
     <div className="flex flex-col gap-6">
       {byMonth(records).map((group) => (
         <section key={group.heading} aria-label={group.heading} className="flex flex-col gap-3">
-          <h2 className="text-xs font-semibold tracking-wider text-muted-foreground uppercase">
-            {group.heading}
-          </h2>
+          <h2 className="text-xs font-medium text-muted-foreground">{group.heading}</h2>
           <ol className="relative flex flex-col gap-3 border-l pl-5">
             {group.records.map((record) => {
               const repair = REPAIR_RECORD_TYPES.includes(record.type);
@@ -261,7 +259,7 @@ function Timeline({ records }: { records: ServiceRecord[] }) {
                         </p>
                       )}
                     </div>
-                    <span className="shrink-0 font-heading font-semibold tabular-nums">
+                    <span className="shrink-0 font-heading font-medium tabular-nums">
                       {formatCurrency(record.totalAmount)}
                     </span>
                   </Link>

@@ -112,9 +112,7 @@ describe("registration", () => {
     await user.click(screen.getByRole("checkbox", { name: /I agree to the Terms/ }));
     await user.click(screen.getByRole("button", { name: "Create AutoMate account" }));
 
-    expect(
-      await screen.findByRole("heading", { level: 1, name: /^Good (morning|afternoon|evening)/ }),
-    ).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { level: 1, name: "Dashboard" })).toBeInTheDocument();
     expect(router.state.location.pathname).toBe("/dashboard");
     expect(await screen.findByText("Welcome to AutoMate, Arjun.")).toBeInTheDocument();
   });

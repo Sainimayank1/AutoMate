@@ -69,14 +69,14 @@ The confirm button is always verb + object, and never focused by default for des
 
 ## Motion
 
-| What                           | Duration          | Easing                                | Notes                    |
-| ------------------------------ | ----------------- | ------------------------------------- | ------------------------ |
-| Hover and focus colour changes | 150 ms            | ease-out                              | `transition-colors`      |
-| Popover, menu, tooltip         | 150 ms            | primitive defaults (`tw-animate-css`) | fade + 2–4 px slide/zoom |
-| Dialog, sheet, drawer          | 200–250 ms        | ease-out in, ease-in out              | primitive defaults       |
-| Gauge or progress value change | 400 ms            | ease-out                              | motion-safe only         |
-| New-item highlight             | 1.5 s fade        | linear                                | motion-safe only         |
-| Skeleton                       | pulse (primitive) | —                                     | —                        |
+| What                           | Duration          | Easing                                                  | Notes                                       |
+| ------------------------------ | ----------------- | ------------------------------------------------------- | ------------------------------------------- |
+| Hover and focus colour changes | 150 ms            | `cubic-bezier(0.22, 1, 0.36, 1)` (the `@theme` default) | `transition-colors`; never `transition-all` |
+| Popover, menu, tooltip         | 150 ms            | primitive defaults (`tw-animate-css`)                   | fade + 2–4 px slide/zoom                    |
+| Dialog, sheet, drawer          | 200–250 ms        | ease-out in, ease-in out                                | primitive defaults                          |
+| Gauge or progress value change | 400 ms            | ease-out                                                | motion-safe only                            |
+| New-item highlight             | 1.5 s fade        | linear                                                  | motion-safe only                            |
+| Skeleton                       | pulse (primitive) | —                                                       | —                                           |
 
 Rules:
 

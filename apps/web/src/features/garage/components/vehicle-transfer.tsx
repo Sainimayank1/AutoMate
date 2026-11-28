@@ -137,7 +137,7 @@ export function PendingTransfer({ vehicle }: { vehicle: Vehicle }) {
         <span aria-hidden>·</span>
         <Button
           variant="link"
-          className="h-auto p-0 font-semibold text-warning"
+          className="h-auto p-0 font-medium text-warning"
           disabled={action.isPending}
           onClick={() =>
             action.mutate(

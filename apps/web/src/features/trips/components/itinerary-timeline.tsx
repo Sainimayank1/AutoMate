@@ -25,7 +25,7 @@ export function ItineraryTimeline({
     <ol className="flex flex-col gap-5" aria-label="Itinerary">
       {tripItinerary(trip).map((day) => (
         <li key={day.day} className="flex flex-col gap-3">
-          <h3 className="text-sm font-semibold tabular-nums">
+          <h3 className="text-sm font-medium tabular-nums">
             Day {day.day} · {weekday(day.date)}, {formatDate(day.date)}
           </h3>
           <ol className="relative flex flex-col gap-4 border-l pl-6">

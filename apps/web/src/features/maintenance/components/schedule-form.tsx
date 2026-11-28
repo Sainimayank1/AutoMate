@@ -439,7 +439,7 @@ function ScheduleFields({ vehicle }: { vehicle: Vehicle }) {
 
       <aside className="flex flex-col gap-4 rounded-xl border bg-card p-5 lg:sticky lg:top-24 lg:col-span-4">
         <div className="flex items-center justify-between">
-          <h2 className="font-heading text-lg font-semibold">Summary</h2>
+          <h2 className="font-heading text-lg font-medium">Summary</h2>
           <span className="rounded-full bg-muted px-2 py-0.5 text-xs text-muted-foreground">
             {PRIORITY_LABELS[values.priority ?? "NORMAL"]}
           </span>

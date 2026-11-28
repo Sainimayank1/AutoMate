@@ -160,7 +160,7 @@ export function ImportDialog({
                     className="flex flex-col gap-0.5 rounded-lg border bg-elevated p-3"
                   >
                     <dt className="text-xs text-muted-foreground">{label}</dt>
-                    <dd className="font-heading text-lg font-semibold tabular-nums">
+                    <dd className="font-heading text-lg font-medium tabular-nums">
                       {preview.counts[status]}
                     </dd>
                   </div>

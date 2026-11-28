@@ -100,9 +100,7 @@ export function Component() {
             Planner
           </Link>
           <div className="flex flex-wrap items-center gap-2.5">
-            <h1 className="font-heading text-2xl font-semibold tracking-tight">
-              {tripLabel(plan)}
-            </h1>
+            <h1 className="font-heading text-2xl font-medium">{tripLabel(plan)}</h1>
             <StatusBadge tone={status.tone} icon={status.icon} label={status.label} />
             <Badge variant="secondary">{plan.category.name}</Badge>
           </div>
