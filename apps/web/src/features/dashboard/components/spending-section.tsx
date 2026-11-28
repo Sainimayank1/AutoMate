@@ -1,4 +1,4 @@
-import { type PeriodWindow, SpendGroup, type SpendingOverview } from "@automate/shared";
+import { type DateWindow, SpendGroup, type SpendingOverview } from "@automate/shared";
 import { cn } from "cn";
 import { format, parseISO } from "date-fns";
 import { Link } from "react-router";
@@ -40,7 +40,9 @@ export function SpendingSection({
   vehicleId,
 }: {
   spending: SpendingOverview;
-  period: PeriodWindow;
+  /** Only its dates are used (Analytics passes its own window). */
+  period: DateWindow;
+  /** A vehicle, or "all" (Analytics) for the transactions links. */
   vehicleId: string;
 }) {
   const range = formatDateRange(period);

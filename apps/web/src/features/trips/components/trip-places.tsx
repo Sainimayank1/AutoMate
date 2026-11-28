@@ -1,4 +1,4 @@
-import type { RoutePoint, RouteResult, Trip } from "@automate/shared";
+import type { RouteOption, RoutePoint, RouteResult, Trip } from "@automate/shared";
 import { ArrowDown, ArrowUp, Plus, Route, X } from "lucide-react";
 import { useState } from "react";
 import { useFieldArray, useFormContext, useWatch } from "react-hook-form";
@@ -146,7 +146,14 @@ export function PlacesFields() {
                     });
                   }}
                 />
-                <FieldError errors={[formState.errors.stops?.[index]?.label]} />
+                <FieldError
+                  errors={[
+                    formState.errors.stops?.[index]?.label,
+                    // Itinerary rules a reorder can break (days are set in the itinerary).
+                    formState.errors.stops?.[index]?.day,
+                    formState.errors.stops?.[index]?.overnight,
+                  ]}
+                />
                 <div className="grid grid-cols-2 gap-2">
                   <div className="flex flex-col gap-1">
                     <Label htmlFor={`stop-${index}-arrival`} className="text-xs">
@@ -202,7 +209,14 @@ export function PlacesFields() {
  * Method Route: the provider's routes through the pinned places, on a map, one chosen. The
  * server measures the chosen route again when saving; nothing here is invented.
  */
-export function RoutePreview({ stored }: { stored?: Trip["route"] }) {
+export function RoutePreview({
+  stored,
+  onChoose,
+}: {
+  stored?: Trip["route"];
+  /** The route picked (the planner budgets on its distance). */
+  onChoose?: (route: RouteOption) => void;
+}) {
   const form = useFormContext<TripFormValues>();
   const routeIndex = useWatch({ control: form.control, name: "routeIndex" });
   const { places, complete } = usePinnedPlaces();
@@ -214,6 +228,12 @@ export function RoutePreview({ stored }: { stored?: Trip["route"] }) {
   const current = result?.key === key ? result.routes : null;
   const showStored = !current && stored && complete && !form.formState.dirtyFields.stops;
 
+  const choose = (routes: RouteResult, index: number) => {
+    form.setValue("routeIndex", index, { shouldDirty: true });
+    const route = routes.routes[index];
+    if (route) onChoose?.(route);
+  };
+
   const calculate = async () => {
     setLoading(true);
     setError(null);
@@ -222,8 +242,9 @@ export function RoutePreview({ stored }: { stored?: Trip["route"] }) {
         latitude,
         longitude,
       }));
-      setResult({ key, routes: await tripsService.calculateRoute(points) });
-      form.setValue("routeIndex", 0, { shouldDirty: true });
+      const routes = await tripsService.calculateRoute(points);
+      setResult({ key, routes });
+      choose(routes, 0);
     } catch (failure) {
       setError(normalizeApiError(failure).message);
     } finally {
@@ -255,14 +276,14 @@ export function RoutePreview({ stored }: { stored?: Trip["route"] }) {
       {current && (
         <>
           <LazyTripMap places={places} geometry={current.routes[routeIndex]?.geometry} />
-          <div className="flex flex-col gap-2" role="radiogroup" aria-label="Route options">
+          <div className="grid gap-2 sm:grid-cols-2" role="radiogroup" aria-label="Route options">
             {current.routes.map((route, index) => (
               <button
                 key={index}
                 type="button"
                 role="radio"
                 aria-checked={routeIndex === index}
-                onClick={() => form.setValue("routeIndex", index, { shouldDirty: true })}
+                onClick={() => choose(current, index)}
                 className={`rounded-lg border p-3 text-left text-sm ${routeIndex === index ? "border-primary bg-primary/5" : ""}`}
               >
                 <span className="font-medium">

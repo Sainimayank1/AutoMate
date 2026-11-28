@@ -42,6 +42,7 @@ import { JwtStrategy } from "./strategies/jwt.strategy";
   ],
   controllers: [AuthController],
   providers: [JwtStrategy, PasswordService, AuthService, RefreshCookieService, TrustedOriginGuard],
-  exports: [JwtModule, PasswordService],
+  // Settings checks passwords and clears the refresh cookie when an account is deleted.
+  exports: [JwtModule, PasswordService, RefreshCookieService],
 })
 export class AuthModule {}

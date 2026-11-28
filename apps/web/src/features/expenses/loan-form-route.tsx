@@ -143,7 +143,7 @@ function LoanFormPage({
             ),
           )
         : await create.mutateAsync(output);
-      navigate(`/expenses/loans/${saved.id}`, { replace: true });
+      navigate(`/expenses/loans/${saved.id}`, { replace: true, state: { savedChanges: true } });
     } catch (error) {
       applyServerErrors(form.setError, error);
     }

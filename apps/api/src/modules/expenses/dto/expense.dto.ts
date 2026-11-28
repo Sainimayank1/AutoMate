@@ -5,6 +5,8 @@ import {
   createExpenseSchema,
   createRefundSchema,
   expenseCategoryListQuerySchema,
+  expenseImportSchema,
+  expenseInsightsQuerySchema,
   expenseListQuerySchema,
   expenseSummaryQuerySchema,
   ownershipQuerySchema,
@@ -18,6 +20,8 @@ export class UpdateExpenseDto extends createZodDto(updateExpenseSchema) {}
 export class ExpenseListQueryDto extends createZodDto(expenseListQuerySchema) {}
 export class ExpenseSummaryQueryDto extends createZodDto(expenseSummaryQuerySchema) {}
 export class OwnershipQueryDto extends createZodDto(ownershipQuerySchema) {}
+export class ExpenseInsightsQueryDto extends createZodDto(expenseInsightsQuerySchema) {}
+export class ExpenseImportDto extends createZodDto(expenseImportSchema) {}
 export class CreateRefundDto extends createZodDto(createRefundSchema) {}
 export class BulkExpenseIdsDto extends createZodDto(bulkExpenseIdsSchema) {}
 export class BulkRecategoriseDto extends createZodDto(bulkRecategoriseSchema) {}

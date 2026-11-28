@@ -16,11 +16,13 @@ import {
   ReportingPeriod,
   resolvePeriod,
   type Vehicle,
+  type VehicleDocument,
   type VehicleStatus,
 } from "@automate/shared";
 import { Injectable, Logger } from "@nestjs/common";
 
 import { Paginated } from "@/common/pagination/paginated";
+import { DocumentsService } from "@/modules/documents/documents.service";
 import { ExpenseFiguresService } from "@/modules/expenses/expense-figures.service";
 import { RecurringExpensesService } from "@/modules/expenses/recurring-expenses.service";
 import { FuelService } from "@/modules/fuel/fuel.service";
@@ -29,7 +31,13 @@ import { ServiceRecordsService } from "@/modules/maintenance/service-records.ser
 import { TripsService } from "@/modules/trips/trips.service";
 import { VehiclesService } from "@/modules/vehicles/vehicles.service";
 
-import { expenseActivity, mergeNewest, serviceActivity, tripActivity } from "./activity";
+import {
+  documentActivity,
+  expenseActivity,
+  mergeNewest,
+  serviceActivity,
+  tripActivity,
+} from "./activity";
 import { buildInsights, type InsightInputs } from "./insights";
 import { buildMetrics, nextEmi, type WindowFigures } from "./metrics";
 import { drivingOverview, fuelOverview, spendingOverview, trendMonths } from "./spending";
@@ -63,6 +71,7 @@ export class DashboardService {
     private readonly maintenance: MaintenanceService,
     private readonly records: ServiceRecordsService,
     private readonly recurring: RecurringExpensesService,
+    private readonly documents: DocumentsService,
     private readonly trips: TripsService,
   ) {}
 
@@ -83,6 +92,8 @@ export class DashboardService {
     const upkeep = this.maintenance.snapshot(userId, vehicle.id);
     const figures = this.windowFigures(userId, vehicle, window, since);
     const spent = this.spendingRows(userId, vehicle, window, since);
+    // The vehicle's documents feed the status panel and the expiry card.
+    const papers = this.documents.forVehicle(userId, vehicle.id);
     // Overdue first; the first page holds everything due soon for one vehicle (status and the EMI).
     const payments = this.recurring.payments(userId, {
       vehicleId: vehicle.id,
@@ -92,7 +103,9 @@ export class DashboardService {
     });
     const [status, metrics, spending, fuel, maintenance, expiries, driving, insights] =
       await Promise.all([
-        this.section("status", () => this.status(vehicle, insurance, upkeep, payments, today)),
+        this.section("status", () =>
+          this.status(vehicle, insurance, upkeep, payments, papers, today),
+        ),
         this.section("metrics", async () => {
           const [both, upcoming] = await Promise.all([figures, payments]);
           // Compared only once records cover the whole earlier window (dashboard.md §1).
@@ -110,7 +123,7 @@ export class DashboardService {
         this.section("fuel", () => this.fuelSection(userId, vehicle, figures)),
         this.section("maintenance", () => this.maintenanceSection(upkeep)),
         this.section("expiries", async () =>
-          expiryDates({ vehicle, insurance: await insurance, today }),
+          expiryDates({ vehicle, insurance: await insurance, documents: await papers, today }),
         ),
         this.section("driving", () => this.driving(userId, vehicle, window, today, figures)),
         this.section("insights", async (): Promise<DashboardInsights> =>
@@ -149,17 +162,22 @@ export class DashboardService {
     // shortcut: merges the newest page×size of each source in memory; fine within ACTIVITY_DEPTH,
     // use a UNION query if the feed ever needs to go deeper.
     const take = Math.min(page * pageSize, ACTIVITY_DEPTH);
-    const [events, records, trips] = await Promise.all([
+    const [events, records, trips, papers] = await Promise.all([
       this.figures.events(userId, vehicleId, take),
       this.records.recent(userId, vehicleId, take),
       this.trips.recent(userId, vehicleId, take),
+      this.documents.recent(userId, vehicleId, take),
     ]);
     const merged = mergeNewest(
       events.rows.map(expenseActivity),
       records.recent.map(serviceActivity),
       trips.recent.map(tripActivity),
+      papers.recent.map(documentActivity),
     );
-    const total = Math.min(events.count + records.count + trips.count, ACTIVITY_DEPTH);
+    const total = Math.min(
+      events.count + records.count + trips.count + papers.count,
+      ACTIVITY_DEPTH,
+    );
     const start = (page - 1) * pageSize;
     return new Paginated(
       start < total ? merged.slice(start, Math.min(start + pageSize, total)) : [],
@@ -189,14 +207,21 @@ export class DashboardService {
     insurance: Promise<InsuranceOnRecord | null>,
     upkeep: Promise<Snapshot>,
     payments: Promise<Paginated<RecurringPayment>>,
+    papers: Promise<VehicleDocument[]>,
     today: string,
   ): Promise<VehicleStatus> {
-    const [policy, maintenance, upcoming] = await Promise.all([insurance, upkeep, payments]);
+    const [policy, maintenance, upcoming, documents] = await Promise.all([
+      insurance,
+      upkeep,
+      payments,
+      papers,
+    ]);
     return vehicleStatus({
       vehicle,
       insurance: policy,
       maintenance: maintenance.status,
       payments: upcoming.items,
+      documents,
       today,
     });
   }

@@ -7,6 +7,8 @@ import { ExpenseBudgetsService } from "./expense-budgets.service";
 import { ExpenseCategoriesController } from "./expense-categories.controller";
 import { ExpenseCategoriesService } from "./expense-categories.service";
 import { ExpenseFiguresService } from "./expense-figures.service";
+import { ExpenseImportService } from "./expense-import.service";
+import { ExpenseInsightsService } from "./expense-insights.service";
 import { ExpensesController } from "./expenses.controller";
 import { ExpensesService } from "./expenses.service";
 import { LinkedExpensesService } from "./linked-expenses.service";
@@ -34,6 +36,8 @@ import { VehicleLoansService } from "./vehicle-loans.service";
     VehicleLoansService,
     ExpenseBudgetsService,
     OwnershipService,
+    ExpenseInsightsService,
+    ExpenseImportService,
   ],
   // Fuel (and later Maintenance, Trips) keep their money here through LinkedExpensesService.
   exports: [
@@ -44,6 +48,8 @@ import { VehicleLoansService } from "./vehicle-loans.service";
     // The dashboard's action centre reads upcoming payments and EMIs.
     RecurringExpensesService,
     VehicleLoansService,
+    // Analytics compares every vehicle's ownership cost.
+    OwnershipService,
   ],
 })
 export class ExpensesModule {}

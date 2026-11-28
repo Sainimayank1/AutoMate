@@ -2,6 +2,10 @@ import type {
   BulkResult,
   Expense,
   ExpenseDetail,
+  ExpenseImportPreview,
+  ExpenseImportResult,
+  ExpenseInsights,
+  ExpenseReport,
   ExpenseSummary,
   ExpenseTrend,
   OwnershipCost,
@@ -34,14 +38,22 @@ import {
   BulkRecategoriseDto,
   CreateExpenseDto,
   CreateRefundDto,
+  ExpenseImportDto,
+  ExpenseInsightsQueryDto,
   ExpenseListQueryDto,
   ExpenseSummaryQueryDto,
   OwnershipQueryDto,
   UpdateExpenseDto,
 } from "./dto/expense.dto";
+import { ExpenseImportService } from "./expense-import.service";
+import { ExpenseInsightsService } from "./expense-insights.service";
 import {
   BULK_RESULT_SCHEMA,
   EXPENSE_DETAIL_SCHEMA,
+  EXPENSE_IMPORT_PREVIEW_SCHEMA,
+  EXPENSE_IMPORT_RESULT_SCHEMA,
+  EXPENSE_INSIGHTS_SCHEMA,
+  EXPENSE_REPORT_SCHEMA,
   EXPENSE_SCHEMA,
   EXPENSE_SUMMARY_SCHEMA,
   EXPENSE_TREND_SCHEMA,
@@ -58,6 +70,8 @@ export class ExpensesController {
   constructor(
     private readonly expenses: ExpensesService,
     private readonly ownershipCost: OwnershipService,
+    private readonly expenseInsights: ExpenseInsightsService,
+    private readonly importer: ExpenseImportService,
   ) {}
 
   @Get()
@@ -113,6 +127,50 @@ export class ExpensesController {
     @Query() query: OwnershipQueryDto,
   ): Promise<OwnershipCost> {
     return this.ownershipCost.cost(user.id, query);
+  }
+
+  @Get("insights")
+  @ApiOperation({
+    summary: "Budgets past their limit, categories above their usual, duplicates, large one-offs",
+  })
+  @ApiEnvelopeResponse(EXPENSE_INSIGHTS_SCHEMA)
+  @ApiErrorResponses(400, 401, 404)
+  insights(
+    @CurrentUser() user: AuthUser,
+    @Query() query: ExpenseInsightsQueryDto,
+  ): Promise<ExpenseInsights> {
+    return this.expenseInsights.insights(user.id, query);
+  }
+
+  @Get("report")
+  @ApiOperation({ summary: "The printable report: ownership figures, by category and by month" })
+  @ApiEnvelopeResponse(EXPENSE_REPORT_SCHEMA)
+  @ApiErrorResponses(400, 401, 404)
+  report(@CurrentUser() user: AuthUser, @Query() query: OwnershipQueryDto): Promise<ExpenseReport> {
+    return this.ownershipCost.report(user.id, query);
+  }
+
+  @Post("import/preview")
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: "Check a CSV before importing: counts and the rows that need a look" })
+  @ApiEnvelopeResponse(EXPENSE_IMPORT_PREVIEW_SCHEMA)
+  @ApiErrorResponses(400, 401, 404)
+  previewImport(
+    @CurrentUser() user: AuthUser,
+    @Body() body: ExpenseImportDto,
+  ): Promise<ExpenseImportPreview> {
+    return this.importer.preview(user.id, body);
+  }
+
+  @Post("import")
+  @ApiOperation({ summary: "Import a CSV's ready rows (and duplicates when asked) in one go" })
+  @ApiEnvelopeResponse(EXPENSE_IMPORT_RESULT_SCHEMA, { status: HttpStatus.CREATED })
+  @ApiErrorResponses(400, 401, 404, 409)
+  import(
+    @CurrentUser() user: AuthUser,
+    @Body() body: ExpenseImportDto,
+  ): Promise<ExpenseImportResult> {
+    return this.importer.commit(user.id, body);
   }
 
   @Post("bulk/delete")

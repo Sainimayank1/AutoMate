@@ -1,9 +1,17 @@
-import type { DrivingOverview, DrivingTrips } from "@automate/shared";
+import { type DrivingOverview, type DrivingTrips, istToday } from "@automate/shared";
+import { CalendarDays } from "lucide-react";
 import { Link } from "react-router";
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { typeColor } from "@/features/trips/constants";
-import { formatDateRange, formatDistance, formatNumber } from "@/utils/format";
+import { planTimingText } from "@/features/trips/utils/trip-text";
+import {
+  formatCurrency,
+  formatDate,
+  formatDateRange,
+  formatDistance,
+  formatNumber,
+} from "@/utils/format";
 
 /** "24 Nov" (the year only when it isn't this one), as in Stitch. */
 const shortDate = (date: string) => formatDateRange({ from: date, to: date });
@@ -77,13 +85,17 @@ function TripsSummary({ trips, vehicleId }: { trips: DrivingTrips | null; vehicl
       Log trip
     </Link>
   );
+  const next = trips?.nextPlan && <NextTrip plan={trips.nextPlan} />;
   if (!trips || trips.count === 0) {
     return (
-      <div className="mt-auto flex items-center justify-between gap-3 border-t pt-3">
-        <p className="text-sm text-muted-foreground">
-          {trips ? "No trips this period" : "No trips logged yet"}
-        </p>
-        {log}
+      <div className="mt-auto flex flex-col gap-3 border-t pt-3">
+        {next}
+        <div className="flex items-center justify-between gap-3">
+          <p className="text-sm text-muted-foreground">
+            {trips ? "No trips this period" : "No trips logged yet"}
+          </p>
+          {log}
+        </div>
       </div>
     );
   }
@@ -123,6 +135,7 @@ function TripsSummary({ trips, vehicleId }: { trips: DrivingTrips | null; vehicl
       <p className="text-xs text-muted-foreground tabular-nums">
         {formatDistance(trips.distanceKm)} logged in trips
       </p>
+      {next}
       <div className="flex gap-4">
         {log}
         <Link
@@ -131,6 +144,37 @@ function TripsSummary({ trips, vehicleId }: { trips: DrivingTrips | null; vehicl
         >
           View trips
         </Link>
+      </div>
+    </div>
+  );
+}
+
+/** Stitch "Driving & Trips Card — Next Trip": the vehicle's next plan, or the one under way. */
+function NextTrip({ plan }: { plan: NonNullable<DrivingTrips["nextPlan"]> }) {
+  const today = istToday(new Date());
+  return (
+    <div className="flex items-start gap-3 rounded-lg border bg-muted/40 p-2.5">
+      <span className="flex size-8 shrink-0 items-center justify-center rounded-md bg-primary/15 text-primary">
+        <CalendarDays className="size-4" aria-hidden />
+      </span>
+      <div className="min-w-0 text-sm">
+        <p className="text-xs text-muted-foreground">Next trip</p>
+        <Link
+          to={`/trips/planner/${plan.id}`}
+          className="block truncate font-medium text-primary hover:underline"
+        >
+          {plan.label}
+        </Link>
+        <p className="text-xs text-muted-foreground tabular-nums">
+          {[
+            formatDate(plan.date),
+            planTimingText(plan.date, plan.endDate, today),
+            plan.plannedDistanceKm && `${formatDistance(plan.plannedDistanceKm)} planned`,
+            plan.budget && `${formatCurrency(plan.budget)} estimated`,
+          ]
+            .filter(Boolean)
+            .join(" · ")}
+        </p>
       </div>
     </div>
   );

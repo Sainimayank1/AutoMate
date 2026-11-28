@@ -4,7 +4,7 @@ Mobile-first app to manage vehicles, fuel, expenses, maintenance, documents, tri
 
 ## Status
 
-Phase 0 (infrastructure) is done, plus email/password auth. **P0 modules in progress:** Garage (M2) and Fuel (M3) are built; Expenses (M4) is built in approved phases (phases 1 · core, 2 · Fuel link, 3 · Overview, 4 · recurring payments and the vehicle loan, and 5 · budgets done; plan and money rules in `docs/architecture/expenses.md`). **Dashboard (M1) is built** (phases 1–8; rules, API and the integrations still pending from unbuilt modules in `docs/architecture/dashboard.md`). **Maintenance (M5) is built** (phases 1–6 and 9; phases 7 analytics and 8 planning/templates skipped for now; plan, schedule engine, skipped phases and pending integrations in `docs/architecture/maintenance.md`). **Trips (M7) is in progress** in approved phases (plan, odometer history, rules and pending integrations in `docs/architecture/trips.md`). Build one module at a time, in this order.
+Phase 0 (infrastructure) is done, plus email/password auth. **P0 modules in progress:** Garage (M2) and Fuel (M3) are built; Expenses (M4) is built (phases 1–8: core, Fuel link, Overview, recurring payments and the vehicle loan, budgets, ownership cost, insights, CSV import and the printable report; receipts wait for Documents; plan and money rules in `docs/architecture/expenses.md`). **Dashboard (M1) is built** (phases 1–8; rules, API and the integrations still pending from unbuilt modules in `docs/architecture/dashboard.md`). **Maintenance (M5) is built** (phases 1–6 and 9; phases 7 analytics and 8 planning/templates skipped for now; plan, schedule engine, skipped phases and pending integrations in `docs/architecture/maintenance.md`). **Documents (M6) is built** (storage, vault, upload and dashboard wiring; design in `docs/architecture/documents.md`; reminders are delivered by Notifications). **Analytics (M8) is built** (fleet TCO page on the Expenses ownership figures; `docs/architecture/analytics.md`). **Settings (M11) is built** (profile and photo, preferences, reminder switches, password, devices, account deletion; `docs/architecture/settings.md`). **Trips (M7) is in progress** in approved phases (plan, odometer history, rules and pending integrations in `docs/architecture/trips.md`). Build one module at a time, in this order.
 
 ## Token-saving tools (mandatory on every prompt)
 
@@ -14,8 +14,8 @@ Phase 0 (infrastructure) is done, plus email/password auth. **P0 modules in prog
 
 ## Source of truth
 
-- `docs/MODULES.md` — what to build: 12 modules, cross-module rules (§13), priority (§14). Read the relevant module before working on it.
-- `docs/TECH_STACK.md` — how to build it: packages, folder structure (§12), DB rules (§3), hosting (§10).
+- `docs/MODULES.md` — what to build: 11 modules (M9, an AI assistant, was dropped), cross-module rules (§13), priority (§14). Read the relevant module before working on it.
+- `docs/TECH_STACK.md` — how to build it: packages, folder structure (§11), DB rules (§3), hosting (§9).
 - `docs/architecture/frontend.md` + `design-system.md` — web conventions: module registry, API/query/form patterns, tokens. Follow them in `apps/web`.
 - **Look and feel: the Stitch project "AutoMate Design System Platform"**, applied through the `automate-design` skill. Build every screen from its Stitch design; if a flow needs a screen Stitch doesn't have, generate it in Stitch first, then build it.
 - `docs/architecture/backend.md` + `database.md`, `api-conventions.md`, `security.md` — api conventions: module layout, Prisma/migrations, response envelope + error codes, auth/ownership rules. Follow them in `apps/api`.
@@ -34,7 +34,7 @@ pnpm + Turborepo monorepo · TypeScript strict
 - **P0:** Garage (M2) → Fuel (M3) → Expenses (M4) → Dashboard (M1)
 - **P1:** Maintenance (M5), Documents (M6), Notifications (M10)
 - **P2:** Analytics (M8), Trips (M7)
-- **P3:** AI Assistant (M9), Settings (M11), Backup & Export (M12)
+- **P3:** Settings (M11), Backup & Export (M12)
 
 ## Code rules
 

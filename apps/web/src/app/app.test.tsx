@@ -34,7 +34,7 @@ describe("session restore on page load", () => {
 });
 
 describe("app shell", () => {
-  it("lists all 12 modules in the navigation and opens the requested one", async () => {
+  it("lists all 11 modules in the navigation and opens the requested one", async () => {
     signIn();
     renderApp("/trips");
 
@@ -46,7 +46,7 @@ describe("app shell", () => {
         appModule.path,
       );
     }
-    expect(appModules).toHaveLength(12);
+    expect(appModules).toHaveLength(11);
   });
 
   it("redirects / to the dashboard and shows a not-found page for unknown paths", async () => {

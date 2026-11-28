@@ -12,16 +12,20 @@ import { type Env, validateEnv } from "./config/env.validation";
 import { loggerConfig } from "./config/logger.config";
 import { DatabaseModule } from "./database/database.module";
 import { HealthModule } from "./health/health.module";
+import { AnalyticsModule } from "./modules/analytics/analytics.module";
 import { AuthModule } from "./modules/auth/auth.module";
 import { JwtAuthGuard } from "./modules/auth/guards/jwt-auth.guard";
 import { DashboardModule } from "./modules/dashboard/dashboard.module";
+import { DocumentsModule } from "./modules/documents/documents.module";
 import { ExpensesModule } from "./modules/expenses/expenses.module";
 import { FuelModule } from "./modules/fuel/fuel.module";
 import { GeocodingModule } from "./modules/geocoding/geocoding.module";
 import { MaintenanceModule } from "./modules/maintenance/maintenance.module";
+import { SettingsModule } from "./modules/settings/settings.module";
 import { TripsModule } from "./modules/trips/trips.module";
 import { UsersModule } from "./modules/users/users.module";
 import { VehiclesModule } from "./modules/vehicles/vehicles.module";
+import { StorageModule } from "./storage/storage.module";
 
 @Module({
   imports: [
@@ -44,6 +48,10 @@ import { VehiclesModule } from "./modules/vehicles/vehicles.module";
     ExpensesModule,
     MaintenanceModule,
     TripsModule,
+    DocumentsModule,
+    AnalyticsModule,
+    SettingsModule,
+    StorageModule,
     DashboardModule,
     GeocodingModule,
     HealthModule,

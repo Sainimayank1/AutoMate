@@ -187,7 +187,7 @@ Nothing runs in the background yet, and Redis is optional (`REDIS_ENABLED=false`
 
 ## 11. File storage (strategy)
 
-Files (RC, insurance PDFs, PUC, invoices, receipts, photos) are stored in private object storage (Cloudflare R2, S3-compatible), never in PostgreSQL. `src/storage/storage.provider.ts` defines the contract and the `STORAGE_PROVIDER` injection token. The Documents module (M6) adds the R2 implementation and `STORAGE_ENDPOINT`.
+Files (RC, insurance PDFs, PUC, invoices, receipts, photos) are stored in private object storage (Cloudflare R2, S3-compatible), never in PostgreSQL. `src/storage/storage.provider.ts` defines the contract and the `STORAGE_PROVIDER` injection token; `StorageModule` binds the local provider (development and tests) or the R2/S3 one. As built for Documents: [documents.md §2](documents.md#2-files-and-storage).
 
 Planned flow:
 
@@ -197,7 +197,7 @@ Planned flow:
 4. The client confirms. The API checks the object exists and its size, sniffs the real type with `file-type`, and stores metadata (key, size, MIME type, checksum, owner) in PostgreSQL. Images are resized with `sharp` asynchronously.
 5. Downloads go through the API: ownership check, then a presigned GET URL valid for a few minutes. Buckets are never public.
 
-There is no upload endpoint in Phase 0.
+Built with Documents (M6); a presigned PUT can't cap the size, so step 4 re-checks it, and the real type is checked by its first bytes (`src/storage/file-signature.ts`) for the five allowed types. Image resizing isn't built.
 
 ## 12. Testing
 

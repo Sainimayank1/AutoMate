@@ -1,6 +1,6 @@
 import { type LoginInput, loginSchema, type LoginValues } from "@automate/shared";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Gauge, ShieldCheck, Sparkles } from "lucide-react";
+import { Gauge, ShieldCheck, Wrench } from "lucide-react";
 import { Controller, useForm } from "react-hook-form";
 import { Link } from "react-router";
 
@@ -42,7 +42,7 @@ export function Component() {
       highlights={[
         { icon: Gauge, text: "Verified full-tank mileage and cost-per-km tracking" },
         { icon: ShieldCheck, text: "RC, insurance and PUC in one place, with expiry alerts" },
-        { icon: Sparkles, text: "An AI assistant grounded in your own service history", ai: true },
+        { icon: Wrench, text: "Service due by date or km, whichever comes first" },
       ]}
       footer="AutoMate India"
     >

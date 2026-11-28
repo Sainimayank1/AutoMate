@@ -2,11 +2,14 @@ import {
   type ActivityItem,
   ExpenseKind,
   ExpenseSource,
+  istToday,
   type ServiceRecord,
   type Trip,
   tripLabel,
+  type VehicleDocument,
 } from "@automate/shared";
 
+import { day as formatDay } from "@/common/format";
 import type { ExpenseWithCategories } from "@/modules/expenses/expenses.mapper";
 
 /** An activity item with what it sorts by. */
@@ -79,6 +82,21 @@ export function tripActivity(trip: Trip): Dated {
     odometerKm: trip.endKm,
     href: `/trips/${trip.id}`,
     createdAt: trip.createdAt,
+  };
+}
+
+/** A document added, on the day it was added (IST). */
+export function documentActivity(document: VehicleDocument): Dated {
+  return {
+    id: `document:${document.id}`,
+    kind: "document",
+    date: istToday(new Date(document.createdAt)),
+    title: `Added ${document.name}`,
+    detail: document.expiryDate ? `Expires ${formatDay(document.expiryDate)}` : document.number,
+    amount: null,
+    odometerKm: null,
+    href: `/documents/${document.id}`,
+    createdAt: document.createdAt,
   };
 }
 

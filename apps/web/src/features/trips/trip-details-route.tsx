@@ -1,4 +1,4 @@
-import { tripLabel } from "@automate/shared";
+import { tripDays, tripLabel } from "@automate/shared";
 import { ArrowLeft, Copy, MoreVertical, Pencil, SearchX, Trash2 } from "lucide-react";
 import { type ReactNode, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router";
@@ -18,7 +18,11 @@ import {
 import { Skeleton } from "@/components/ui/skeleton";
 import { vehicleName } from "@/features/garage/constants";
 import { useVehicles } from "@/features/garage/hooks/use-vehicles";
+import { ItineraryTimeline } from "@/features/trips/components/itinerary-timeline";
+import { JourneyPoint } from "@/features/trips/components/journey-point";
 import { LazyTripMap } from "@/features/trips/components/lazy-trip-map";
+import { PlannedVsActual } from "@/features/trips/components/planned-vs-actual";
+import { RoadTripSummary } from "@/features/trips/components/road-trip-summary";
 import type { MapPlace } from "@/features/trips/components/trip-map";
 import { CostsCard, FuelCard, SpendingCard } from "@/features/trips/components/trip-money";
 import { METHOD_LABELS } from "@/features/trips/constants";
@@ -86,6 +90,7 @@ export function Component() {
   ].filter((place): place is MapPlace => !!place);
   // An archived vehicle's trips are read-only (the API refuses changes).
   const readOnly = !!vehicle?.archivedAt;
+  const multiDay = tripDays(trip.date, trip.endDate) > 1;
   const speed =
     trip.durationMinutes && trip.durationMinutes > 0
       ? Math.round(Number(trip.distanceKm) / (trip.durationMinutes / 60))
@@ -175,47 +180,68 @@ export function Component() {
         </Stat>
       </section>
 
-      <SpendingCard trip={trip} />
+      {trip.plan ? (
+        <div className="grid items-start gap-6 lg:grid-cols-12">
+          <div className="lg:col-span-5">
+            <SpendingCard trip={trip} />
+          </div>
+          <div className="lg:col-span-7">
+            <PlannedVsActual trip={trip} />
+          </div>
+        </div>
+      ) : (
+        <SpendingCard trip={trip} />
+      )}
+      {multiDay && <RoadTripSummary trip={trip} />}
 
       <div className="grid items-start gap-6 lg:grid-cols-12">
         <div className="flex flex-col gap-6 lg:col-span-8">
           <Card>
-            <CardHeader>
+            <CardHeader className="flex flex-row items-center justify-between gap-2">
               <CardTitle>Journey</CardTitle>
+              {multiDay && !readOnly && (
+                <Button variant="link" size="sm" asChild className="h-auto p-0">
+                  <Link to={`/trips/${trip.id}/itinerary`}>Edit itinerary</Link>
+                </Button>
+              )}
             </CardHeader>
             <CardContent className="flex flex-col gap-4">
               {pinned.length > 0 && <LazyTripMap places={pinned} geometry={trip.route?.geometry} />}
-              <ol className="relative flex flex-col gap-6 border-l pl-6">
-                <JourneyPoint
-                  label={trip.origin ?? "Start not recorded"}
-                  detail={[formatDate(trip.date), trip.startTime].filter(Boolean).join(" · ")}
-                  tone="muted"
-                />
-                {trip.stops.map((stop, index) => (
+              {multiDay ? (
+                <ItineraryTimeline trip={trip} />
+              ) : (
+                <ol className="relative flex flex-col gap-6 border-l pl-6">
                   <JourneyPoint
-                    key={stop.id}
-                    label={`${index + 1}. ${stop.label}`}
-                    detail={[
-                      stop.arrivalTime && `arrived ${stop.arrivalTime}`,
-                      stop.departureTime && `left ${stop.departureTime}`,
-                    ]
-                      .filter(Boolean)
-                      .join(" · ")}
+                    label={trip.origin ?? "Start not recorded"}
+                    detail={[formatDate(trip.date), trip.startTime].filter(Boolean).join(" · ")}
                     tone="muted"
                   />
-                ))}
-                <li className="-ml-6 pl-6 text-sm text-muted-foreground tabular-nums">
-                  {formatDistance(trip.distanceKm)}
-                  {trip.route && ` · ${durationText(trip.route.durationMinutes)} by road`}
-                </li>
-                <JourneyPoint
-                  label={trip.destination ?? "End not recorded"}
-                  detail={[formatDate(trip.endDate ?? trip.date), trip.endTime]
-                    .filter(Boolean)
-                    .join(" · ")}
-                  tone="primary"
-                />
-              </ol>
+                  {trip.stops.map((stop, index) => (
+                    <JourneyPoint
+                      key={stop.id}
+                      label={`${index + 1}. ${stop.label}`}
+                      detail={[
+                        stop.arrivalTime && `arrived ${stop.arrivalTime}`,
+                        stop.departureTime && `left ${stop.departureTime}`,
+                      ]
+                        .filter(Boolean)
+                        .join(" · ")}
+                      tone="muted"
+                    />
+                  ))}
+                  <li className="-ml-6 pl-6 text-sm text-muted-foreground tabular-nums">
+                    {formatDistance(trip.distanceKm)}
+                    {trip.route && ` · ${durationText(trip.route.durationMinutes)} by road`}
+                  </li>
+                  <JourneyPoint
+                    label={trip.destination ?? "End not recorded"}
+                    detail={[formatDate(trip.endDate ?? trip.date), trip.endTime]
+                      .filter(Boolean)
+                      .join(" · ")}
+                    tone="primary"
+                  />
+                </ol>
+              )}
               <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-muted-foreground">
                 <span>
                   {trip.route
@@ -298,27 +324,6 @@ function Stat({
       <span className="font-heading text-xl font-semibold tabular-nums">{children}</span>
       {caption && <span className="text-xs text-muted-foreground">{caption}</span>}
     </div>
-  );
-}
-
-function JourneyPoint({
-  label,
-  detail,
-  tone,
-}: {
-  label: string;
-  detail: string;
-  tone: "muted" | "primary";
-}) {
-  return (
-    <li className="relative">
-      <span
-        aria-hidden
-        className={`absolute top-1.5 -left-[1.85rem] size-3 rounded-full ring-4 ring-card ${tone === "primary" ? "bg-primary" : "bg-muted-foreground"}`}
-      />
-      <p className="font-medium">{label}</p>
-      <p className="text-sm text-muted-foreground tabular-nums">{detail}</p>
-    </li>
   );
 }
 

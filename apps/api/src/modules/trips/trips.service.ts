@@ -5,8 +5,10 @@ import {
   type CreateTripValues,
   type DateWindow,
   type DrivingTrips,
+  istToday,
   pageMeta,
   type PaginationQuery,
+  planBudget,
   ReportingPeriod,
   resolvePeriod,
   type RoutePoint,
@@ -44,7 +46,15 @@ import { RoutingService } from "@/modules/geocoding/routing.service";
 import { OdometerHistoryService } from "@/modules/vehicles/odometer-history.service";
 import { VehiclesService } from "@/modules/vehicles/vehicles.service";
 
-import { asTripInput, isoDate, toDbDate, toTrip, TRIP_INCLUDE, type TripRow } from "./trip.mapper";
+import {
+  asTripInput,
+  isoDate,
+  planEstimates,
+  toDbDate,
+  toTrip,
+  TRIP_INCLUDE,
+  type TripRow,
+} from "./trip.mapper";
 import { bucketStart, bucketStarts, chooseGranularity, tripsPerWeek } from "./trip-overview";
 
 const NOT_FOUND = "Trip not found";
@@ -203,11 +213,10 @@ export class TripsService {
     });
     if (!before) throw new NotFoundException(NOT_FOUND);
     const values = merged(before, input);
-    const placesChanged = PLACE_KEYS.some((key) => input[key] !== undefined);
     const route =
       values.method !== "ROUTE"
         ? null
-        : before.method === "ROUTE" && !placesChanged
+        : keepsRoute(before, values, input.routeIndex)
           ? storedRoute(before)
           : await this.routeFor(values);
     await this.prisma.$transaction(async (tx) => {
@@ -355,7 +364,8 @@ export class TripsService {
       status: "COMPLETED",
       date: { gte: toDbDate(window.from)!, lte: toDbDate(window.to)! },
     };
-    const [any, totals, longest, groups] = await Promise.all([
+    const today = toDbDate(istToday(new Date()))!;
+    const [any, totals, longest, groups, next] = await Promise.all([
       this.prisma.trip.findFirst({
         where: { userId, vehicleId, status: "COMPLETED" },
         select: { id: true },
@@ -368,8 +378,19 @@ export class TripsService {
         _count: true,
         _sum: { distanceKm: true },
       }),
+      // The next plan that hasn't ended (one under way counts), soonest first.
+      this.prisma.trip.findFirst({
+        where: {
+          userId,
+          vehicleId,
+          status: { in: ["DRAFT", "PLANNED"] },
+          OR: [{ date: { gte: today } }, { endDate: { gte: today } }],
+        },
+        include: TRIP_INCLUDE,
+        orderBy: [{ date: "asc" }, { startTime: { sort: "asc", nulls: "last" } }, { id: "asc" }],
+      }),
     ]);
-    if (!any) return null;
+    if (!any && !next) return null;
     const distance = totals._sum.distanceKm ?? new Prisma.Decimal(0);
     return {
       count: totals._count,
@@ -381,6 +402,14 @@ export class TripsService {
         name,
         distanceKm,
       })),
+      nextPlan: next && {
+        id: next.id,
+        label: tripLabel(next),
+        date: isoDate(next.date),
+        endDate: next.endDate ? isoDate(next.endDate) : null,
+        plannedDistanceKm: next.plannedDistanceKm?.toFixed(1) ?? null,
+        budget: planBudget(planEstimates(next)).total,
+      },
     };
   }
 
@@ -537,6 +566,8 @@ export class TripsService {
         arrivalTime: stop.arrivalTime ?? null,
         departureTime: stop.departureTime ?? null,
         notes: stop.notes ?? null,
+        day: stop.day ?? null,
+        overnight: stop.overnight ?? false,
       })),
     });
   }
@@ -702,16 +733,19 @@ export type StoredRoute = {
 };
 type TripStopValues = NonNullable<CreateTripValues["stops"]>[number];
 
-/** What a PATCH can touch that changes the route. */
-export const PLACE_KEYS = [
-  "method",
-  "originLat",
-  "originLng",
-  "destinationLat",
-  "destinationLng",
-  "stops",
-  "routeIndex",
-] as const satisfies readonly (keyof UpdateTripValues)[];
+/**
+ * A route trip edited without moving its places (or picking another option) keeps its stored
+ * route: an itinerary or notes change never calls the provider.
+ */
+export function keepsRoute(
+  before: TripRow,
+  values: RoutedPlaces,
+  routeIndex: number | undefined,
+): boolean {
+  if (before.method !== "ROUTE" || routeIndex !== undefined) return false;
+  const points = (places: RoutedPlaces) => JSON.stringify(routePoints(places));
+  return points(asTripInput(before)) === points(values);
+}
 
 /** Origin, the stops in order, destination (all pinned: checkTrip requires it for routes). */
 const routePoints = (values: RoutedPlaces): RoutePoint[] => [

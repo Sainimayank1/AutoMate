@@ -1,7 +1,7 @@
 import { LogOut, Settings } from "lucide-react";
 import { Link } from "react-router";
 
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -39,6 +39,7 @@ export function UserMenu() {
           aria-label="Account menu"
         >
           <Avatar className="size-8 md:size-7">
+            {user.avatarUrl && <AvatarImage src={user.avatarUrl} alt="" />}
             <AvatarFallback>{initials(user.name)}</AvatarFallback>
           </Avatar>
         </Button>

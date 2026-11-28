@@ -2,6 +2,7 @@ import {
   BudgetPeriod,
   BudgetState,
   CostClass,
+  ExpenseInsightKind,
   ExpenseKind,
   ExpenseSource,
   LoanMethod,
@@ -426,5 +427,110 @@ export const OWNERSHIP_COST_SCHEMA: Schema = {
     economicPerKm: { ...money("32.08"), nullable: true },
     months: { type: "string", example: "10.9" },
     perMonth: money("24837.65"),
+  },
+};
+
+/** OpenAPI shape of `ExpenseInsights` (@automate/shared). */
+export const EXPENSE_INSIGHTS_SCHEMA: Schema = {
+  type: "object",
+  properties: {
+    items: {
+      type: "array",
+      items: {
+        type: "object",
+        properties: {
+          id: { type: "string", example: "above:0190d4a2-…:2026-11" },
+          kind: { type: "string", enum: Object.values(ExpenseInsightKind) },
+          tone: { type: "string", enum: ["negative", "neutral"] },
+          title: { type: "string", example: "Daily usage is above its usual" },
+          explanation: {
+            type: "string",
+            example: "₹1,350.00 so far this month against ₹500.00 a month on average over Aug–Oct.",
+          },
+          metric: {
+            type: "object",
+            nullable: true,
+            properties: {
+              label: { type: "string", example: "This month so far" },
+              value: { type: "string", example: "₹1,350.00" },
+              compared: { type: "string", nullable: true, example: "₹500.00 a month usually" },
+            },
+          },
+          action: {
+            type: "object",
+            properties: {
+              label: { type: "string", example: "View transactions" },
+              href: { type: "string", example: "/expenses/transactions?category=…" },
+            },
+          },
+        },
+      },
+    },
+    monthsOfHistory: { type: "integer", example: 3 },
+  },
+};
+
+const IMPORT_ROW_SCHEMA: Schema = {
+  type: "object",
+  properties: {
+    line: { type: "integer", example: 14 },
+    date: { ...date("2026-11-21"), nullable: true },
+    title: { type: "string", example: "NH-48 FASTag" },
+    amount: { ...money("640.00"), nullable: true },
+    category: { type: "string", nullable: true, example: "Daily usage" },
+    status: { type: "string", enum: ["ready", "duplicate", "skipped", "error"] },
+    message: text("Looks like an expense already recorded (same day, amount and category)."),
+  },
+};
+
+/** OpenAPI shape of `ExpenseImportPreview` (@automate/shared). */
+export const EXPENSE_IMPORT_PREVIEW_SCHEMA: Schema = {
+  type: "object",
+  properties: {
+    counts: {
+      type: "object",
+      properties: {
+        ready: { type: "integer", example: 42 },
+        duplicate: { type: "integer", example: 2 },
+        skipped: { type: "integer", example: 6 },
+        error: { type: "integer", example: 1 },
+      },
+    },
+    rows: { type: "array", items: IMPORT_ROW_SCHEMA },
+  },
+};
+
+/** OpenAPI shape of `ExpenseImportResult` (@automate/shared). */
+export const EXPENSE_IMPORT_RESULT_SCHEMA: Schema = {
+  type: "object",
+  properties: {
+    imported: { type: "integer", example: 42 },
+    notImported: { type: "integer", example: 9 },
+  },
+};
+
+/** OpenAPI shape of `ExpenseReport` (@automate/shared). */
+export const EXPENSE_REPORT_SCHEMA: Schema = {
+  type: "object",
+  properties: {
+    ownership: OWNERSHIP_COST_SCHEMA,
+    categories: {
+      type: "array",
+      items: {
+        type: "object",
+        properties: {
+          category: CATEGORY_REF,
+          amount: money("23638.79"),
+          percent: { type: "number", example: 47.4 },
+        },
+      },
+    },
+    months: {
+      type: "array",
+      items: {
+        type: "object",
+        properties: { month: { type: "string", example: "2026-11" }, total: money("10718.21") },
+      },
+    },
   },
 };

@@ -84,6 +84,7 @@ export const testUser: UserProfile = {
   id: "0190d4a2-0000-7000-8000-000000000001",
   name: "Arjun Mehta",
   email: "arjun.mehta@example.in",
+  avatarUrl: null,
   createdAt: "2026-11-27T04:00:00.000Z",
 };
 

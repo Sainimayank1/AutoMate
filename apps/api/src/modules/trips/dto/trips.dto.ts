@@ -6,11 +6,13 @@ import {
   linkFuelEntrySchema,
   paginationQuerySchema,
   routeCalculateSchema,
+  tripAnalyticsQuerySchema,
   tripBulkSchema,
   tripCategoryFieldsSchema,
   tripCostListQuerySchema,
   tripCostSummaryQuerySchema,
   tripFiltersSchema,
+  tripImportSchema,
   tripListQuerySchema,
   tripOverviewQuerySchema,
   tripPlanListQuerySchema,
@@ -38,3 +40,5 @@ export class CreateTripPlanDto extends createZodDto(createTripPlanSchema) {}
 export class UpdateTripPlanDto extends createZodDto(updateTripPlanSchema) {}
 export class TripPlanListQueryDto extends createZodDto(tripPlanListQuerySchema) {}
 export class CompleteTripPlanDto extends createZodDto(completeTripPlanSchema) {}
+export class TripAnalyticsQueryDto extends createZodDto(tripAnalyticsQuerySchema) {}
+export class TripImportDto extends createZodDto(tripImportSchema) {}

@@ -9,7 +9,6 @@ AutoMate is a premium vehicle-ownership platform, not an expense tracker. The br
 ## Name
 
 - Always write **AutoMate**: capital A, capital M, one word. Never "Automate", "Auto Mate", "AUTOMATE" or "Auto-Mate".
-- The AI feature is "AutoMate Assistant" in marketing contexts and "AI Assistant" in navigation.
 
 ## Logo mark (from the Stitch design)
 
@@ -61,7 +60,7 @@ The full system is in `color-system.md`. The brand-level summary (dark theme, St
 | Graphite        | Canvas → raised surfaces                    | `#101419` → `#181C22` → `#1C2026` → `#262A30` |
 | Ice blue        | Primary accent (buttons, active nav, links) | `#89CEFF`                                     |
 | Brand cyan      | Logo and focus ring                         | `#0EA5E9`                                     |
-| Teal            | Intelligence and AI                         | `#4FDBC8`                                     |
+| Teal            | Insights                                    | `#4FDBC8`                                     |
 | Metallic silver | Neutral details, chart "Other"              | `#94A3B8`                                     |
 
 ## Iconography
@@ -72,20 +71,20 @@ The full system is in `color-system.md`. The brand-level summary (dark theme, St
 - Icon-only buttons always have an `aria-label` and a `Tooltip` on desktop. Decorative icons get `aria-hidden`.
 - **Canonical icons.** Never use two different icons for the same concept.
 
-| Concept               | Icon                                        | Concept                 | Icon                                                 |
-| --------------------- | ------------------------------------------- | ----------------------- | ---------------------------------------------------- |
-| Dashboard             | `LayoutDashboard`                           | Garage / vehicle        | `Car` (`CarFront` in the brand-adjacent empty state) |
-| Fuel                  | `Fuel`                                      | Expenses                | `ReceiptIndianRupee`                                 |
-| Maintenance / service | `Wrench`                                    | Documents               | `FileText`                                           |
-| Trips                 | `Map` (`Route` for a single trip)           | Analytics               | `ChartNoAxesCombined`                                |
-| AI Assistant          | `Bot`; AI-generated content uses `Sparkles` | Notifications           | `Bell`                                               |
-| Settings              | `Settings`                                  | Backup & Export         | `DatabaseBackup`                                     |
-| Odometer / health     | `Gauge`                                     | Money (generic)         | `IndianRupee`                                        |
-| Add                   | `Plus`                                      | More / overflow         | `Ellipsis`                                           |
-| Search                | `Search`                                    | Filters                 | `ListFilter`                                         |
-| Upload / download     | `Upload` / `Download`                       | Edit / delete / archive | `Pencil` / `Trash2` / `Archive`                      |
-| Date                  | `Calendar`                                  | Location / station      | `MapPin`                                             |
-| Secure vault          | `Lock`, `ShieldCheck`                       | Loan / EMI              | `Landmark`                                           |
+| Concept               | Icon                                           | Concept                 | Icon                                                 |
+| --------------------- | ---------------------------------------------- | ----------------------- | ---------------------------------------------------- |
+| Dashboard             | `LayoutDashboard`                              | Garage / vehicle        | `Car` (`CarFront` in the brand-adjacent empty state) |
+| Fuel                  | `Fuel`                                         | Expenses                | `ReceiptIndianRupee`                                 |
+| Maintenance / service | `Wrench`                                       | Documents               | `FileText`                                           |
+| Trips                 | `Map` (`Route` for a single trip)              | Analytics               | `ChartNoAxesCombined`                                |
+| Insights (rules)      | `Lightbulb`; never `Sparkles` (no AI features) | Notifications           | `Bell`                                               |
+| Settings              | `Settings`                                     | Backup & Export         | `DatabaseBackup`                                     |
+| Odometer / health     | `Gauge`                                        | Money (generic)         | `IndianRupee`                                        |
+| Add                   | `Plus`                                         | More / overflow         | `Ellipsis`                                           |
+| Search                | `Search`                                       | Filters                 | `ListFilter`                                         |
+| Upload / download     | `Upload` / `Download`                          | Edit / delete / archive | `Pencil` / `Trash2` / `Archive`                      |
+| Date                  | `Calendar`                                     | Location / station      | `MapPin`                                             |
+| Secure vault          | `Lock`, `ShieldCheck`                          | Loan / EMI              | `Landmark`                                           |
 
 The module icons are defined in `apps/web/src/app/modules.ts`. That file is the single source; import them from there for nav-like uses.
 
@@ -107,4 +106,4 @@ The voice is that of a precise, calm co-pilot. Short, factual and helpful.
 - Empty states are encouraging, not cute: "No fuel entries yet. Add your first fill-up to start tracking mileage."
 - Use no exclamation marks except in onboarding completion (one, at most), no emoji, no slang, no ALL CAPS sentences.
 - Address the user as "you". Use their first name in the dashboard greeting only: "Good morning, Aarav" (morning < 12:00, afternoon < 17:00, otherwise evening).
-- AI copy is clearly attributed: "Suggested by AutoMate AI". Recorded figures say where they come from: "From 12 full-tank fills".
+- Recorded figures say where they come from: "From 12 full-tank fills"; rule-based insights say "rules, not AI".

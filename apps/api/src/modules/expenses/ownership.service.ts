@@ -1,5 +1,6 @@
 import {
   CostClass,
+  type ExpenseReport,
   istToday,
   type OwnershipCost,
   type OwnershipQuery,
@@ -32,6 +33,46 @@ export class OwnershipService {
     private readonly vehicles: VehiclesService,
     private readonly figures: ExpenseFiguresService,
   ) {}
+
+  /** The ownership figures with spending by category (largest first) and by month. */
+  async report(userId: string, query: OwnershipQuery): Promise<ExpenseReport> {
+    const ownership = await this.cost(userId, query);
+    const rows = await this.figures.byCategory(userId, query.vehicleId, ownership.window, true);
+    const byCategory = new Map<
+      string,
+      { category: ExpenseReport["categories"][number]["category"]; amount: Prisma.Decimal }
+    >();
+    const byMonth = new Map<string, Prisma.Decimal>();
+    for (const row of rows) {
+      const entry = byCategory.get(row.category.id) ?? {
+        category: row.category,
+        amount: new Prisma.Decimal(0),
+      };
+      entry.amount = entry.amount.plus(row.total);
+      byCategory.set(row.category.id, entry);
+      byMonth.set(row.month!, (byMonth.get(row.month!) ?? new Prisma.Decimal(0)).plus(row.total));
+    }
+    const total = [...byCategory.values()].reduce(
+      (sum, entry) => sum.plus(entry.amount),
+      new Prisma.Decimal(0),
+    );
+    return {
+      ownership,
+      categories: [...byCategory.values()]
+        .filter((entry) => !entry.amount.isZero())
+        .sort((a, b) => b.amount.comparedTo(a.amount))
+        .map((entry) => ({
+          category: entry.category,
+          amount: money(entry.amount),
+          percent: total.gt(0)
+            ? entry.amount.div(total).times(100).toDecimalPlaces(1).toNumber()
+            : 0,
+        })),
+      months: [...byMonth.entries()]
+        .sort(([a], [b]) => a.localeCompare(b))
+        .map(([month, sum]) => ({ month, total: money(sum) })),
+    };
+  }
 
   async cost(userId: string, { vehicleId, period }: OwnershipQuery): Promise<OwnershipCost> {
     const vehicle = await this.vehicles.get(userId, vehicleId);

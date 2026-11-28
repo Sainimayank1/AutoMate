@@ -96,7 +96,13 @@ describe("registration", () => {
   });
 
   it("creates the account, signs in and opens the dashboard", async () => {
-    mockApi((config) => (config.url === "/vehicles" ? okPage([]) : ok(testSession(), 201)));
+    mockApi((config) =>
+      config.url === "/vehicles"
+        ? okPage([])
+        : config.url === "/users/me/preferences"
+          ? fail(404, "NOT_FOUND", "Not found")
+          : ok(testSession(), 201),
+    );
     const router = renderApp("/register");
     const user = userEvent.setup();
 

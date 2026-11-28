@@ -6,10 +6,18 @@ import type {
   Expense,
   ExpenseCategory,
   ExpenseDetail,
+  ExpenseImportPreview,
+  ExpenseImportResult,
+  ExpenseImportValues,
+  ExpenseInsights,
+  ExpenseInsightsQuery,
   ExpenseListQuery,
+  ExpenseReport,
   ExpenseSummary,
   ExpenseSummaryQuery,
   ExpenseTrend,
+  OwnershipCost,
+  OwnershipQuery,
   UpdateExpenseCategoryValues,
   UpdateExpenseValues,
 } from "@automate/shared";
@@ -29,6 +37,23 @@ export const expenseService = {
     request<ExpenseSummary>({ url: "/expenses/summary", params }),
   /** The last 12 months by chart group, beside the same months a year earlier. */
   trend: (params: ExpenseSummaryQuery) => request<ExpenseTrend>({ url: "/expenses/trend", params }),
+  /** Operating, cash outflow and economic ownership cost of one vehicle over a period. */
+  /** Budgets past their limit, categories above their usual, duplicates and large one-offs. */
+  insights: (params: ExpenseInsightsQuery) =>
+    request<ExpenseInsights>({ url: "/expenses/insights", params }),
+  /** A CSV checked row by row: counts and the rows that need a look. Nothing is saved. */
+  previewImport: (values: ExpenseImportValues) =>
+    request<ExpenseImportPreview>({
+      method: "POST",
+      url: "/expenses/import/preview",
+      data: values,
+    }),
+  import: (values: ExpenseImportValues) =>
+    request<ExpenseImportResult>({ method: "POST", url: "/expenses/import", data: values }),
+  /** The printable report's figures; its transactions come from `list`. */
+  report: (params: OwnershipQuery) => request<ExpenseReport>({ url: "/expenses/report", params }),
+  ownership: (params: OwnershipQuery) =>
+    request<OwnershipCost>({ url: "/expenses/ownership", params }),
   get: (id: string) => request<ExpenseDetail>({ url: `/expenses/${id}` }),
   create: (values: CreateExpenseValues) =>
     request<ExpenseDetail>({ method: "POST", url: "/expenses", data: values }),

@@ -55,6 +55,8 @@ export function toTrip(row: TripRow, actualCost: string | null = null): Trip {
       arrivalTime: stop.arrivalTime,
       departureTime: stop.departureTime,
       notes: stop.notes,
+      day: stop.day,
+      overnight: stop.overnight,
     })),
     route:
       row.routeProvider && row.routeGeometry
@@ -99,6 +101,8 @@ export function asTripInput(row: TripRow): CreateTripValues {
       arrivalTime: stop.arrivalTime,
       departureTime: stop.departureTime,
       notes: stop.notes,
+      day: stop.day,
+      overnight: stop.overnight,
     })),
     notes: row.notes,
   };

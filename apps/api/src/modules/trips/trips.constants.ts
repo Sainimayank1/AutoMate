@@ -185,3 +185,117 @@ export const ROUTE_RESULT_SCHEMA: Schema = {
     },
   },
 };
+
+const tripRef = {
+  type: "object",
+  nullable: true,
+  properties: { id: { type: "string", format: "uuid" }, label: { type: "string" } },
+} as const;
+const figures = {
+  type: "object",
+  properties: {
+    trips: { type: "integer", example: 18 },
+    distanceKm: { type: "string", example: "720.0" },
+    actualCost: { type: "string", nullable: true, example: "3040.00" },
+  },
+} as const;
+
+export const TRIP_ANALYTICS_SCHEMA: Schema = {
+  type: "object",
+  properties: {
+    vehicleId: { type: "string", format: "uuid", nullable: true },
+    current: figures,
+    previous: figures,
+    change: {
+      type: "object",
+      description: "Percent change; null when the previous figure was 0 or unknown",
+      properties: {
+        distance: { type: "integer", nullable: true, example: 15 },
+        trips: { type: "integer", nullable: true },
+        cost: { type: "integer", nullable: true },
+      },
+    },
+    distance: {
+      type: "object",
+      properties: {
+        averageKm: { type: "string", nullable: true },
+        perDayKm: { type: "string", nullable: true },
+        shortest: tripRef,
+        longest: tripRef,
+        bands: { type: "array", items: { type: "object" } },
+      },
+    },
+    time: { type: "object" },
+    cost: {
+      type: "object",
+      properties: {
+        actual: { type: "string", nullable: true },
+        perKm: { type: "string", nullable: true },
+        perTrip: { type: "string", nullable: true },
+        tripsWithCost: { type: "integer" },
+        fuelEstimate: {
+          type: "string",
+          nullable: true,
+          description: "An estimate from Fuel's figures, never counted as spending",
+        },
+      },
+    },
+    byVehicle: { type: "array", items: { type: "object" } },
+    topDestinations: { type: "array", items: { type: "object" } },
+    insights: {
+      type: "array",
+      items: {
+        type: "object",
+        properties: {
+          key: { type: "string", example: "long_trips" },
+          title: { type: "string", example: "3 trips of 100 km or more" },
+          detail: { type: "string" },
+          link: { type: "string", nullable: true },
+        },
+      },
+    },
+  },
+};
+
+const importRow: Schema = {
+  type: "object",
+  properties: {
+    line: { type: "integer", example: 4 },
+    date: { type: "string", format: "date", nullable: true },
+    label: { type: "string", example: "Gurugram → Jaipur" },
+    distanceKm: { type: "string", nullable: true, example: "268.0" },
+    status: { type: "string", enum: ["ready", "duplicate", "skipped", "error"] },
+    message: { type: "string", nullable: true },
+  },
+};
+
+export const TRIP_IMPORT_PREVIEW_SCHEMA: Schema = {
+  type: "object",
+  properties: {
+    counts: {
+      type: "object",
+      properties: {
+        ready: { type: "integer" },
+        duplicate: { type: "integer" },
+        skipped: { type: "integer" },
+        error: { type: "integer" },
+      },
+    },
+    rows: { type: "array", items: importRow },
+  },
+};
+
+export const TRIP_IMPORT_RESULT_SCHEMA: Schema = {
+  type: "object",
+  properties: {
+    imported: { type: "integer", example: 42 },
+    notImported: { type: "integer", example: 3 },
+    failed: {
+      type: "array",
+      items: {
+        type: "object",
+        properties: { line: { type: "integer" }, message: { type: "string" } },
+      },
+    },
+  },
+};

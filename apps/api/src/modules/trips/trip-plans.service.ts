@@ -1,16 +1,21 @@
 import { randomUUID } from "node:crypto";
 
 import {
+  addDays,
   type CompleteTripPlanValues,
   createTripPlanSchema,
   type CreateTripPlanValues,
   createTripSchema,
+  istToday,
   pageMeta,
   planBudget,
   type SystemTripCategoryKey,
   type Trip,
+  tripDays,
+  tripLabel,
   type TripPlan,
   type TripPlanListQuery,
+  type TripReminder,
   type UpdateTripPlanValues,
 } from "@automate/shared";
 import { ConflictException, Injectable, Logger, NotFoundException } from "@nestjs/common";
@@ -33,7 +38,7 @@ import {
   assertActive,
   columns,
   decimal,
-  PLACE_KEYS,
+  keepsRoute,
   type StoredRoute,
   storedRoute,
   TripsService,
@@ -119,11 +124,10 @@ export class TripPlansService {
   async update(userId: string, id: string, input: UpdateTripPlanValues): Promise<TripPlan> {
     const before = await this.owned(userId, id);
     const values = mergedPlan(before, input);
-    const placesChanged = PLACE_KEYS.some((key) => input[key] !== undefined);
     const route =
       values.method !== "ROUTE"
         ? null
-        : before.method === "ROUTE" && !placesChanged
+        : keepsRoute(before, values, input.routeIndex)
           ? storedRoute(before)
           : await this.trips.routeFor(values);
     await this.prisma.$transaction(async (tx) => {
@@ -196,6 +200,122 @@ export class TripPlansService {
     return this.trips.get(userId, id);
   }
 
+  /**
+   * The integration point for Notifications (M10), which will call it: plans leaving within
+   * `horizonDays`, plans whose last day has passed without being marked done, and planned or
+   * multi-day trips that ended in the last 7 days with no costs or fill-ups recorded. Archived
+   * vehicles are left out. Soonest departures first, then the rest by date.
+   */
+  async reminders(
+    userId: string,
+    { vehicleId, horizonDays = 7 }: { vehicleId?: string; horizonDays?: number },
+    now = new Date(),
+  ): Promise<TripReminder[]> {
+    const today = istToday(now);
+    const day = (date: string) => toDbDate(date)!;
+    const scope: Prisma.TripWhereInput = {
+      userId,
+      ...(vehicleId && { vehicleId }),
+      vehicle: { archivedAt: null },
+    };
+    const open = { in: ["DRAFT" as const, "PLANNED" as const] };
+    const select = {
+      id: true,
+      vehicleId: true,
+      date: true,
+      endDate: true,
+      title: true,
+      origin: true,
+      destination: true,
+      category: { select: { name: true } },
+    } as const;
+    const [leaving, passed, uncosted] = await Promise.all([
+      this.prisma.trip.findMany({
+        where: {
+          ...scope,
+          status: open,
+          date: { gte: day(today), lte: day(addDays(today, horizonDays)) },
+        },
+        select,
+        orderBy: [{ date: "asc" }, { id: "asc" }],
+      }),
+      this.prisma.trip.findMany({
+        where: {
+          ...scope,
+          status: open,
+          OR: [{ endDate: { lt: day(today) } }, { endDate: null, date: { lt: day(today) } }],
+        },
+        select,
+        orderBy: [{ date: "asc" }, { id: "asc" }],
+      }),
+      this.prisma.trip.findMany({
+        where: {
+          ...scope,
+          status: "COMPLETED",
+          costs: { none: {} },
+          fuelEntries: { none: {} },
+          // Multi-day (an end date is only stored when it differs) or planned.
+          AND: [
+            {
+              OR: [
+                { endDate: { gte: day(addDays(today, -7)), lte: day(today) } },
+                { endDate: null, date: { gte: day(addDays(today, -7)), lte: day(today) } },
+              ],
+            },
+            { OR: [{ endDate: { not: null } }, { plannedDistanceKm: { not: null } }] },
+          ],
+        },
+        select,
+        orderBy: [{ date: "asc" }, { id: "asc" }],
+      }),
+    ]);
+    const lastDay = (row: (typeof leaving)[number]) => isoDate(row.endDate ?? row.date);
+    const reminder = (
+      kind: TripReminder["kind"],
+      row: (typeof leaving)[number],
+      date: string,
+      days: number,
+      link: string,
+    ): TripReminder => ({
+      kind,
+      tripId: row.id,
+      vehicleId: row.vehicleId,
+      label: tripLabel(row),
+      date,
+      days,
+      link,
+    });
+    return [
+      ...leaving.map((row) =>
+        reminder(
+          "departure",
+          row,
+          isoDate(row.date),
+          tripDays(today, isoDate(row.date)) - 1,
+          `/trips/planner/${row.id}`,
+        ),
+      ),
+      ...passed.map((row) =>
+        reminder(
+          "unconfirmed",
+          row,
+          lastDay(row),
+          tripDays(lastDay(row), today) - 1,
+          `/trips/planner/${row.id}`,
+        ),
+      ),
+      ...uncosted.map((row) =>
+        reminder(
+          "add_costs",
+          row,
+          lastDay(row),
+          tripDays(lastDay(row), today) - 1,
+          `/trips/${row.id}`,
+        ),
+      ),
+    ];
+  }
+
   private async owned(userId: string, id: string) {
     const row = await this.prisma.trip.findFirst({
       where: { id, userId, status: { in: [...OPEN] } },
@@ -222,7 +342,7 @@ export class TripPlansService {
 }
 
 /** What a plan writes: no readings or actual distance; the planned distance is the route's. */
-function planColumns(values: CreateTripPlanValues, route: StoredRoute | null) {
+export function planColumns(values: CreateTripPlanValues, route: StoredRoute | null) {
   return {
     method: values.method ?? "DISTANCE",
     status: values.status ?? "PLANNED",
@@ -308,6 +428,8 @@ function toPlan(row: TripRow): TripPlan {
       arrivalTime: stop.arrivalTime,
       departureTime: stop.departureTime,
       notes: stop.notes,
+      day: stop.day,
+      overnight: stop.overnight,
     })),
     route:
       row.routeProvider && row.routeGeometry

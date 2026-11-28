@@ -6,7 +6,7 @@ Product requirements document · Modules, features, and functional scope
 
 **Objective:** Build a comprehensive car ownership application that helps users manage their vehicles, fuel consumption, maintenance, expenses, documents, trips, and overall cost of ownership from one platform.
 
-This document contains the 12 product modules and their functional requirements, plus cross-module requirements and development priority.
+This document contains the 11 product modules and their functional requirements, plus cross-module requirements and development priority. (Module 9, an AI car assistant, was dropped from scope; the other modules keep their numbers.)
 
 ## Contents
 
@@ -18,12 +18,11 @@ This document contains the 12 product modules and their functional requirements,
 6. [Documents & Reminders](#module-6--documents--reminders)
 7. [Trips & Journey Tracking](#module-7--trips--journey-tracking)
 8. [Analytics & Cost of Ownership](#module-8--analytics--cost-of-ownership)
-9. [AI Car Assistant](#module-9--ai-car-assistant)
-10. [Notifications Center](#module-10--notifications-center)
-11. [Settings & Personalization](#module-11--settings--personalization)
-12. [Backup, Import & Export](#module-12--backup-import--export)
-13. [Cross-module requirements](#13-cross-module-requirements)
-14. [Product development priority](#14-product-development-priority)
+9. [Notifications Center](#module-10--notifications-center)
+10. [Settings & Personalization](#module-11--settings--personalization)
+11. [Backup, Import & Export](#module-12--backup-import--export)
+12. [Cross-module requirements](#13-cross-module-requirements)
+13. [Product development priority](#14-product-development-priority)
 
 ---
 
@@ -275,7 +274,7 @@ Track all financial expenses related to vehicle ownership.
 
 Manage scheduled maintenance, component life, service history, and repair records.
 
-> **Build plan, rules and pending integrations** (Notifications, Documents/attachments, AI, Trips, Settings): [docs/architecture/maintenance.md](architecture/maintenance.md).
+> **Build plan, rules and pending integrations** (Notifications, Documents/attachments, Trips, Settings): [docs/architecture/maintenance.md](architecture/maintenance.md).
 
 ### A. Maintenance schedule
 
@@ -578,68 +577,6 @@ Provide a complete understanding of the cost, usage, and ownership economics of 
 
 ---
 
-## Module 9 — AI Car Assistant
-
-An AI assistant that understands the user's vehicle, actual records, driving history, expenses, and maintenance schedules.
-
-### A. General car assistance
-
-- Explain vehicle features.
-- Explain dashboard warning lights.
-- Explain automotive terminology.
-- Answer general car maintenance questions.
-- Explain service procedures at a high level.
-- Help prepare checklists.
-
-### B. Personal vehicle intelligence
-
-- Analyze fuel history.
-- Analyze mileage trends.
-- Summarize maintenance records.
-- Summarize expenses.
-- Answer questions about vehicle history.
-- Compare spending across months.
-- Identify unusual changes in recorded data.
-
-### C. Planning
-
-- Road-trip preparation.
-- Upcoming maintenance planning.
-- Vehicle maintenance budget.
-- Fuel budget estimates.
-- Long-trip checklist.
-- Seasonal vehicle preparation.
-
-### D. AI tools
-
-The assistant may have controlled access to backend tools such as:
-
-- Get vehicle profile
-- Get fuel history
-- Calculate mileage
-- Get expenses
-- Calculate monthly costs
-- Get service history
-- Get upcoming maintenance
-- Get documents and expiry dates
-- Get trips
-- Get ownership analytics
-
-### E. AI behaviour
-
-- Use actual records for personal-data answers.
-- Never invent user records.
-- Perform calculations through backend functions.
-- Explain uncertainty.
-- Ask clarification when records are insufficient.
-- Never provide definitive mechanical diagnoses.
-- Never make changes without user confirmation.
-- Keep conversations organized.
-- Support conversational context.
-- Allow conversation history and deletion.
-
----
-
 ## Module 10 — Notifications Center
 
 > **Dashboard:** when this module is built, add custom reminders and dismissal of informational items to the dashboard's action centre in the same change: [docs/architecture/dashboard.md §6](architecture/dashboard.md#6-pending-integrations-do-these-when-the-module-is-built).
@@ -657,7 +594,6 @@ Centralized notifications for all AutoMate modules.
 - Expense reminders
 - Trip reminders
 - Custom reminders
-- AI-generated insights (future)
 
 ### Features
 
@@ -801,6 +737,5 @@ Do not implement all modules at once. Follow this priority.
 | P1       | Notifications   | Timely reminders                  |
 | P2       | Analytics       | Deeper ownership insights         |
 | P2       | Trips           | Journey tracking                  |
-| P3       | AI assistant    | Personalized vehicle intelligence |
 | P3       | Settings        | Advanced personalization          |
 | P3       | Backup & Export | Portability and ownership reports |

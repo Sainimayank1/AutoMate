@@ -12,10 +12,13 @@ import {
   istToday,
   type PageMeta,
   type Trip,
+  type TripAnalytics,
   type TripCategory,
   type TripCost,
   type TripCostsSummary,
   type TripFuelEntry,
+  type TripImportPreview,
+  type TripImportResult,
   type TripOverview,
   type TripPlan,
   type TripSpending,
@@ -33,6 +36,8 @@ import { PrismaService } from "@/database/prisma.service";
 import { AuthService } from "@/modules/auth/auth.service";
 import { seedSystemExpenseCategories } from "@/modules/expenses/expense-categories.seed";
 import { ROUTE_UNAVAILABLE, RoutingService } from "@/modules/geocoding/routing.service";
+import { TripBackupService } from "@/modules/trips/trip-backup.service";
+import { TripPlansService } from "@/modules/trips/trip-plans.service";
 
 const DOMAIN = "trips.e2e.automate.test";
 
@@ -727,6 +732,424 @@ describe("Trips (e2e)", () => {
     await as(arjun)
       .post("/api/v1/trips/routes/calculate", { points: [{ latitude: 91, longitude: 0 }] })
       .expect(400);
+  });
+
+  it("keeps a road trip's days and nights, without re-routing when only they change", async () => {
+    const car = await vehicle(arjun, 70000);
+    const body = {
+      vehicleId: car.id,
+      method: "ROUTE",
+      categoryId: typeId("ROAD_TRIP"),
+      date: addDays(today, -6),
+      endDate: addDays(today, -4),
+      origin: "Hisar",
+      originLat: 29.1492,
+      originLng: 75.7217,
+      destination: "Manali",
+      destinationLat: 32.2432,
+      destinationLng: 77.1892,
+      stops: [
+        { label: "Chandigarh", latitude: 30.7333, longitude: 76.7794, day: 1, overnight: true },
+        { label: "Kullu", latitude: 31.9592, longitude: 77.1089, day: 2 },
+      ],
+    };
+    const created = dataOf<Trip>(await as(arjun).post("/api/v1/trips", body).expect(201));
+    expect(created.stops).toMatchObject([
+      { label: "Chandigarh", day: 1, overnight: true },
+      { label: "Kullu", day: 2, overnight: false },
+    ]);
+
+    // Moving Kullu's night and times keeps the stored route.
+    const calls = routing.calls;
+    const stops = [
+      body.stops[0],
+      { ...body.stops[1], overnight: true, arrivalTime: "15:00", departureTime: "16:30" },
+    ];
+    const moved = dataOf<Trip>(
+      await as(arjun).patch(`/api/v1/trips/${created.id}`, { stops }).expect(200),
+    );
+    expect(routing.calls).toBe(calls);
+    expect(moved).toMatchObject({ distanceKm: "300.0", stops: [{ day: 1 }, { overnight: true }] });
+
+    // A night on the last day, a day past the end, or days going back are refused.
+    const refused = async (patch: object, field: string) =>
+      expect(
+        errorOf(await as(arjun).patch(`/api/v1/trips/${created.id}`, patch).expect(400)).details,
+      ).toEqual(expect.arrayContaining([expect.objectContaining({ field })]));
+    await refused({ stops: [{ ...body.stops[0], day: 3, overnight: true }] }, "stops.0.overnight");
+    await refused({ endDate: addDays(today, -6) }, "endDate");
+    await refused(
+      {
+        stops: [
+          { ...body.stops[0], day: 2 },
+          { ...body.stops[1], day: 1 },
+        ],
+      },
+      "stops.1.day",
+    );
+  });
+
+  it("analyses a period against the one before, with insights from the records", async () => {
+    const car = await vehicle(arjun, 30000);
+    const quick = (date: string, distanceKm: string, key = "COMMUTE") =>
+      as(arjun)
+        .post("/api/v1/trips", {
+          ...trip(car.id),
+          method: "DISTANCE",
+          startKm: null,
+          endKm: null,
+          distanceKm,
+          date,
+          categoryId: typeId(key),
+          destination: "Jaipur",
+        })
+        .expect(201);
+    await quick(addDays(today, -40), "150", "ROAD_TRIP");
+    await quick(addDays(today, -35), "40");
+    await quick(addDays(today, -31), "40");
+    await quick(addDays(today, -45), "100");
+    const url = `/api/v1/trips/analytics?vehicleId=${car.id}&period=custom&from=${addDays(today, -40)}&to=${addDays(today, -31)}`;
+    const result = dataOf<TripAnalytics>(await as(arjun).get(url).expect(200));
+    expect(result).toMatchObject({
+      vehicleId: car.id,
+      current: { trips: 3, distanceKm: "230.0", actualCost: null },
+      previous: { trips: 1, distanceKm: "100.0" },
+      change: { distance: 130, trips: 200, cost: null },
+      distance: { shortest: { distanceKm: "40.0" }, longest: { distanceKm: "150.0" } },
+      byVehicle: [],
+      topDestinations: [{ destination: "Jaipur", trips: 3 }],
+    });
+    expect(result.insights.map((insight) => insight.key)).toEqual(
+      expect.arrayContaining(["distance_change", "long_trips"]),
+    );
+    // Plans never count.
+    await as(arjun)
+      .post("/api/v1/trip-plans", {
+        vehicleId: car.id,
+        categoryId: typeId("ROAD_TRIP"),
+        date: addDays(today, -35),
+        plannedDistanceKm: "500",
+      })
+      .expect(201);
+    expect(dataOf<TripAnalytics>(await as(arjun).get(url).expect(200)).current.trips).toBe(3);
+    await as(priya).get(url).expect(404);
+  });
+
+  it("shows the next plan on the dashboard and lists reminders for Notifications", async () => {
+    const car = await vehicle(arjun, 40000);
+    const plan = (overrides: object) =>
+      as(arjun)
+        .post("/api/v1/trip-plans", {
+          vehicleId: car.id,
+          categoryId: typeId("ROAD_TRIP"),
+          plannedDistanceKm: "540",
+          estToll: "1450",
+          ...overrides,
+        })
+        .expect(201)
+        .then((res) => dataOf<TripPlan>(res));
+    const drivingTrips = async () =>
+      dataOf<DashboardOverview>(
+        await as(arjun)
+          .get(`/api/v1/dashboard/overview?vehicleId=${car.id}&period=this_month`)
+          .expect(200),
+      ).driving;
+
+    // A plan alone already shows on the Driving card, with no trips counted.
+    const soon = await plan({ title: "Manali road trip", date: addDays(today, 3) });
+    expect(await drivingTrips()).toMatchObject({
+      state: "ok",
+      data: {
+        trips: {
+          count: 0,
+          nextPlan: { id: soon.id, label: "Manali road trip", budget: "1450.00" },
+        },
+      },
+    });
+    await plan({ title: "Later", date: addDays(today, 20) });
+    const missed = await plan({ title: "Jaipur visit", status: "DRAFT", date: addDays(today, -2) });
+    const roadTrip = dataOf<Trip>(
+      await as(arjun)
+        .post(
+          "/api/v1/trips",
+          trip(car.id, {
+            method: "DISTANCE",
+            startKm: null,
+            endKm: null,
+            distanceKm: "300",
+            title: "Weekend loop",
+            date: addDays(today, -2),
+            endDate: addDays(today, -1),
+          }),
+        )
+        .expect(201),
+    );
+    // A same-day, unplanned trip needs no costs reminder.
+    await as(arjun)
+      .post(
+        "/api/v1/trips",
+        trip(car.id, { date: addDays(today, -1), startKm: 40000, endKm: 40020 }),
+      )
+      .expect(201);
+
+    const userId = (await prisma.trip.findUniqueOrThrow({ where: { id: soon.id } })).userId;
+    const reminders = await app.get(TripPlansService).reminders(userId, { vehicleId: car.id });
+    expect(reminders).toEqual([
+      expect.objectContaining({
+        kind: "departure",
+        tripId: soon.id,
+        days: 3,
+        link: `/trips/planner/${soon.id}`,
+      }),
+      expect.objectContaining({
+        kind: "unconfirmed",
+        tripId: missed.id,
+        label: "Jaipur visit",
+        days: 2,
+      }),
+      expect.objectContaining({
+        kind: "add_costs",
+        tripId: roadTrip.id,
+        days: 1,
+        link: `/trips/${roadTrip.id}`,
+      }),
+    ]);
+    // A cost recorded clears the costs reminder.
+    await as(arjun)
+      .post(`/api/v1/trips/${roadTrip.id}/costs`, {
+        category: "TOLL",
+        amount: "320",
+        date: addDays(today, -2),
+      })
+      .expect(201);
+    expect(
+      (await app.get(TripPlansService).reminders(userId, { vehicleId: car.id })).map(
+        (reminder) => reminder.kind,
+      ),
+    ).toEqual(["departure", "unconfirmed"]);
+  });
+
+  describe("import and backup", () => {
+    const indian = (date: string) => `${date.slice(8, 10)}/${date.slice(5, 7)}/${date.slice(0, 4)}`;
+    const fillUp = async (vehicleId: string, odometerKm: number) =>
+      dataOf<{ id: string }>(
+        await as(arjun)
+          .post(`/api/v1/vehicles/${vehicleId}/fuel-entries`, {
+            filledAt: new Date().toISOString(),
+            odometerKm,
+            fuelType: "PETROL",
+            quantity: "7.6",
+            pricePerUnit: "105.26",
+            totalAmount: "800",
+            isFullTank: false,
+          })
+          .expect(201),
+      ).id;
+
+    it("imports a CSV through its column mapping, after a preview that saves nothing", async () => {
+      const car = await vehicle(arjun, 10000);
+      await as(arjun)
+        .post(
+          "/api/v1/trips",
+          trip(car.id, { date: addDays(today, -10), startKm: 9900, endKm: 10000 }),
+        )
+        .expect(201);
+      const csv = [
+        "When,Kind,Origin,Dest,Start,End,KM,Remarks",
+        `${indian(addDays(today, -9))},Commute,Home,Office,"10,000","10,020",,`,
+        `${indian(addDays(today, -8))},,Home,Mall,,,15.5 km,weekend`,
+        `${addDays(today, -10)},Road trip,,,,,100,`,
+        `${indian(addDays(today, -7))},Spaceflight,,,,,5,`,
+        `${indian(addDays(today, -6))},Commute,,,10010,10030,,`,
+        `${indian(addDays(today, -5))},,,,,,abc,`,
+      ].join("\n");
+      const body = {
+        vehicleId: car.id,
+        csv,
+        columns: {
+          date: "When",
+          type: "Kind",
+          origin: "Origin",
+          destination: "Dest",
+          startKm: "Start",
+          endKm: "End",
+          distanceKm: "KM",
+          notes: "Remarks",
+        },
+      };
+      const preview = dataOf<TripImportPreview>(
+        await as(arjun).post("/api/v1/trips/import/preview", body).expect(200),
+      );
+      expect(preview.counts).toEqual({ ready: 2, duplicate: 1, skipped: 0, error: 3 });
+      const line = (number: number) => preview.rows.find((row) => row.line === number);
+      expect(line(4)?.status).toBe("duplicate");
+      expect(line(5)?.status).toBe("error");
+      expect(line(5)?.message).toContain("Spaceflight");
+      // Its start is below line 2's end: checked against the rows before it, not only the history.
+      expect(line(6)?.status).toBe("error");
+      expect(line(6)?.message).toContain("Lower than");
+      expect(line(7)?.status).toBe("error");
+      expect(line(2)).toMatchObject({ status: "ready", label: "Home → Office", distanceKm: "20" });
+      // The preview saved nothing.
+      expect(
+        metaOf(await as(arjun).get(`/api/v1/trips?vehicleId=${car.id}`).expect(200))?.total,
+      ).toBe(1);
+      expect(await odometerKmOf(arjun, car.id)).toBe(10000);
+
+      const result = dataOf<TripImportResult>(
+        await as(arjun).post("/api/v1/trips/import", body).expect(201),
+      );
+      expect(result).toMatchObject({ imported: 2, notImported: 4 });
+      expect(result.failed.map((row) => row.line)).toEqual([6]);
+      const trips = dataOf<Trip[]>(
+        await as(arjun).get(`/api/v1/trips?vehicleId=${car.id}`).expect(200),
+      );
+      expect(trips).toHaveLength(3);
+      expect(trips.find((row) => row.destination === "Mall")).toMatchObject({
+        method: "DISTANCE",
+        distanceKm: "15.5",
+        category: { key: "OTHER" },
+        notes: "weekend",
+      });
+      expect(await odometerKmOf(arjun, car.id)).toBe(10020);
+
+      await as(arjun)
+        .post("/api/v1/trips/import/preview", { ...body, columns: { date: "When" } })
+        .expect(400);
+      await as(arjun)
+        .post("/api/v1/trips/import/preview", {
+          ...body,
+          columns: { date: "Nope", distanceKm: "KM" },
+        })
+        .expect(400);
+      await as(priya).post("/api/v1/trips/import/preview", body).expect(404);
+    });
+
+    it("backs a vehicle's trips up and restores them under another vehicle", async () => {
+      const car = await vehicle(arjun, 20000);
+      const pilgrimage = dataOf<TripCategory>(
+        await as(arjun)
+          .post("/api/v1/trip-categories", { name: `Pilgrimage ${randomUUID().slice(0, 6)}` })
+          .expect(201),
+      );
+      const done = dataOf<Trip>(
+        await as(arjun)
+          .post(
+            "/api/v1/trips",
+            trip(car.id, {
+              date: addDays(today, -4),
+              endDate: addDays(today, -2),
+              startKm: 20000,
+              endKm: 20600,
+              stops: [{ label: "Chandigarh", day: 1, overnight: true }],
+            }),
+          )
+          .expect(201),
+      );
+      await as(arjun)
+        .post(`/api/v1/trips/${done.id}/costs`, {
+          category: "TOLL",
+          amount: "320",
+          date: addDays(today, -4),
+        })
+        .expect(201);
+      await as(arjun)
+        .post(`/api/v1/trips/${done.id}/costs`, {
+          category: "FOOD",
+          amount: "540",
+          date: addDays(today, -3),
+        })
+        .expect(201);
+      const fuelId = await fillUp(car.id, 20300);
+      await as(arjun)
+        .post(`/api/v1/trips/${done.id}/fuel-entries`, { fuelEntryId: fuelId })
+        .expect(204);
+      await as(arjun)
+        .post(
+          "/api/v1/trips",
+          trip(car.id, {
+            method: "DISTANCE",
+            startKm: null,
+            endKm: null,
+            distanceKm: "80",
+            categoryId: pilgrimage.id,
+            date: addDays(today, -1),
+          }),
+        )
+        .expect(201);
+      const plan = dataOf<TripPlan>(
+        await as(arjun)
+          .post("/api/v1/trip-plans", {
+            vehicleId: car.id,
+            categoryId: typeId("ROAD_TRIP"),
+            date: addDays(today, 30),
+            plannedDistanceKm: "540",
+            estToll: "1450",
+          })
+          .expect(201),
+      );
+      await as(arjun).post(`/api/v1/trip-plans/${plan.id}/cancel`).expect(200);
+
+      const userId = (await prisma.trip.findUniqueOrThrow({ where: { id: done.id } })).userId;
+      const backup = app.get(TripBackupService);
+      const rows = await backup.backupRows(userId, car.id);
+      expect(rows.map((row) => [row.version, row.status])).toEqual([
+        [1, "COMPLETED"],
+        [1, "COMPLETED"],
+        [1, "CANCELLED"],
+      ]);
+      expect(rows[0]).toMatchObject({
+        stops: [{ label: "Chandigarh", day: 1, overnight: true }],
+        costs: [
+          { category: "TOLL", amount: "320.00" },
+          { category: "FOOD", amount: "540.00" },
+        ],
+        fuelEntryIds: [fuelId],
+      });
+      // A JSON round trip, as a backup file would make.
+      const fromFile = JSON.parse(JSON.stringify(rows)) as typeof rows;
+
+      const copy = await vehicle(arjun, 20000);
+      const copiedFuel = await fillUp(copy.id, 20300);
+      const outcome = await prisma.$transaction((tx) =>
+        backup.restoreRows(
+          tx,
+          userId,
+          copy.id,
+          [
+            ...fromFile,
+            { ...fromFile[1]!, version: 99 },
+            { ...fromFile[1]!, distanceKm: null, method: "DISTANCE" },
+          ],
+          { fuelEntryIds: new Map([[fuelId, copiedFuel]]) },
+        ),
+      );
+      expect(outcome).toEqual({
+        restored: 3,
+        skipped: [
+          { index: 3, reason: "Made by a newer version of AutoMate" },
+          { index: 4, reason: "Enter the distance in km" },
+        ],
+      });
+      const restored = dataOf<Trip[]>(
+        await as(arjun).get(`/api/v1/trips?vehicleId=${copy.id}&sort=oldest`).expect(200),
+      );
+      expect(restored.map((row) => row.category.name)).toEqual(["Road trip", pilgrimage.name]);
+      expect(restored[0]!.id).not.toBe(done.id);
+      expect(restored[0]).toMatchObject({
+        distanceKm: "600.0",
+        stops: [{ day: 1, overnight: true }],
+      });
+      // Toll comes back with its expense; food stays with the trip; the fill-up is linked again.
+      expect(await prisma.expense.count({ where: { vehicleId: copy.id, source: "TRIP" } })).toBe(1);
+      expect((await prisma.fuelEntry.findUniqueOrThrow({ where: { id: copiedFuel } })).tripId).toBe(
+        restored[0]!.id,
+      );
+      const cancelled = dataOf<TripPlan[]>(
+        await as(arjun).get(`/api/v1/trip-plans?vehicleId=${copy.id}&view=cancelled`).expect(200),
+      );
+      expect(cancelled).toMatchObject([{ status: "CANCELLED", budget: { total: "1450.00" } }]);
+    });
   });
 
   it("keeps the system trip types and the user's own, unique by name", async () => {

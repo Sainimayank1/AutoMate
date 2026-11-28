@@ -1,5 +1,7 @@
 import {
   type ActionItem,
+  DocumentState,
+  DocumentType,
   type ExpiryItem,
   PaymentState,
   type RecurringPayment,
@@ -7,12 +9,12 @@ import {
   type StatusSeverity,
   type UntrackedArea,
   type Vehicle,
+  type VehicleDocument,
   type VehicleStatus,
 } from "@automate/shared";
 
+import { day, km, rupees } from "@/common/format";
 import { Prisma } from "@/generated/prisma/client";
-
-import { day, km, rupees } from "./format";
 
 /** Expiring soon (design skill: documents ≤ 30 days are a warning). */
 export const EXPIRING_DAYS = 30;
@@ -31,35 +33,42 @@ export type InsuranceOnRecord = { expenseId: string; paidOn: string; policyEnd: 
 
 /**
  * The status panel (docs/architecture/dashboard.md §1): only facts from records the user keeps.
- * Maintenance counts as tracked only while the vehicle has an active schedule; documents aren't
- * tracked yet. While anything is untracked the vehicle is never called healthy.
+ * Maintenance counts as tracked only while the vehicle has an active schedule, documents once it
+ * has one. While anything is untracked the vehicle is never called healthy. The insurance payment
+ * and the vehicle's warranty stand in until the vehicle has that document.
  */
 export function vehicleStatus({
   vehicle,
   insurance,
   maintenance,
   payments = [],
+  documents = [],
   today,
 }: {
   vehicle: Vehicle;
   insurance: InsuranceOnRecord | null;
+  /** The vehicle's documents (Documents): expired and expiring ones become items. */
+  documents?: VehicleDocument[];
   /** Recurring payments and EMIs (Expenses): only due and overdue ones become items. */
   payments?: RecurringPayment[];
   /** From MaintenanceService.snapshot().status: due and overdue schedules; tracked = has an active one. */
   maintenance: { items: StatusItem[]; tracked: boolean };
   today: string;
 }): VehicleStatus {
+  const has = (type: DocumentType) => documents.some((document) => document.type === type);
   const items = [
-    insuranceItem(insurance, today),
-    warrantyItem(vehicle, today),
+    ...documents.map(documentItem),
+    has(DocumentType.INSURANCE) ? null : insuranceItem(insurance, today),
+    has(DocumentType.WARRANTY) ? null : warrantyItem(vehicle, today),
     ...maintenance.items.map(maintenanceItem),
     ...payments.map((payment) => paymentItem(payment, today)),
   ]
     .filter((item): item is ActionItem => item !== null)
     .sort((a, b) => RANK[a.severity] - RANK[b.severity]);
-  const untracked: UntrackedArea[] = maintenance.tracked
-    ? ["documents"]
-    : ["maintenance", "documents"];
+  const untracked: UntrackedArea[] = [
+    ...(maintenance.tracked ? [] : ["maintenance" as const]),
+    ...(documents.length ? [] : ["documents" as const]),
+  ];
   const level = items.some((item) => item.severity !== "info")
     ? "attention"
     : untracked.length
@@ -198,6 +207,25 @@ function paymentItem(payment: RecurringPayment, today: string): ActionItem | nul
   };
 }
 
+/** An expired or expiring document; renewing (new dates, new copy) is the action. */
+function documentItem(document: VehicleDocument): ActionItem | null {
+  const expired = document.state === DocumentState.EXPIRED;
+  if (!expired && document.state !== DocumentState.EXPIRING) return null;
+  const left = document.daysLeft!;
+  return {
+    id: `document:${document.id}`,
+    severity: expired ? "critical" : "warning",
+    title: expired
+      ? `${document.name} expired on ${day(document.expiryDate!)}`
+      : `${document.name} expires ${inDays(left)}`,
+    detail: document.issuer ?? document.number,
+    href: `/documents/${document.id}`,
+    source: "document",
+    state: expired ? "overdue" : left === 0 ? "due_today" : "due_soon",
+    action: { label: "Renew", href: `/documents/${document.id}/edit?renew=1` },
+  };
+}
+
 /** An ended warranty is worth knowing, not an alarm: it's information. */
 function warrantyItem(vehicle: Vehicle, today: string): ActionItem | null {
   const expiry = warrantyExpiry(vehicle, today);
@@ -216,31 +244,63 @@ function warrantyItem(vehicle: Vehicle, today: string): ActionItem | null {
 }
 
 /**
- * The expiry-dates card: insurance always (saying so when no policy is on record, since a car
- * needs one) and the warranty when the vehicle has one. Documents adds PUC, registration and the
- * licence when it's built.
+ * The expiry-dates card: the vehicle's documents with an expiry, soonest first, each opening its
+ * document. Until the vehicle has an insurance document, the policy on its insurance payment
+ * stands in (or a nudge to add one, since a car needs it); the vehicle record's warranty likewise.
  */
 export function expiryDates({
   vehicle,
   insurance,
+  documents = [],
   today,
 }: {
   vehicle: Vehicle;
   insurance: InsuranceOnRecord | null;
+  documents?: VehicleDocument[];
   today: string;
 }): ExpiryItem[] {
-  const warranty = warrantyExpiry(vehicle, today);
+  const has = (type: DocumentType) => documents.some((document) => document.type === type);
+  const warranty = has(DocumentType.WARRANTY) ? null : warrantyExpiry(vehicle, today);
   return [
-    insurance
-      ? { id: "insurance", label: "Insurance", ...insuranceExpiry(insurance, today) }
-      : {
-          id: "insurance",
-          label: "Insurance",
-          state: "not_added",
-          summary: "No policy on record",
-          detail: "Add the insurance payment with its policy dates.",
-          href: "/expenses/new",
-        },
-    ...(warranty ? [{ id: "warranty" as const, label: "Warranty", ...warranty }] : []),
+    ...documents.filter((document) => document.expiryDate).map(documentExpiry),
+    ...(has(DocumentType.INSURANCE)
+      ? []
+      : [
+          insurance
+            ? { id: "insurance", label: "Insurance", ...insuranceExpiry(insurance, today) }
+            : {
+                id: "insurance",
+                label: "Insurance",
+                state: "not_added" as const,
+                summary: "No policy on record",
+                detail: "Add the policy in Documents.",
+                href: "/documents/new?type=INSURANCE",
+              },
+        ]),
+    ...(warranty ? [{ id: "warranty", label: "Warranty", ...warranty }] : []),
   ];
+}
+
+const EXPIRY_STATE: Record<DocumentState, ExpiryItem["state"]> = {
+  [DocumentState.EXPIRED]: "expired",
+  [DocumentState.EXPIRING]: "expiring",
+  [DocumentState.VALID]: "valid",
+  [DocumentState.NO_EXPIRY]: "valid",
+};
+
+function documentExpiry(document: VehicleDocument): ExpiryItem {
+  const left = document.daysLeft!;
+  return {
+    id: `document:${document.id}`,
+    label: document.name,
+    state: EXPIRY_STATE[document.state],
+    summary:
+      document.state === DocumentState.EXPIRED
+        ? `Expired on ${day(document.expiryDate!)}`
+        : document.state === DocumentState.EXPIRING
+          ? `Expires ${inDays(left)}`
+          : `Valid until ${day(document.expiryDate!)}`,
+    detail: document.issuer ?? document.number,
+    href: `/documents/${document.id}`,
+  };
 }

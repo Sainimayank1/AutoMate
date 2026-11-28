@@ -167,7 +167,7 @@ function RecurringFormPage({
       } else {
         await create.mutateAsync(output);
       }
-      navigate("/expenses/recurring", { replace: true });
+      navigate("/expenses/recurring", { replace: true, state: { savedChanges: true } });
     } catch (error) {
       applyServerErrors(form.setError, error);
     }

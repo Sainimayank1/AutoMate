@@ -10,7 +10,7 @@ import type { AuthUser } from "@/modules/auth/auth.types";
 import { CurrentUser } from "@/modules/auth/decorators/current-user.decorator";
 
 import { USER_PROFILE_SCHEMA } from "./users.constants";
-import { toUserProfile, UsersService } from "./users.service";
+import { UsersService } from "./users.service";
 
 @ApiTags("users")
 @ApiBearerAuth()
@@ -26,6 +26,6 @@ export class UsersController {
     const record = await this.users.findById(user.id);
     // A valid token for a deleted account: treat it like an expired session.
     if (!record) throw new UnauthorizedException("Your session has expired. Please sign in again.");
-    return toUserProfile(record);
+    return this.users.profile(record);
   }
 }

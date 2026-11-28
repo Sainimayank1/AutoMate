@@ -11,7 +11,7 @@ The navigation is driven by `apps/web/src/app/modules.ts`, the single registry f
 | **Overview**           | Dashboard (`LayoutDashboard`)                                                                                 |
 | **My vehicles**        | Garage (`Car`)                                                                                                |
 | **Management**         | Fuel (`Fuel`), Expenses (`ReceiptIndianRupee`), Maintenance (`Wrench`), Documents (`FileText`), Trips (`Map`) |
-| **Intelligence**       | Analytics (`ChartNoAxesCombined`), AI Assistant (`Bot`)                                                       |
+| **Intelligence**       | Analytics (`ChartNoAxesCombined`)                                                                             |
 | **Personal**           | Notifications (`Bell`, with unread count), Settings (`Settings`), Backup & Export (`DatabaseBackup`)          |
 
 The order is fixed. Keep it compact: no nested sub-menus in the sidebar. Sub-views are tabs inside the module.
@@ -81,7 +81,7 @@ The order is fixed. Keep it compact: no nested sub-menus in the sidebar. Sub-vie
 - Five slots: **Dashboard** · **Fuel** · **Add** (centre, `bg-primary text-primary-foreground` circle `size-12`, opens `QuickAddSheet`) · **Expenses** · **More** (opens the sidebar drawer with the full grouped nav).
 - Each slot is ≥ 48 px tall. The icon is `size-5` and the label is `text-xs`.
 - The active slot has the icon and label in `text-primary`. The others are `text-muted-foreground`.
-- Hide it on full-screen flows: forms, wizards, the AI conversation input focus, document preview. Those show their own sticky action bar.
+- Hide it on full-screen flows: forms and wizards, document preview. Those show their own sticky action bar.
 - The page content gets `pb-20 md:pb-0` so nothing hides behind it.
 
 **QuickAddSheet.** A bottom `Drawer` with a 2-column grid of large tiles (icon + label). The order is Fuel entry, Expense, Service record, Trip, Document, Reminder. Each opens the add form for the active vehicle. On desktop, the same list renders as the header `Plus` `DropdownMenu`.
@@ -124,7 +124,7 @@ Sign out sits last, separated by a divider. It is not destructive-coloured.
 
 ## Routing conventions
 
-- Module roots: `/dashboard`, `/garage`, `/fuel`, `/expenses`, `/maintenance`, `/documents`, `/trips`, `/analytics`, `/assistant`, `/notifications`, `/settings`, `/backup`.
+- Module roots: `/dashboard`, `/garage`, `/fuel`, `/expenses`, `/maintenance`, `/documents`, `/trips`, `/analytics`, `/notifications`, `/settings`, `/backup`.
 - **Detail pages** are `/<module>/:id`. Vehicle detail tabs are `/garage/:vehicleId/:tab` (`overview`, `specifications`, `fuel`, `expenses`, `maintenance`, `documents`, `trips`, `cost`), so tabs can be deep-linked and shared.
 - Add and edit flows open as a `ResponsiveDialog` over the list for simple records (fuel, expense, trip). Multi-step flows (add vehicle, import, restore) get full routes (`/garage/new`, `/backup/import`).
 - Filters, sort, date range and pagination live in URL search params.

@@ -26,6 +26,7 @@ function sources() {
     },
     records: {},
     recurring: { payments: vi.fn().mockResolvedValue({ items: [] }) },
+    documents: { forVehicle: vi.fn().mockResolvedValue([]) },
     trips: { dashboardTrips: vi.fn().mockResolvedValue(null) },
   };
 }
@@ -37,6 +38,7 @@ const service = (deps: ReturnType<typeof sources>) =>
     deps.maintenance as never,
     deps.records as never,
     deps.recurring as never,
+    deps.documents as never,
     deps.trips as never,
   );
 const QUERY = { vehicleId: "v1", period: ReportingPeriod.THIS_MONTH };

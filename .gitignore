@@ -11,3 +11,6 @@ coverage/
 apps/api/src/generated/
 # graphify knowledge graph: rebuilt locally by its git hooks (graphify hook install)
 graphify-out/
+
+# Document files kept by the local storage provider (apps/api)
+.storage/

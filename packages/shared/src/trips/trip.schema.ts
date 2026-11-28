@@ -12,6 +12,7 @@ import {
 } from "../common/fields.js";
 import { PaymentMethod } from "../common/payment-method.js";
 import { fromPaise, toPaise } from "../expenses/expense.schema.js";
+import { checkItinerary } from "./itinerary.js";
 import { checkPeriodQuery, type PeriodWindow, periodQueryFields } from "../common/periods.js";
 import { type FuelType, ODOMETER_MAX_KM } from "../vehicles/vehicle.schema.js";
 
@@ -62,6 +63,10 @@ export const tripStopSchema = z.object({
   arrivalTime: time,
   departureTime: time,
   notes: optionalText(300),
+  /** Road trips: the day of the trip (1 = the start date); empty = the previous stop's day. */
+  day: z.number().int().min(1).max(366).nullable().optional(),
+  /** Road trips: the night is spent here. */
+  overnight: z.boolean().optional(),
 });
 
 export const tripFieldsSchema = z.object({
@@ -103,7 +108,7 @@ type TripCheckInput = {
   originLng?: number | null;
   destinationLat?: number | null;
   destinationLng?: number | null;
-  stops?: (Place & { label?: string })[];
+  stops?: (Place & { label?: string; day?: number | null; overnight?: boolean })[];
   method?: TripMethod;
   date?: string;
   endDate?: string | null;
@@ -162,6 +167,7 @@ export function checkTrip(values: TripCheckInput, ctx: z.RefinementCtx) {
   if (sameDay && values.startTime && values.endTime && values.endTime < values.startTime) {
     issue("endTime", "Ends before it starts");
   }
+  checkItinerary(values, ctx);
 }
 
 /** km of a trip: end − start from the readings, or as entered. Null until it's known. */
@@ -402,6 +408,8 @@ export function checkPlan(
   }
   if (values.method === "ROUTE") {
     checkTrip({ ...values, method: TripMethod.ROUTE, distanceKm: null }, ctx);
+  } else {
+    checkItinerary(values, ctx);
   }
 }
 
@@ -571,6 +579,9 @@ export interface TripStop {
   arrivalTime: string | null;
   departureTime: string | null;
   notes: string | null;
+  /** Road trips: the day of the trip (null = the previous stop's day). */
+  day: number | null;
+  overnight: boolean;
 }
 
 export interface TripCost {
@@ -662,4 +673,22 @@ export interface TripOverview {
   /** Actual costs of the period's trips; per km over the trips that have a cost. */
   cost: { total: string | null; perKm: string | null };
   recent: Trip[];
+}
+
+/**
+ * What Notifications (M10) will remind about (`TripPlansService.reminders`): a plan leaving soon,
+ * a plan whose dates have passed without being marked done, a recent road or planned trip with
+ * no costs recorded. Facts from the records; the reminder's wording and timing are M10's.
+ */
+export interface TripReminder {
+  kind: "departure" | "unconfirmed" | "add_costs";
+  tripId: string;
+  vehicleId: string;
+  label: string;
+  /** Departure for "departure"; the last day for the others. */
+  date: string;
+  /** Days until departure ("departure"), or since the last day (the others). */
+  days: number;
+  /** Where the reminder opens. */
+  link: string;
 }

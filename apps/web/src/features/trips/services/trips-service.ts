@@ -8,6 +8,8 @@ import type {
   RoutePoint,
   RouteResult,
   Trip,
+  TripAnalytics,
+  TripAnalyticsQuery,
   TripBulkValues,
   TripCategory,
   TripCategoryValues,
@@ -17,6 +19,9 @@ import type {
   TripCostSummaryQuery,
   TripFilters,
   TripFuelEntry,
+  TripImportPreview,
+  TripImportResult,
+  TripImportValues,
   TripListQuery,
   TripOverview,
   TripOverviewQuery,
@@ -38,6 +43,7 @@ export type TripFilterParams = Partial<TripFilters>;
 export type TripOverviewParams = Partial<TripOverviewQuery>;
 export type CategoryListParams = Partial<PaginationQuery>;
 export type TripPlanListParams = Partial<TripPlanListQuery>;
+export type TripAnalyticsParams = Partial<TripAnalyticsQuery>;
 
 const CATEGORIES = "/trip-categories";
 const PLANS = "/trip-plans";
@@ -46,7 +52,15 @@ const PLANS = "/trip-plans";
 export const tripsService = {
   overview: (params: TripOverviewParams) =>
     request<TripOverview>({ url: "/trips/overview", params }),
+  analytics: (params: TripAnalyticsParams) =>
+    request<TripAnalytics>({ url: "/trips/analytics", params }),
   list: (params: TripListParams = {}) => requestPage<Trip>({ url: "/trips", params }),
+  /** Every trip matching the filters (export and report), read a page at a time. */
+  all: (params: TripListParams = {}) => requestAllPages<Trip>({ url: "/trips", params }),
+  previewImport: (values: TripImportValues) =>
+    request<TripImportPreview>({ method: "POST", url: "/trips/import/preview", data: values }),
+  importTrips: (values: TripImportValues) =>
+    request<TripImportResult>({ method: "POST", url: "/trips/import", data: values }),
   /** The filtered history's count and distance (every page). */
   summary: (params: TripFilterParams = {}) =>
     request<TripSummary>({ url: "/trips/summary", params }),

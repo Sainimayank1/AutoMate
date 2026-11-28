@@ -69,7 +69,7 @@ export interface StatusItem {
 
 /** Where an action-centre item comes from (Documents, EMI and reminders join later). */
 /** `payment`: a recurring payment or loan EMI due or overdue (Expenses). */
-export type ItemSource = "maintenance" | "insurance" | "warranty" | "payment";
+export type ItemSource = "maintenance" | "insurance" | "warranty" | "payment" | "document";
 
 /** How soon: overdue (or expired), due today, due soon, or just worth knowing. */
 export type DueState = "overdue" | "due_today" | "due_soon" | "info";
@@ -176,7 +176,8 @@ export interface DashboardMaintenance {
 
 /** One expiry date on record (Documents will add PUC, registration and the licence). */
 export interface ExpiryItem {
-  id: "insurance" | "warranty";
+  /** "document:<id>"; "insurance" and "warranty" are the interim sources (a payment, the vehicle). */
+  id: string;
   label: string;
   state: "valid" | "expiring" | "expired" | "not_added";
   /** "Expires in 24 days", "Valid until 14 Mar 2028 or 1,00,000 km" */
@@ -200,7 +201,7 @@ export interface DrivingOverview {
   trips: DrivingTrips | null;
 }
 
-/** Null until the vehicle has a trip; a period without any shows `count: 0`. */
+/** Null until the vehicle has a trip or a plan; a period without trips shows `count: 0`. */
 export interface DrivingTrips {
   count: number;
   distanceKm: string;
@@ -208,6 +209,15 @@ export interface DrivingTrips {
   longestKm: string | null;
   /** Most distance first. */
   byCategory: { key: SystemTripCategoryKey | null; name: string; distanceKm: string }[];
+  /** The vehicle's next planned trip (or the one under way); estimates only. */
+  nextPlan: {
+    id: string;
+    label: string;
+    date: string;
+    endDate: string | null;
+    plannedDistanceKm: string | null;
+    budget: string | null;
+  } | null;
 }
 
 /**
@@ -279,9 +289,9 @@ export const ACTIVITY_DEPTH = 96;
  * (Expenses), service records (Maintenance) and trips. A service's own expense isn't listed twice.
  */
 export interface ActivityItem {
-  /** "expense:<id>", "service:<id>" or "trip:<id>" */
+  /** "expense:<id>", "service:<id>", "trip:<id>" or "document:<id>" */
   id: string;
-  kind: "fuel" | "expense" | "refund" | "service" | "trip";
+  kind: "fuel" | "expense" | "refund" | "service" | "trip" | "document";
   /** YYYY-MM-DD */
   date: string;
   title: string;

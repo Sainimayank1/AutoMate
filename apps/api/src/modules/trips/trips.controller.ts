@@ -1,4 +1,13 @@
-import type { RouteResult, Trip, TripCategory, TripOverview, TripSummary } from "@automate/shared";
+import type {
+  RouteResult,
+  Trip,
+  TripAnalytics,
+  TripCategory,
+  TripImportPreview,
+  TripImportResult,
+  TripOverview,
+  TripSummary,
+} from "@automate/shared";
 import {
   Body,
   Controller,
@@ -26,18 +35,25 @@ import { CurrentUser } from "@/modules/auth/decorators/current-user.decorator";
 import {
   CreateTripDto,
   RouteCalculateDto,
+  TripAnalyticsQueryDto,
   TripBulkDto,
   TripCategoryDto,
   TripCategoryListQueryDto,
   TripFiltersDto,
+  TripImportDto,
   TripListQueryDto,
   TripOverviewQueryDto,
   UpdateTripDto,
 } from "./dto/trips.dto";
+import { TripAnalyticsService } from "./trip-analytics.service";
+import { TripImportService } from "./trip-import.service";
 import {
   ROUTE_RESULT_SCHEMA,
+  TRIP_ANALYTICS_SCHEMA,
   TRIP_BULK_SCHEMA,
   TRIP_CATEGORY_SCHEMA,
+  TRIP_IMPORT_PREVIEW_SCHEMA,
+  TRIP_IMPORT_RESULT_SCHEMA,
   TRIP_OVERVIEW_SCHEMA,
   TRIP_SCHEMA,
   TRIP_SUMMARY_SCHEMA,
@@ -48,7 +64,11 @@ import { TripsService } from "./trips.service";
 @ApiBearerAuth()
 @Controller()
 export class TripsController {
-  constructor(private readonly trips: TripsService) {}
+  constructor(
+    private readonly trips: TripsService,
+    private readonly analyticsService: TripAnalyticsService,
+    private readonly importer: TripImportService,
+  ) {}
 
   @Get("trips/overview")
   @ApiOperation({ summary: "Distance, trips and types in a period, for a vehicle or all" })
@@ -59,6 +79,37 @@ export class TripsController {
     @Query() query: TripOverviewQueryDto,
   ): Promise<TripOverview> {
     return this.trips.overview(user.id, query);
+  }
+
+  @Get("trips/analytics")
+  @ApiOperation({ summary: "Trip analytics and insights for a period, against the one before" })
+  @ApiEnvelopeResponse(TRIP_ANALYTICS_SCHEMA)
+  @ApiErrorResponses(400, 401, 404)
+  analytics(
+    @CurrentUser() user: AuthUser,
+    @Query() query: TripAnalyticsQueryDto,
+  ): Promise<TripAnalytics> {
+    return this.analyticsService.analytics(user.id, query);
+  }
+
+  @Post("trips/import/preview")
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: "Check a CSV and its column mapping before importing (nothing saved)" })
+  @ApiEnvelopeResponse(TRIP_IMPORT_PREVIEW_SCHEMA)
+  @ApiErrorResponses(400, 401, 404, 409)
+  previewImport(
+    @CurrentUser() user: AuthUser,
+    @Body() body: TripImportDto,
+  ): Promise<TripImportPreview> {
+    return this.importer.preview(user.id, body);
+  }
+
+  @Post("trips/import")
+  @ApiOperation({ summary: "Import a CSV's ready rows (and duplicates when asked) in one go" })
+  @ApiEnvelopeResponse(TRIP_IMPORT_RESULT_SCHEMA, { status: HttpStatus.CREATED })
+  @ApiErrorResponses(400, 401, 404, 409)
+  import(@CurrentUser() user: AuthUser, @Body() body: TripImportDto): Promise<TripImportResult> {
+    return this.importer.commit(user.id, body);
   }
 
   @Get("trips/summary")

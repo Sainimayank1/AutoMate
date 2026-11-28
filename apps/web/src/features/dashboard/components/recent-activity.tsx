@@ -1,6 +1,14 @@
 import type { ActivityItem } from "@automate/shared";
 import { cn } from "cn";
-import { Fuel, type LucideIcon, ReceiptIndianRupee, Route, Undo2, Wrench } from "lucide-react";
+import {
+  FileText,
+  Fuel,
+  type LucideIcon,
+  ReceiptIndianRupee,
+  Route,
+  Undo2,
+  Wrench,
+} from "lucide-react";
 import { useState } from "react";
 import { Link } from "react-router";
 
@@ -27,6 +35,7 @@ const KIND: Record<ActivityItem["kind"], { label: string; icon: LucideIcon; tone
   refund: { label: "Refund", icon: Undo2, tone: "text-success" },
   service: { label: "Service", icon: Wrench, tone: "text-chart-2" },
   trip: { label: "Trip", icon: Route, tone: "text-chart-3" },
+  document: { label: "Document", icon: FileText, tone: "text-muted-foreground" },
 };
 
 const day = (date: string) => formatDateRange({ from: date, to: date });

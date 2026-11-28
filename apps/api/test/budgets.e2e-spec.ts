@@ -1,15 +1,19 @@
 /**
- * Budgets (Expenses phase 5) through the real HTTP pipeline and database: spending counted like
- * "Spent" (net of refunds, loan principal left out), per vehicle, category and period. Users are
+ * Budgets (Expenses phase 5) and insights (phase 7) through the real HTTP pipeline and database:
+ * spending counted like "Spent" (net of refunds, loan principal left out), per vehicle, category
+ * and period, and the insight rules over real records. Users are
  * created under a throwaway domain and deleted afterwards.
  */
 import { randomUUID } from "node:crypto";
 
 import {
+  addDays,
+  addMonths,
   type ApiErrorResponse,
   type ApiSuccessResponse,
   type Budget,
   type Expense,
+  type ExpenseInsights,
   istToday,
   type PageMeta,
   type Vehicle,
@@ -29,7 +33,7 @@ const DOMAIN = "budgets.e2e.automate.test";
 const BUDGETS = "/api/v1/expense-budgets";
 const EXPENSES = "/api/v1/expenses";
 
-describe("Budgets (e2e)", () => {
+describe("Budgets and insights (e2e)", () => {
   let app: NestExpressApplication;
   let prisma: PrismaService;
   let arjun: string;
@@ -233,5 +237,64 @@ describe("Budgets (e2e)", () => {
     await as(priya).get(`${BUDGETS}/${mine[0]!.id}`).expect(404);
     await as(priya).patch(`${BUDGETS}/${mine[0]!.id}`, { amount: "1" }).expect(404);
     await as(priya).delete(`${BUDGETS}/${mine[0]!.id}`).expect(404);
+  });
+
+  it("finds the budget over its limit, a category above its usual, a duplicate and a big one-off", async () => {
+    const car = await vehicle(arjun);
+    const monthStart = `${today.slice(0, 7)}-01`;
+    const months = [addMonths(monthStart, -1), addMonths(monthStart, -2)];
+    // History: ₹500 a month on daily usage, and ten small odds and ends for a typical expense.
+    for (const start of months) {
+      await spend(car.id, {
+        categoryId: id("DAILY_USAGE"),
+        title: "Parking",
+        amount: "500",
+        date: start,
+      });
+      for (let i = 0; i < 5; i++) {
+        await spend(car.id, {
+          categoryId: id("OTHER"),
+          title: `Odds and ends ${i}`,
+          amount: "100",
+          date: addDays(start, i),
+        });
+      }
+    }
+    // This month: the same toll twice, and a dashcam.
+    for (let i = 0; i < 2; i++) {
+      await spend(car.id, {
+        categoryId: id("DAILY_USAGE"),
+        subcategoryId: id("DAILY_USAGE.TOLL"),
+        title: "NH-48 FASTag",
+        amount: "640",
+      });
+    }
+    const dashcam = await spend(car.id, {
+      categoryId: id("ACCESSORIES"),
+      title: "Dashcam",
+      amount: "6500",
+    });
+    await as(arjun)
+      .post(BUDGETS, { vehicleId: car.id, categoryId: id("DAILY_USAGE"), amount: "1000" })
+      .expect(201);
+
+    const res = await as(arjun).get(`/api/v1/expenses/insights?vehicleId=${car.id}`).expect(200);
+    const insights = dataOf<ExpenseInsights>(res);
+    expect(insights.monthsOfHistory).toBe(2);
+    expect(insights.items.map((item) => [item.kind, item.title])).toEqual([
+      ["budget", "Daily usage is over budget"],
+      ["category_above_usual", "Daily usage is above its usual"],
+      ["possible_duplicate", "Possible duplicate: NH-48 FASTag"],
+      ["large_expense", "A large one-off: Dashcam"],
+    ]);
+    expect(insights.items[1]!.explanation).toMatch(
+      /^₹1,280\.00 so far this month against ₹500\.00 a month on average/,
+    );
+    expect(insights.items[3]).toMatchObject({
+      explanation: expect.stringContaining("about 65× your typical expense of ₹100.00") as string,
+      action: { href: `/expenses/transactions/${dashcam.id}` },
+    });
+
+    await as(priya).get(`/api/v1/expenses/insights?vehicleId=${car.id}`).expect(404);
   });
 });

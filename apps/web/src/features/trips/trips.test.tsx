@@ -1,4 +1,13 @@
-import type { Trip, TripCategory, TripOverview } from "@automate/shared";
+import {
+  addDays,
+  type FuelSummary,
+  istToday,
+  type Trip,
+  type TripAnalytics,
+  type TripCategory,
+  type TripOverview,
+  type TripPlan,
+} from "@automate/shared";
 import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { InternalAxiosRequestConfig } from "axios";
@@ -684,5 +693,394 @@ describe("routes", () => {
       "href",
       expect.stringContaining("route=29.1492,75.7217;32.2432,77.1892"),
     );
+  });
+});
+
+describe("planner", () => {
+  const manali: TripPlan = {
+    id: "0190d4a2-0000-7000-8000-0000000e0001",
+    vehicleId: victoris.id,
+    status: "PLANNED",
+    category: { id: types[2]!.id, key: "ROAD_TRIP", name: "Road trip" },
+    title: "Manali road trip",
+    date: "2099-12-14",
+    endDate: "2099-12-17",
+    startTime: "06:00",
+    method: "DISTANCE",
+    plannedDistanceKm: "540.0",
+    plannedDurationMinutes: null,
+    origin: "Hisar",
+    destination: "Manali",
+    originPoint: null,
+    destinationPoint: null,
+    stops: [],
+    route: null,
+    estMileage: "18.00",
+    estFuelPrice: "104.00",
+    estToll: "1450.00",
+    estParking: null,
+    estAccommodation: "4800.00",
+    estOther: "480.00",
+    budget: { fuelQuantity: "30.0", fuelCost: "3120.00", total: "9850.00", perKm: "18.24" },
+    notes: null,
+    createdAt: "2026-11-28T05:00:00.000Z",
+    updatedAt: "2026-11-28T05:00:00.000Z",
+  };
+  const fuelSummary = {
+    fuelType: "PETROL",
+    averageMileage: "18.50",
+    averagePrice: "104.320",
+  } as FuelSummary;
+
+  it("lists upcoming plans with their budget, and the cancelled ones on the server", async () => {
+    const calls = api({
+      "GET /vehicles": () => okPage([victoris]),
+      "GET /trip-plans": (config) =>
+        (config.params as { view?: string }).view === "cancelled"
+          ? okPage([{ ...manali, status: "CANCELLED" }])
+          : okPage([manali]),
+    });
+    renderApp("/trips/planner");
+    const user = userEvent.setup();
+
+    const plans = await screen.findByRole("list", { name: "Plans" });
+    expect(within(plans).getByRole("link", { name: "Manali road trip" })).toHaveAttribute(
+      "href",
+      `/trips/planner/${manali.id}`,
+    );
+    expect(within(plans).getByText("Planned")).toBeInTheDocument();
+    expect(within(plans).getByText("₹9,850.00")).toBeInTheDocument();
+    expect(within(plans).getByText(/Hisar → Manali/)).toBeInTheDocument();
+    expect(screen.getByText("Next trip")).toBeInTheDocument();
+
+    await user.click(screen.getByRole("radio", { name: "Cancelled" }));
+    await waitFor(() =>
+      expect(calls.filter((call) => call.url === "/trip-plans").at(-1)!.params).toMatchObject({
+        view: "cancelled",
+      }),
+    );
+    expect(await screen.findByText("Cancelled", { selector: "span" })).toBeInTheDocument();
+  });
+
+  it(
+    "plans a trip with a live budget from the vehicle's own fuel figures",
+    { timeout: 15_000 },
+    async () => {
+      const calls = api({
+        "GET /vehicles": () => okPage([victoris]),
+        "GET /trip-categories": () => okPage(types),
+        [`GET /vehicles/${victoris.id}/fuel-summary`]: () => ok(fuelSummary),
+        "POST /trip-plans": () => ok({ ...manali, status: "DRAFT" }, 201),
+        [`GET /trip-plans/${manali.id}`]: () => ok({ ...manali, status: "DRAFT" }),
+      });
+      renderApp("/trips/plan");
+      const user = userEvent.setup();
+
+      expect(await screen.findByLabelText(/Mileage/)).toHaveValue("18.50");
+      expect(screen.getByLabelText(/Fuel price/)).toHaveValue("104.32");
+      await user.click(await screen.findByRole("radio", { name: "Road trip" }));
+      await user.type(screen.getByLabelText(/^Distance/), "540");
+      await user.type(screen.getByLabelText(/Toll/), "1450");
+      // 540 ÷ 18.5 × 104.32 = 3,045.02, plus the toll.
+      expect(screen.getByText("₹4,495.02")).toBeInTheDocument();
+
+      await user.click(screen.getByRole("button", { name: "Save as draft" }));
+      await waitFor(() =>
+        expect(bodyOf(calls.find((call) => call.method === "post"))).toMatchObject({
+          status: "DRAFT",
+          method: "DISTANCE",
+          plannedDistanceKm: "540",
+          estMileage: "18.50",
+          estToll: "1450",
+        }),
+      );
+      expect(await screen.findByRole("heading", { name: "Manali road trip" })).toBeInTheDocument();
+    },
+  );
+
+  it(
+    "marks a plan done with what actually happened, then shows planned vs actual",
+    { timeout: 15_000 },
+    async () => {
+      const done: Trip = {
+        ...jaipur,
+        id: manali.id,
+        title: "Manali road trip",
+        startKm: 8732,
+        endKm: 9300,
+        distanceKm: "568.0",
+        actualCost: "10250.00",
+        plan: { distanceKm: "540.0", durationMinutes: null, budget: "9850.00" },
+      };
+      const calls = api({
+        "GET /vehicles": () => okPage([victoris]),
+        [`GET /vehicles/${victoris.id}/fuel-summary`]: () => ok(fuelSummary),
+        [`GET /trip-plans/${manali.id}`]: () => ok(manali),
+        [`POST /trip-plans/${manali.id}/complete`]: () => ok(done),
+        [`GET /trips/${manali.id}`]: () => ok(done),
+        [`GET /trips/${manali.id}/costs`]: () => okPage([]),
+        [`GET /trips/${manali.id}/fuel-entries`]: () => okPage([]),
+        [`GET /trips/${manali.id}/spending`]: () => fail(404, "NOT_FOUND", "Not found"),
+      });
+      renderApp(`/trips/planner/${manali.id}`);
+      const user = userEvent.setup();
+
+      expect(await screen.findByText("₹9,850.00")).toBeInTheDocument();
+      await user.click(screen.getByRole("button", { name: "Mark as done" }));
+      const dialog = await screen.findByRole("dialog", { name: "Mark trip as done" });
+      expect(within(dialog).getByLabelText(/Starting odometer/)).toHaveValue("8,732");
+      await user.type(within(dialog).getByLabelText(/Ending odometer/), "9300");
+      expect(within(dialog).getByText("568 km")).toBeInTheDocument();
+      await user.click(within(dialog).getByRole("button", { name: "Mark as done" }));
+
+      await waitFor(() =>
+        expect(bodyOf(calls.find((call) => call.url?.endsWith("/complete")))).toMatchObject({
+          method: "ODOMETER",
+          startKm: 8732,
+          endKm: 9300,
+        }),
+      );
+      expect(await screen.findByText("Planned vs actual")).toBeInTheDocument();
+      expect(screen.getByText("+28 km")).toBeInTheDocument();
+      expect(screen.getByText("+₹400.00")).toBeInTheDocument();
+    },
+  );
+});
+
+describe("road trips", () => {
+  const today = istToday(new Date());
+  const stop = (label: string, extra: object = {}) => ({
+    id: `0190d4a2-0000-7000-8000-${label.charCodeAt(0).toString(16).padStart(12, "0")}`,
+    label,
+    latitude: null,
+    longitude: null,
+    arrivalTime: null,
+    departureTime: null,
+    notes: null,
+    day: null,
+    overnight: false,
+    ...extra,
+  });
+  const roadPlan = (overrides: Partial<TripPlan> = {}): TripPlan => ({
+    id: "0190d4a2-0000-7000-8000-0000000e0002",
+    vehicleId: victoris.id,
+    status: "PLANNED",
+    category: { id: types[2]!.id, key: "ROAD_TRIP", name: "Road trip" },
+    title: "Himachal loop",
+    date: addDays(today, -1),
+    endDate: addDays(today, 1),
+    startTime: "06:00",
+    method: "DISTANCE",
+    plannedDistanceKm: "900.0",
+    plannedDurationMinutes: null,
+    origin: "Hisar",
+    destination: "Hisar",
+    originPoint: null,
+    destinationPoint: null,
+    stops: [stop("Chandigarh"), stop("Manali, HP")],
+    route: null,
+    estMileage: null,
+    estFuelPrice: null,
+    estToll: null,
+    estParking: null,
+    estAccommodation: null,
+    estOther: null,
+    budget: { fuelQuantity: null, fuelCost: null, total: null, perKm: null },
+    notes: null,
+    createdAt: "2026-11-28T05:00:00.000Z",
+    updatedAt: "2026-11-28T05:00:00.000Z",
+    ...overrides,
+  });
+
+  it(
+    "lays out a plan's days and nights, and shows which day of it is today",
+    { timeout: 15_000 },
+    async () => {
+      const plan = roadPlan();
+      const saved = roadPlan({
+        stops: [stop("Chandigarh", { day: 1, overnight: true }), stop("Manali, HP", { day: 2 })],
+      });
+      let current = plan;
+      const calls = api({
+        "GET /vehicles": () => okPage([victoris]),
+        [`GET /vehicles/${victoris.id}/fuel-summary`]: () => fail(404, "NOT_FOUND", "Not found"),
+        [`GET /trip-plans/${plan.id}`]: () => ok(current),
+        [`PATCH /trip-plans/${plan.id}`]: () => {
+          current = saved;
+          return ok(saved);
+        },
+      });
+      renderApp(`/trips/planner/${plan.id}/itinerary`);
+      const user = userEvent.setup();
+
+      const day1 = await screen.findByRole("region", { name: "Day 1" });
+      expect(within(day1).getByText("Chandigarh")).toBeInTheDocument();
+      expect(screen.getByRole("region", { name: "Day 3" })).toHaveTextContent("Ends at Hisar");
+      await user.click(within(day1).getAllByRole("switch")[0]!);
+      // Manali still on day 1 after Chandigarh's night: refused until it moves on.
+      await user.click(screen.getByRole("button", { name: "Save itinerary" }));
+      expect(
+        await screen.findByText("The night is spent at the last stop of the day"),
+      ).toBeInTheDocument();
+      await user.click(screen.getByRole("combobox", { name: "Day for Manali, HP" }));
+      await user.click(await screen.findByRole("option", { name: "Day 2" }));
+      expect(within(day1).getByText("Night at Chandigarh")).toBeInTheDocument();
+      await user.click(screen.getByRole("button", { name: "Save itinerary" }));
+
+      await waitFor(() =>
+        expect(bodyOf(calls.find((call) => call.method === "patch"))).toEqual({
+          stops: [
+            expect.objectContaining({ label: "Chandigarh", day: 1, overnight: true }),
+            expect.objectContaining({ label: "Manali, HP", day: 2, overnight: false }),
+          ],
+        }),
+      );
+      const itinerary = await screen.findByRole("list", { name: "Itinerary" });
+      expect(within(itinerary).getByText("Night at Chandigarh")).toBeInTheDocument();
+      expect(screen.getByText("Day 2 of 3")).toBeInTheDocument();
+    },
+  );
+
+  it("sums a done road trip up per day", async () => {
+    const done: Trip = {
+      ...jaipur,
+      title: "Himachal loop",
+      date: "2026-11-20",
+      endDate: "2026-11-23",
+      distanceKm: "1081.0",
+      actualCost: "10250.00",
+      stops: [
+        stop("Kullu", { day: 1, overnight: true }),
+        stop("Manali, HP", { day: 2, overnight: true }),
+      ],
+    };
+    api({
+      "GET /vehicles": () => okPage([victoris]),
+      [`GET /trips/${jaipur.id}`]: () => ok(done),
+      [`GET /trips/${jaipur.id}/costs`]: () => okPage([]),
+      [`GET /trips/${jaipur.id}/fuel-entries`]: () => okPage([]),
+      [`GET /trips/${jaipur.id}/spending`]: () => fail(404, "NOT_FOUND", "Not found"),
+    });
+    renderApp(`/trips/${jaipur.id}`);
+
+    expect(await screen.findByText("Road trip summary")).toBeInTheDocument();
+    expect(screen.getByText("270.3 km")).toBeInTheDocument();
+    expect(screen.getByText("₹2,562.50")).toBeInTheDocument();
+    expect(screen.getByText("Night at Manali, HP")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Edit itinerary" })).toHaveAttribute(
+      "href",
+      `/trips/${jaipur.id}/itinerary`,
+    );
+  });
+});
+
+describe("trip analytics", () => {
+  const analytics = (overrides: Partial<TripAnalytics> = {}): TripAnalytics => ({
+    period: overview().period,
+    vehicleId: null,
+    current: { trips: 18, distanceKm: "720.0", actualCost: "3040.00" },
+    previous: { trips: 15, distanceKm: "626.0", actualCost: null },
+    change: { distance: 15, trips: 20, cost: null },
+    distance: {
+      averageKm: "40.0",
+      perDayKm: "26.7",
+      shortest: { id: errand.id, label: "Sector 29 market", distanceKm: "3.4" },
+      longest: { id: jaipur.id, label: "Gurugram → Jaipur", distanceKm: "268.0" },
+      bands: [
+        { band: "UNDER_10", trips: 6, distanceKm: "30.0" },
+        { band: "10_50", trips: 9, distanceKm: "280.0" },
+        { band: "50_100", trips: 0, distanceKm: "0.0" },
+        { band: "100_300", trips: 3, distanceKm: "410.0" },
+        { band: "300_PLUS", trips: 0, distanceKm: "0.0" },
+      ],
+    },
+    time: {
+      averageMinutes: 52,
+      longest: { id: jaipur.id, label: "Gurugram → Jaipur", minutes: 252 },
+      byWeekday: [1, 2, 3, 4, 5, 6, 7].map((weekday) => ({
+        weekday,
+        trips: 2,
+        distanceKm: "80.0",
+      })),
+      byTimeOfDay: [
+        { slot: "MORNING", trips: 8 },
+        { slot: "AFTERNOON", trips: 2 },
+        { slot: "EVENING", trips: 5 },
+        { slot: "NIGHT", trips: 1 },
+      ],
+      untimedTrips: 2,
+    },
+    cost: {
+      actual: "3040.00",
+      perKm: "4.22",
+      perTrip: "405.33",
+      tripsWithCost: 7,
+      fuelEstimate: "6120.00",
+    },
+    byVehicle: [
+      { vehicleId: victoris.id, trips: 18, distanceKm: "720.0", actualCost: "3040.00" },
+      {
+        vehicleId: "0190d4a2-0000-7000-8000-00000000a0ff",
+        trips: 0,
+        distanceKm: "0.0",
+        actualCost: null,
+      },
+    ],
+    topDestinations: [{ destination: "Jaipur", trips: 4 }],
+    insights: [
+      {
+        key: "long_trips",
+        title: "3 trips of 100 km or more",
+        detail: "They covered 410 km, 57% of your distance.",
+        link: "/trips/history?minKm=100&vehicle=all&from=2026-11-01&to=2026-11-27",
+      },
+    ],
+    ...overrides,
+  });
+
+  it(
+    "compares the period, keeps the fuel estimate apart and links insights to the trips",
+    { timeout: 15_000 },
+    async () => {
+      const calls = api({
+        "GET /vehicles": () => okPage([victoris]),
+        "GET /trips/analytics": () => ok(analytics()),
+      });
+      renderApp("/trips/analytics?vehicle=all");
+      const user = userEvent.setup();
+
+      const tiles = await screen.findByRole("region", { name: "Against the period before" });
+      expect(within(tiles).getByText("720 km")).toBeInTheDocument();
+      expect(within(tiles).getByText("vs 626 km")).toBeInTheDocument();
+      expect(within(tiles).getByText(/15%/)).toBeInTheDocument();
+      // No previous cost: no percentage, no "vs".
+      expect(within(tiles).queryByText(/vs ₹/)).not.toBeInTheDocument();
+      expect(screen.getByRole("link", { name: /3 trips of 100 km or more/ })).toHaveAttribute(
+        "href",
+        "/trips/history?minKm=100&vehicle=all&from=2026-11-01&to=2026-11-27",
+      );
+      expect(screen.getByText("₹6,120.00")).toBeInTheDocument();
+      expect(screen.getByText(/not counted as spending/)).toBeInTheDocument();
+      expect(screen.getByText("Frequent destinations")).toBeInTheDocument();
+      expect(calls.at(-1)!.params).toEqual({ period: "this_month" });
+
+      await user.click(screen.getByRole("combobox", { name: "Period" }));
+      await user.click(await screen.findByRole("option", { name: "This year" }));
+      await waitFor(() =>
+        expect(calls.filter((call) => call.url === "/trips/analytics").at(-1)!.params).toEqual({
+          period: "this_year",
+        }),
+      );
+    },
+  );
+
+  it("explains what's needed when the period has no trips", async () => {
+    api({
+      "GET /vehicles": () => okPage([victoris]),
+      "GET /trips/analytics": () =>
+        ok(analytics({ current: { trips: 0, distanceKm: "0.0", actualCost: null }, insights: [] })),
+    });
+    renderApp("/trips/analytics");
+    expect(await screen.findByText("No trips in this period")).toBeInTheDocument();
   });
 });

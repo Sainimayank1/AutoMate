@@ -5,6 +5,7 @@ import type {
   Trip,
   TripBulkValues,
   TripCategoryValues,
+  TripImportValues,
   UpdateTripCostValues,
   UpdateTripValues,
 } from "@automate/shared";
@@ -17,6 +18,7 @@ import { vehicleKeys } from "@/features/garage/hooks/use-vehicles";
 import { maintenanceKeys } from "@/features/maintenance/hooks/maintenance-keys";
 import { tripsKeys } from "@/features/trips/hooks/trips-keys";
 import type {
+  TripAnalyticsParams,
   TripCostListParams,
   TripCostSummaryParams,
   TripFilterParams,
@@ -35,11 +37,47 @@ export function useTripOverview(params: TripOverviewParams, enabled = true) {
   });
 }
 
+export function useTripAnalytics(params: TripAnalyticsParams) {
+  return useQuery({
+    queryKey: tripsKeys.analytics(params),
+    queryFn: () => tripsService.analytics(params),
+    placeholderData: (previous) => previous,
+  });
+}
+
 export function useTrips(params: TripListParams = {}) {
   return useQuery({
     queryKey: tripsKeys.list(params),
     queryFn: () => tripsService.list(params),
     placeholderData: (previous) => previous,
+  });
+}
+
+/** Every matching trip (the printable report); off until there are params. */
+export function useAllTrips(params: TripListParams | undefined) {
+  return useQuery({
+    queryKey: tripsKeys.every(params ?? {}),
+    queryFn: () => tripsService.all(params),
+    enabled: !!params,
+  });
+}
+
+export function usePreviewTripImport() {
+  return useMutation({
+    mutationFn: (values: TripImportValues) => tripsService.previewImport(values),
+    onError: handledByForm,
+  });
+}
+
+export function useImportTrips() {
+  const sync = useSyncTrips();
+  return useMutation({
+    mutationFn: (values: TripImportValues) => tripsService.importTrips(values),
+    onSuccess: async ({ imported }) => {
+      await sync();
+      toast.success(`${imported} ${imported === 1 ? "trip" : "trips"} imported.`);
+    },
+    onError: handledByForm,
   });
 }
 

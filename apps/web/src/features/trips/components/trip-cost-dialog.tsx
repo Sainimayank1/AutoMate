@@ -48,9 +48,9 @@ type Output = Omit<CreateTripCostValues, "id">;
 const NONE = "none";
 
 /**
- * Add or edit a trip cost (designed after the Stitch dialogs; its own screen comes when Stitch
- * credits allow). Toll, parking and other also become the vehicle's expenses; food and
- * accommodation stay with the trip, and the dialog says which.
+ * Stitch "Add Trip Cost Dialog — Desktop": add or edit a trip cost. Toll, parking and other also
+ * become the vehicle's expenses; food and accommodation stay with the trip, and the dialog says
+ * which.
  */
 export function TripCostDialog({
   trip,

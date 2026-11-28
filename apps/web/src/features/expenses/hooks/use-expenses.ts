@@ -1,6 +1,7 @@
 import type {
   CreateExpenseCategoryValues,
   CreateRefundValues,
+  OwnershipQuery,
   UpdateExpenseCategoryValues,
   UpdateExpenseValues,
 } from "@automate/shared";
@@ -21,6 +22,9 @@ export const expenseKeys = {
   list: (params: ExpenseListParams) => ["expenses", "list", params] as const,
   summary: (vehicleId: string | undefined) => ["expenses", "summary", vehicleId ?? "all"] as const,
   trend: (vehicleId: string | undefined) => ["expenses", "trend", vehicleId ?? "all"] as const,
+  ownership: (query: OwnershipQuery) => ["expenses", "ownership", query] as const,
+  insights: (vehicleId: string) => ["expenses", "insights", vehicleId] as const,
+  report: (query: OwnershipQuery) => ["expenses", "report", query] as const,
   detail: (id: string) => ["expenses", "detail", id] as const,
   categories: ["expense-categories"] as const,
 };
@@ -54,6 +58,58 @@ export function useExpenseTrend(vehicleId: string | undefined, { enabled = true 
     queryKey: expenseKeys.trend(vehicleId),
     queryFn: () => expenseService.trend({ vehicleId }),
     enabled,
+  });
+}
+
+export function useExpenseInsights(vehicleId: string | undefined) {
+  return useQuery({
+    queryKey: expenseKeys.insights(vehicleId!),
+    queryFn: () => expenseService.insights({ vehicleId: vehicleId! }),
+    enabled: !!vehicleId,
+  });
+}
+
+/** Every expense for some filters at once (the printable report's transactions). */
+export function useAllExpenses(params: ExpenseListParams | undefined) {
+  return useQuery({
+    queryKey: ["expenses", "all-rows", params] as const,
+    queryFn: () => expenseService.listAll(params!),
+    enabled: !!params,
+  });
+}
+
+export function useExpenseReport(query: OwnershipQuery | undefined) {
+  return useQuery({
+    queryKey: expenseKeys.report(query!),
+    queryFn: () => expenseService.report(query!),
+    enabled: !!query,
+    placeholderData: (previous) => previous,
+  });
+}
+
+/** Checks a CSV; the dialog shows its errors itself. */
+export function usePreviewImport() {
+  return useMutation({ mutationFn: expenseService.previewImport, onError: () => {} });
+}
+
+export function useImportExpenses() {
+  const sync = useSyncExpenses();
+  return useMutation({
+    mutationFn: expenseService.import,
+    onSuccess: async ({ imported }) => {
+      await sync();
+      toast.success(`${imported} expense${imported === 1 ? "" : "s"} imported.`);
+    },
+    onError: () => {},
+  });
+}
+
+export function useOwnershipCost(query: OwnershipQuery | undefined) {
+  return useQuery({
+    queryKey: expenseKeys.ownership(query!),
+    queryFn: () => expenseService.ownership(query!),
+    enabled: !!query,
+    placeholderData: (previous) => previous,
   });
 }
 

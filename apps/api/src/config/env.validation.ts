@@ -13,11 +13,13 @@ const origins = z
   )
   .pipe(z.array(z.union([z.literal("*"), z.url({ protocol: /^https?$/ })])).min(1));
 
+/** Required for a bucket (r2 / s3); the local provider needs none of them. */
 const STORAGE_KEYS = [
   "STORAGE_BUCKET",
   "STORAGE_REGION",
   "STORAGE_ACCESS_KEY",
   "STORAGE_SECRET_KEY",
+  "STORAGE_ENDPOINT",
 ] as const;
 
 const envSchema = z
@@ -69,11 +71,20 @@ const envSchema = z
      */
     ROUTER_URL: z.url({ protocol: /^https?$/ }).default("https://router.project-osrm.org"),
 
-    STORAGE_PROVIDER: z.enum(["r2", "s3"]).optional(),
+    /**
+     * Where document files live. `local` (the default outside production) keeps them on disk under
+     * STORAGE_LOCAL_DIR and serves them through the API; production needs a private bucket.
+     */
+    STORAGE_PROVIDER: z.enum(["local", "r2", "s3"]).optional(),
     STORAGE_BUCKET: z.string().optional(),
     STORAGE_REGION: z.string().optional(),
     STORAGE_ACCESS_KEY: z.string().optional(),
     STORAGE_SECRET_KEY: z.string().optional(),
+    /** The bucket's S3 endpoint, e.g. https://<account>.r2.cloudflarestorage.com. */
+    STORAGE_ENDPOINT: z.url({ protocol: /^https?$/ }).optional(),
+    STORAGE_LOCAL_DIR: z.string().default(".storage"),
+    /** The API's own origin as browsers reach it, for local upload and download links. */
+    STORAGE_PUBLIC_URL: z.url({ protocol: /^https?$/ }).optional(),
   })
   .superRefine((env, ctx) => {
     if (env.NODE_ENV === "production" && env.FRONTEND_URL.includes("*")) {
@@ -83,13 +94,20 @@ const envSchema = z
         message: "wildcard origin is not allowed in production",
       });
     }
-    if (env.STORAGE_PROVIDER) {
+    if (env.NODE_ENV === "production" && env.STORAGE_PROVIDER === "local") {
+      ctx.addIssue({
+        code: "custom",
+        path: ["STORAGE_PROVIDER"],
+        message: "local storage is not allowed in production (files would be lost on redeploy)",
+      });
+    }
+    if (env.STORAGE_PROVIDER === "r2" || env.STORAGE_PROVIDER === "s3") {
       for (const key of STORAGE_KEYS) {
         if (!env[key]) {
           ctx.addIssue({
             code: "custom",
             path: [key],
-            message: "required when STORAGE_PROVIDER is set",
+            message: "required when STORAGE_PROVIDER is r2 or s3",
           });
         }
       }
@@ -102,6 +120,9 @@ const envSchema = z
       LOG_LEVEL: env.LOG_LEVEL ?? (isProduction ? "info" : "debug"),
       // Swagger is never public in production unless explicitly enabled.
       SWAGGER_ENABLED: env.SWAGGER_ENABLED ?? !isProduction,
+      // Without a bucket, development and tests keep files on disk; production has no uploads.
+      STORAGE_PROVIDER: env.STORAGE_PROVIDER ?? (isProduction ? undefined : ("local" as const)),
+      STORAGE_PUBLIC_URL: env.STORAGE_PUBLIC_URL ?? `http://localhost:${env.PORT}`,
     };
   });
 

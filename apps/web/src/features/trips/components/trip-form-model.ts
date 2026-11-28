@@ -37,6 +37,10 @@ export type TripStopFormValues = {
   longitude: number | null;
   arrivalTime: string;
   departureTime: string;
+  notes?: string;
+  /** Set in the itinerary; carried through the forms unchanged. */
+  day?: number | null;
+  overnight?: boolean;
 };
 
 export const tripFormSchema = tripFieldsSchema.omit({ id: true }).superRefine(checkTrip);
@@ -95,6 +99,9 @@ export function editTripForm(trip: Trip): TripFormValues {
       longitude: stop.longitude,
       arrivalTime: text(stop.arrivalTime),
       departureTime: text(stop.departureTime),
+      notes: text(stop.notes),
+      day: stop.day,
+      overnight: stop.overnight,
     })),
     routeIndex: 0,
     notes: text(trip.notes),

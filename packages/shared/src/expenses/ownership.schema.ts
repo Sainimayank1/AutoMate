@@ -1,6 +1,7 @@
 import { z } from "zod";
 
 import { type DateWindow, ReportingPeriod } from "../common/periods.js";
+import type { ExpenseCategoryRef } from "./expense.schema.js";
 
 /**
  * Ownership cost (Expenses phase 6, docs/architecture/expenses.md §8): the three money views of one
@@ -61,4 +62,15 @@ export interface OwnershipCost {
   months: string;
   /** economic ÷ months. */
   perMonth: string;
+}
+
+/**
+ * The printable report (Expenses phase 8): the ownership figures, spending by category and by
+ * month for the same period (net of refunds, loan principal left out). Its transactions come from
+ * the expense list with the report's window.
+ */
+export interface ExpenseReport {
+  ownership: OwnershipCost;
+  categories: { category: ExpenseCategoryRef; amount: string; percent: number }[];
+  months: { month: string; total: string }[];
 }

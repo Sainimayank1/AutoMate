@@ -6,7 +6,7 @@ import { JwtService } from "@nestjs/jwt";
 
 import { PrismaService } from "@/database/prisma.service";
 import type { User } from "@/generated/prisma/client";
-import { toUserProfile, UsersService } from "@/modules/users/users.service";
+import { UsersService } from "@/modules/users/users.service";
 
 import {
   ACCESS_TOKEN_TTL_SECONDS,
@@ -100,7 +100,7 @@ export class AuthService {
     if (count === 0) throw new UnauthorizedException(SESSION_EXPIRED_MESSAGE);
 
     return {
-      session: this.authSession(session.user, session.id),
+      session: await this.authSession(session.user, session.id),
       refreshToken,
       persistent: session.persistent,
     };
@@ -130,14 +130,14 @@ export class AuthService {
         },
       }),
     ]);
-    return { session: this.authSession(user, session.id), refreshToken, persistent };
+    return { session: await this.authSession(user, session.id), refreshToken, persistent };
   }
 
   /** The access token names its session, so deleting the session revokes the token at once. */
-  private authSession(user: User, sessionId: string): AuthSession {
+  private async authSession(user: User, sessionId: string): Promise<AuthSession> {
     const payload: AccessTokenPayload = { sub: user.id, sid: sessionId };
     return {
-      user: toUserProfile(user),
+      user: await this.users.profile(user),
       accessToken: this.jwt.sign(payload),
       expiresIn: ACCESS_TOKEN_TTL_SECONDS,
     };

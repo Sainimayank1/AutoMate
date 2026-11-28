@@ -1,5 +1,5 @@
 import { ReportingPeriod, TripCostCategory } from "@automate/shared";
-import { IndianRupee } from "lucide-react";
+import { CalendarPlus, IndianRupee } from "lucide-react";
 import { Link, useSearchParams } from "react-router";
 
 import { Pager } from "@/components/common/pager";
@@ -36,9 +36,9 @@ const ALL = "all";
 const PERIODS = TRIP_PERIODS.filter((period) => period !== ReportingPeriod.CUSTOM);
 
 /**
- * The Costs tab (built from the trips screens' design; its own Stitch screen comes when credits
- * allow): actual trip costs in a period by their date, linked fuel included, by category, with
- * per km over the trips that have a cost, and every cost opening its trip.
+ * Stitch "Trips — Costs — Desktop": actual trip costs in a period by their date, linked fuel
+ * included, by category, with per km over the trips that have a cost, and every cost opening its
+ * trip.
  */
 export function Component() {
   const garage = useActiveVehicle();
@@ -75,7 +75,22 @@ export function Component() {
   const items = list.data?.items;
   const total = Number(summary.data?.total ?? 0);
   return (
-    <TripsLayout tab="costs">
+    <TripsLayout
+      tab="costs"
+      actions={
+        <>
+          <Button variant="outline" asChild>
+            <Link to="/trips/new">Log trip</Link>
+          </Button>
+          <Button asChild>
+            <Link to="/trips/plan">
+              <CalendarPlus data-icon="inline-start" />
+              Plan trip
+            </Link>
+          </Button>
+        </>
+      }
+    >
       <section className="flex flex-wrap items-center gap-2" aria-label="Filters">
         <Select value={vehicleId ?? ALL} onValueChange={(value) => update({ vehicle: value })}>
           <SelectTrigger aria-label="Vehicle" className="w-full sm:w-56">

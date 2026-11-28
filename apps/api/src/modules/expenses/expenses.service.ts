@@ -284,6 +284,18 @@ export class ExpensesService {
     return id;
   }
 
+  /** An imported row, inside the import's transaction: checked like any other expense. */
+  async createImported(
+    tx: Prisma.TransactionClient,
+    userId: string,
+    values: CreateExpenseValues,
+  ): Promise<string> {
+    return this.write(tx, userId, values, [], {
+      categoryChanged: true,
+      origin: { source: ExpenseSource.IMPORT, sourceId: null },
+    });
+  }
+
   /** The edit is merged onto the stored record (and its shared group) and re-checked whole. */
   async update(userId: string, id: string, input: UpdateExpenseValues): Promise<ExpenseDetail> {
     const resultId = await this.prisma.$transaction(async (tx) => {
@@ -452,8 +464,8 @@ export class ExpensesService {
       newId?: string;
       keepId?: string;
       categoryChanged: boolean;
-      /** Where a new expense comes from (a recurring payment); manual otherwise. */
-      origin?: { source: ExpenseSource; sourceId: string };
+      /** Where a new expense comes from (a recurring payment, an import); manual otherwise. */
+      origin?: { source: ExpenseSource; sourceId: string | null };
     },
   ): Promise<string> {
     const { costClass } = await this.categories.resolve(

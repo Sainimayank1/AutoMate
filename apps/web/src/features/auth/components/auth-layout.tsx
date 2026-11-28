@@ -1,4 +1,3 @@
-import { cn } from "cn";
 import type { LucideIcon } from "lucide-react";
 import type { ReactNode } from "react";
 
@@ -9,7 +8,6 @@ export type AuthHighlight = {
   icon: LucideIcon;
   text: string;
   /** AI features use the insight (teal) accent; everything else uses primary. */
-  ai?: boolean;
 };
 
 type AuthLayoutProps = {
@@ -55,12 +53,9 @@ export function AuthLayout({
             </p>
           </div>
           <ul className="flex flex-col gap-3 border-t pt-4">
-            {highlights.map(({ icon: Icon, text, ai }) => (
+            {highlights.map(({ icon: Icon, text }) => (
               <li key={text} className="flex items-center gap-3 text-sm text-muted-foreground">
-                <Icon
-                  aria-hidden
-                  className={cn("size-4.5 shrink-0", ai ? "text-insight" : "text-primary")}
-                />
+                <Icon aria-hidden className="size-4.5 shrink-0 text-primary" />
                 {text}
               </li>
             ))}

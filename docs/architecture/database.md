@@ -44,7 +44,7 @@ How Prisma 7 differs from older guides:
 | Enums          | Prisma `enum` for closed sets the database must enforce (fuel type). Mirror them in `packages/shared` for the web                                                                                        |
 | Constraints    | Use the database for invariants: `@@unique`, FKs, `NOT NULL`. Add `CHECK` constraints (e.g. `amount >= 0`) in the migration SQL with `--create-only`                                                     |
 | Indexes        | Add them for real query patterns, typically `@@index([userId, vehicleId, date])` for histories. Don't index speculatively                                                                                |
-| JSON columns   | Avoid. Use only for opaque payloads that are never filtered (e.g. AI tool traces)                                                                                                                        |
+| JSON columns   | Avoid. Use only for opaque payloads that are never filtered (e.g. a third-party payload kept for reference)                                                                                              |
 | Soft delete    | Only where the product needs restore or audit (`deletedAt DateTime?`). Default is hard delete                                                                                                            |
 | Files          | Never store bytes. Store the object key and metadata (see [backend.md §11](backend.md#11-file-storage-strategy))                                                                                         |
 

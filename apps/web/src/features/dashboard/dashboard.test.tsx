@@ -507,6 +507,47 @@ describe("dashboard", () => {
     );
   });
 
+  it("shows the next planned trip on the Driving card", async () => {
+    const plan = {
+      id: "0190d4a2-0000-7000-8000-0000000e0003",
+      label: "Manali road trip",
+      date: "2099-12-14",
+      endDate: "2099-12-17",
+      plannedDistanceKm: "540.0",
+      budget: "9975.02",
+    };
+    api({
+      "GET /vehicles": () => okPage([victoris]),
+      "GET /dashboard/overview": () =>
+        ok(
+          overview(victoris, {
+            driving: {
+              state: "ok",
+              data: {
+                ...driving,
+                trips: {
+                  count: 0,
+                  distanceKm: "0.0",
+                  averageKm: null,
+                  longestKm: null,
+                  byCategory: [],
+                  nextPlan: plan,
+                },
+              },
+            },
+          }),
+        ),
+    });
+    renderApp("/dashboard");
+
+    expect(await screen.findByRole("link", { name: "Manali road trip" })).toHaveAttribute(
+      "href",
+      `/trips/planner/${plan.id}`,
+    );
+    expect(screen.getByText(/540 km planned · ₹9,975.02 estimated/)).toBeInTheDocument();
+    expect(screen.getByText("No trips this period")).toBeInTheDocument();
+  });
+
   it("invites a first maintenance schedule", async () => {
     api({
       "GET /vehicles": () => okPage([victoris]),

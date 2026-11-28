@@ -30,7 +30,7 @@ Dark is the default theme. Each value's Stitch role is commented in `index.css`.
 | `muted-foreground`               | `#BEC8D2`              | `#3E4850`              | Secondary text, labels (placeholders at 60%)    |
 | `primary`                        | `#89CEFF`              | `#006591`              | Ice-blue accent: main action, active nav, links |
 | `brand`                          | `#0EA5E9`              | `#0EA5E9`              | Logo chevron                                    |
-| `insight`                        | `#4FDBC8`              | `#006B5F`              | Teal, for AI and insights only                  |
+| `insight`                        | `#4FDBC8`              | `#006B5F`              | Teal, for insights (rule-based) only            |
 | `success`                        | `#5EE2A6`              | `#0F6D45`              | Good, valid                                     |
 | `warning`                        | `#FFB86E`              | `#8A5100`              | Due, expiring soon                              |
 | `destructive`                    | `#FFB4AB`              | `#BA1A1A`              | Overdue, expired, errors, delete                |

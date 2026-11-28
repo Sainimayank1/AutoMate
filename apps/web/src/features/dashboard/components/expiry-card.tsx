@@ -13,9 +13,9 @@ const STATE = {
 } satisfies Record<ExpiryItem["state"], { tone: StatusTone; icon: typeof Clock; label: string }>;
 
 /**
- * Stitch "Dashboard" expiry dates: what's on record today (insurance from its payment, the
- * warranty from the vehicle), each opening its source. Documents adds PUC, registration and the
- * licence when it's built.
+ * Stitch "Dashboard" expiry dates: the vehicle's documents with an expiry, soonest first, each
+ * opening its document. Until there's an insurance (or warranty) document, the policy on the
+ * insurance payment (and the vehicle's warranty) stand in, labelled with their source.
  */
 export function ExpiryCard({ items }: { items: ExpiryItem[] }) {
   return (

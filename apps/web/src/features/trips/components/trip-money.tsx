@@ -297,13 +297,15 @@ function LinkFuelDialog({
                 key={entry.id}
                 className="flex items-center justify-between gap-3 px-3 py-2.5 text-sm"
               >
-                <span className="min-w-0 truncate">
-                  {[entry.station, formatDateTime(entry.filledAt)].filter(Boolean).join(" · ")}
-                </span>
-                <span className="flex shrink-0 items-center gap-2">
+                <span className="flex min-w-0 flex-col">
+                  <span className="truncate">
+                    {[entry.station, formatDateTime(entry.filledAt)].filter(Boolean).join(" · ")}
+                  </span>
                   <span className="font-medium tabular-nums">
                     {formatCurrency(entry.totalAmount)}
                   </span>
+                </span>
+                <span className="shrink-0">
                   <Button
                     size="sm"
                     variant="outline"

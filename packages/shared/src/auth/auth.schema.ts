@@ -7,7 +7,7 @@ export const PASSWORD_MIN_LENGTH = 8;
 export const PASSWORD_MAX_LENGTH = 128;
 
 /** Trimmed and lower-cased before validation, so "Arjun@Example.in " and "arjun@example.in" are one account. */
-const emailSchema = z
+export const emailSchema = z
   .string()
   .trim()
   .toLowerCase()
@@ -25,19 +25,24 @@ export const loginSchema = z.object({
   rememberMe: z.boolean().default(true),
 });
 
+/** The policy for any new password (registration and changing it). */
+export const newPasswordSchema = z
+  .string()
+  .min(PASSWORD_MIN_LENGTH, `Use at least ${PASSWORD_MIN_LENGTH} characters`)
+  .max(PASSWORD_MAX_LENGTH, `Use ${PASSWORD_MAX_LENGTH} characters or fewer`)
+  .regex(/[A-Za-z]/, "Include at least one letter")
+  .regex(/\d/, "Include at least one number");
+
+export const nameSchema = z
+  .string()
+  .trim()
+  .min(2, "Enter your full name")
+  .max(80, "Name must be 80 characters or fewer");
+
 export const registerSchema = z.object({
-  name: z
-    .string()
-    .trim()
-    .min(2, "Enter your full name")
-    .max(80, "Name must be 80 characters or fewer"),
+  name: nameSchema,
   email: emailSchema,
-  password: z
-    .string()
-    .min(PASSWORD_MIN_LENGTH, `Use at least ${PASSWORD_MIN_LENGTH} characters`)
-    .max(PASSWORD_MAX_LENGTH, `Use ${PASSWORD_MAX_LENGTH} characters or fewer`)
-    .regex(/[A-Za-z]/, "Include at least one letter")
-    .regex(/\d/, "Include at least one number"),
+  password: newPasswordSchema,
   acceptedTerms: z
     .boolean()
     .refine((accepted) => accepted, "Accept the Terms of Service and Privacy Policy to continue"),
@@ -53,6 +58,8 @@ export interface UserProfile {
   id: string;
   name: string;
   email: string;
+  /** A short-lived link to the profile photo; null without one. */
+  avatarUrl: string | null;
   /** ISO 8601 */
   createdAt: string;
 }

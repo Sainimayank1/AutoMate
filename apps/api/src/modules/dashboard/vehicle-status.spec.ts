@@ -1,4 +1,4 @@
-import type { RecurringPayment, Vehicle } from "@automate/shared";
+import type { RecurringPayment, Vehicle, VehicleDocument } from "@automate/shared";
 import { describe, expect, it } from "vitest";
 
 import { expiryDates, vehicleStatus } from "./vehicle-status";
@@ -160,8 +160,8 @@ describe("expiryDates", () => {
         label: "Insurance",
         state: "not_added",
         summary: "No policy on record",
-        detail: "Add the insurance payment with its policy dates.",
-        href: "/expenses/new",
+        detail: "Add the policy in Documents.",
+        href: "/documents/new?type=INSURANCE",
       },
     ]);
     const items = expiryDates({
@@ -280,5 +280,100 @@ describe("payments in the action centre", () => {
       href: "/expenses/recurring",
       action: { label: "Record payment", href: "/expenses/recurring?pay=r1&due=2026-11-30" },
     });
+  });
+});
+
+describe("documents on the dashboard", () => {
+  const today = "2026-11-28";
+  const document = (overrides: Partial<VehicleDocument>): VehicleDocument => ({
+    id: "d1",
+    vehicleId: "car",
+    type: "PUC",
+    name: "PUC certificate",
+    number: "HR026-PUC-9921",
+    issuer: "Shree Balaji PUC Centre",
+    issueDate: null,
+    expiryDate: "2026-12-10",
+    notes: null,
+    reminderDays: [30, 7, 1],
+    remindOn: null,
+    state: "EXPIRING",
+    daysLeft: 12,
+    files: [],
+    createdAt: "",
+    updatedAt: "",
+    ...overrides,
+  });
+  const insuranceDoc = document({
+    id: "d2",
+    type: "INSURANCE",
+    name: "Motor insurance",
+    issuer: "ICICI Lombard",
+    expiryDate: "2027-08-18",
+    state: "VALID",
+    daysLeft: 263,
+  });
+  const expiredRsa = document({
+    id: "d3",
+    type: "ROADSIDE_ASSISTANCE",
+    name: "Roadside assist",
+    issuer: null,
+    number: "MSIL-RSA-7721",
+    expiryDate: "2026-11-06",
+    state: "EXPIRED",
+    daysLeft: -22,
+  });
+
+  it("puts expired and expiring documents in the action centre, renewing as the action", () => {
+    const status = vehicleStatus({
+      vehicle: vehicle(),
+      insurance: { expenseId: "e1", paidOn: "2026-08-18", policyEnd: "2026-12-01" },
+      maintenance: { items: [], tracked: true },
+      documents: [expiredRsa, document({}), insuranceDoc],
+      today,
+    });
+    expect(status.untracked).toEqual([]);
+    expect(
+      status.items.map((item) => [item.id, item.severity, item.title, item.action?.href]),
+    ).toEqual([
+      [
+        "document:d3",
+        "critical",
+        "Roadside assist expired on 6 Nov 2026",
+        "/documents/d3/edit?renew=1",
+      ],
+      [
+        "document:d1",
+        "warning",
+        "PUC certificate expires in 12 days",
+        "/documents/d1/edit?renew=1",
+      ],
+    ]);
+  });
+
+  it("lists documents with an expiry; the insurance payment stands in only without a policy document", () => {
+    const withPolicy = expiryDates({
+      vehicle: vehicle(),
+      insurance: { expenseId: "e1", paidOn: "2026-08-18", policyEnd: "2026-12-01" },
+      documents: [
+        expiredRsa,
+        document({}),
+        insuranceDoc,
+        document({ id: "d4", expiryDate: null, state: "NO_EXPIRY", daysLeft: null }),
+      ],
+      today,
+    });
+    expect(withPolicy.map((item) => [item.id, item.state, item.summary])).toEqual([
+      ["document:d3", "expired", "Expired on 6 Nov 2026"],
+      ["document:d1", "expiring", "Expires in 12 days"],
+      ["document:d2", "valid", "Valid until 18 Aug 2027"],
+    ]);
+    const withoutPolicy = expiryDates({
+      vehicle: vehicle(),
+      insurance: null,
+      documents: [document({})],
+      today,
+    });
+    expect(withoutPolicy.map((item) => item.id)).toEqual(["document:d1", "insurance"]);
   });
 });

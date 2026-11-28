@@ -26,7 +26,7 @@ Three families, self-hosted through Fontsource (no third-party font requests):
 | Metric value          | `font-heading text-2xl font-semibold tracking-tight tabular-nums`             | 24 px       | `StatCard`                                                                 |
 | Metric value, compact | `text-lg font-semibold tabular-nums`                                          | 18 px       | Nested tiles inside a hero, mobile stat rows                               |
 | Body                  | `text-sm`                                                                     | 14 px       | Default UI text                                                            |
-| Body, reading         | `text-base leading-7`                                                         | 16 px       | AI responses, long descriptions, help text blocks                          |
+| Body, reading         | `text-base leading-7`                                                         | 16 px       | Long descriptions, help text blocks                                        |
 | Secondary             | `text-sm text-muted-foreground`                                               | 14 px       | Descriptions, meta                                                         |
 | Label                 | `text-sm font-medium`                                                         | 14 px       | Form labels (the `FieldLabel` primitive)                                   |
 | Overline              | `text-xs font-medium uppercase tracking-wider text-muted-foreground`          | 12 px       | Instrument labels on metrics, sidebar group labels, hero eyebrow           |

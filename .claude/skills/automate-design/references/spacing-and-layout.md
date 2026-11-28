@@ -16,7 +16,7 @@ Use Tailwind's 4 px scale and only these steps: `0.5 1 1.5 2 3 4 5 6 8 10 12 16`
 ## Page frame
 
 - Every routed page renders `<PageContainer>`: `max-w-7xl` (1280 px), `px-4 md:px-6 lg:px-8`, `py-6`, `gap-6`. Pages never add their own outer padding or max-width.
-- **Full-bleed exceptions:** the AI Assistant conversation and document/PDF preview may use `max-w-none`. Their reading columns keep `max-w-3xl` centred.
+- **Full-bleed exception:** a document/PDF preview may use `max-w-none`; its reading column keeps `max-w-3xl` centred.
 - The order is always: `PageHeader` → optional filter or tab row → content sections.
 
 ## Grid recipes

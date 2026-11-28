@@ -134,3 +134,10 @@ export function formatRegistration(value: string | null | undefined): string {
   const parts = STANDARD_PLATE.exec(plate) ?? BHARAT_PLATE.exec(plate);
   return parts ? parts.slice(1).filter(Boolean).join("-") : plate;
 }
+
+/** "512 B", "284 KB", "2.4 MB" (1024-based, like file managers). */
+export function formatFileSize(bytes: number): string {
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${Math.round(bytes / 1024)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}

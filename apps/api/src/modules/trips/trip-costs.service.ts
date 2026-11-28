@@ -38,7 +38,7 @@ const COST_LABELS: Record<TripCostCategory, string> = {
   ACCOMMODATION: "Accommodation",
   OTHER: "Trip cost",
 };
-const COST_INCLUDE = {
+export const COST_INCLUDE = {
   trip: {
     select: {
       id: true,
@@ -113,7 +113,7 @@ export class TripCostsService {
         if (existing) return existing.id;
       }
       const row = await tx.tripCost.create({
-        data: { ...columns(input), id: input.id ?? randomUUID(), userId, tripId },
+        data: { ...costColumns(input), id: input.id ?? randomUUID(), userId, tripId },
         include: COST_INCLUDE,
       });
       await this.syncExpense(tx, userId, row, trip);
@@ -140,7 +140,7 @@ export class TripCostsService {
       if (!parsed.success) throw new ZodValidationException(parsed.error);
       const row = await tx.tripCost.update({
         where: { id },
-        data: columns(parsed.data),
+        data: costColumns(parsed.data),
         include: COST_INCLUDE,
       });
       await this.syncExpense(tx, userId, row, trip);
@@ -389,12 +389,7 @@ export class TripCostsService {
   }
 
   /** Toll, parking and other keep one linked expense; food and accommodation have none. */
-  private async syncExpense(
-    tx: Prisma.TransactionClient,
-    userId: string,
-    row: CostRow,
-    trip: TripRef,
-  ) {
+  async syncExpense(tx: Prisma.TransactionClient, userId: string, row: CostRow, trip: TripRef) {
     const mapping = TRIP_COST_EXPENSE[row.category];
     if (!mapping) return this.linked.remove(tx, "TRIP", row.id);
     const label = tripLabel(trip);
@@ -452,7 +447,7 @@ export class TripCostsService {
   }
 }
 
-const columns = (values: CreateTripCostValues) => ({
+export const costColumns = (values: CreateTripCostValues) => ({
   category: values.category,
   amount: new Prisma.Decimal(values.amount),
   date: toDbDate(values.date)!,

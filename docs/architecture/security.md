@@ -34,7 +34,7 @@ Baseline controls in Phase 0 and the rules every module follows. Related: [backe
 
 ## 3. File uploads (when Documents ships)
 
-There's no upload endpoint in Phase 0. The planned design ([backend.md §11](backend.md#11-file-storage-strategy)):
+Built with Documents (M6): [documents.md §2](documents.md#2-files-and-storage). The design ([backend.md §11](backend.md#11-file-storage-strategy)):
 
 - Private bucket only. Short-lived presigned PUT/GET URLs, issued only after an ownership check.
 - Allow-listed MIME types, a maximum size enforced in the presigned policy and re-checked on confirm, the real type sniffed with `file-type`.

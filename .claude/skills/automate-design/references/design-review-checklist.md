@@ -37,7 +37,7 @@ Run this before calling any UI task done. If any answer is **no**, fix it first,
 - [ ] Mileage is never shown from incomplete full-tank sequences; gaps are explained.
 - [ ] Operating cost, loan principal and cash outflow are separated and labelled; principal is not in cost per km.
 - [ ] Linked records (fuel → expense, service → expense) show their origin and aren't duplicated.
-- [ ] AI advice is visually distinct from recorded data.
+- [ ] Rule-based insights say so ("rules, not AI") and never pose as recorded data.
 - [ ] Sample data matches `localization-and-sample-data.md` (same odometer, figures and plates).
 - [ ] No business calculations in components: values come from the API or shared code.
 

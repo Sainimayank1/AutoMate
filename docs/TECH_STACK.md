@@ -13,14 +13,13 @@ Build on a modern, production-ready architecture while keeping all infrastructur
 5. [Shared packages](#5-shared-packages)
 6. [File storage & document management](#6-file-storage--document-management)
 7. [Background jobs, notifications & automation](#7-background-jobs-notifications--automation)
-8. [AI integration](#8-ai-integration--automate-ai-assistant)
-9. [Analytics & charts](#9-analytics--charts)
-10. [Infrastructure — free initially](#10-infrastructure--keep-it-free-initially)
-11. [Testing, code quality & developer tools](#11-testing-code-quality--developer-tools)
-12. [Monorepo architecture](#12-monorepo-architecture)
-13. [Final technology decision](#13-final-technology-decision)
-14. [Package philosophy](#14-package-philosophy)
-15. [Next phase](#15-next-phase)
+8. [Analytics & charts](#8-analytics--charts)
+9. [Infrastructure — free initially](#9-infrastructure--keep-it-free-initially)
+10. [Testing, code quality & developer tools](#10-testing-code-quality--developer-tools)
+11. [Monorepo architecture](#11-monorepo-architecture)
+12. [Final technology decision](#12-final-technology-decision)
+13. [Package philosophy](#13-package-philosophy)
+14. [Next phase](#14-next-phase)
 
 ---
 
@@ -312,7 +311,6 @@ Jobs that don't need to run during a user's API request:
 - Monthly ownership summary.
 - Maintenance due calculations.
 - Email reminders.
-- Future AI analysis.
 
 | Package          | Purpose                   |
 | ---------------- | ------------------------- |
@@ -325,37 +323,7 @@ Jobs that don't need to run during a user's API request:
 
 ---
 
-## 8. AI integration — AutoMate AI Assistant
-
-The assistant must not be a chatbot that only gives generic answers. It must understand the user's actual vehicle and recorded data.
-
-| Technology                               | Purpose                                                      |
-| ---------------------------------------- | ------------------------------------------------------------ |
-| Anthropic SDK                            | Claude integration                                           |
-| @nestjs/ai or direct service integration | Backend AI orchestration (evaluate maturity before adopting) |
-| Zod                                      | Validate tool inputs and outputs                             |
-| NestJS tools/services                    | Execute controlled actions and data retrieval                |
-
-Keep the AI provider behind a dedicated interface so we can switch between Claude, OpenAI, or other providers without rewriting the assistant module.
-
-Controlled tool access:
-
-- `getVehicleProfile()`
-- `getFuelHistory()`
-- `calculateMileage()`
-- `getExpenseSummary()`
-- `getMaintenanceHistory()`
-- `getUpcomingMaintenance()`
-- `getDocumentExpiry()`
-- `getTripHistory()`
-
-AI must never calculate financial or mileage figures by guessing. The backend calculates actual values and provides them to the AI.
-
-AI features incur costs. Build and test the app without requiring an AI API initially.
-
----
-
-## 9. Analytics & charts
+## 8. Analytics & charts
 
 Don't build chart components from scratch.
 
@@ -378,7 +346,7 @@ Used for:
 
 ---
 
-## 10. Infrastructure — keep it free initially
+## 9. Infrastructure — keep it free initially
 
 Start with free hosting. Free-tier conditions change, so verify actual limits before deployment.
 
@@ -405,7 +373,7 @@ Run locally with Docker Compose so setting up the dev environment is easy:
 
 ---
 
-## 11. Testing, code quality & developer tools
+## 10. Testing, code quality & developer tools
 
 | Package                     | Purpose                     |
 | --------------------------- | --------------------------- |
@@ -422,12 +390,12 @@ Use automated checks to catch regressions, particularly for important calculatio
 
 ---
 
-## 12. Monorepo architecture
+## 11. Monorepo architecture
 
 pnpm workspace + Turborepo: frontend, backend and shared packages in one repository.
 
 - **apps/web** — React + Vite: Dashboard · Garage · Fuel · Expenses · Maintenance · Analytics
-- **apps/api** — NestJS: REST API · Auth · Business logic · Jobs · AI
+- **apps/api** — NestJS: REST API · Auth · Business logic · Jobs
 - **packages/shared** — types, schemas, enums, constants
 - **packages/ui** — reusable UI components
 - **packages/config** — ESLint, TypeScript configs
@@ -464,7 +432,6 @@ automate/
 │       │   │   ├── documents/
 │       │   │   ├── trips/
 │       │   │   ├── analytics/
-│       │   │   ├── assistant/
 │       │   │   └── notifications/
 │       │   ├── common/
 │       │   ├── config/
@@ -502,39 +469,38 @@ automate/
 
 ---
 
-## 13. Final technology decision
+## 12. Final technology decision
 
-| Technology   | Selected                         |
-| ------------ | -------------------------------- |
-| Frontend     | React + Vite                     |
-| Language     | TypeScript                       |
-| UI           | shadcn/ui + Tailwind CSS         |
-| Icons        | Lucide                           |
-| Forms        | React Hook Form + Zod            |
-| API state    | TanStack Query                   |
-| Client state | Zustand                          |
-| HTTP         | Axios                            |
-| Backend      | NestJS                           |
-| API          | REST                             |
-| Database     | PostgreSQL                       |
-| ORM          | Prisma                           |
-| Auth         | JWT + Passport                   |
-| API docs     | Swagger                          |
-| Charts       | Recharts                         |
-| Tables       | TanStack Table                   |
-| Storage      | Cloudflare R2                    |
-| Cache/Queue  | Redis + BullMQ (later)           |
-| Monorepo     | pnpm + Turborepo                 |
-| Containers   | Docker + Docker Compose          |
-| Deployment   | Cloudflare Pages + Render        |
-| DB Hosting   | Neon                             |
-| CI/CD        | GitHub Actions                   |
-| Monitoring   | Sentry                           |
-| AI           | Claude API, provider abstraction |
+| Technology   | Selected                  |
+| ------------ | ------------------------- |
+| Frontend     | React + Vite              |
+| Language     | TypeScript                |
+| UI           | shadcn/ui + Tailwind CSS  |
+| Icons        | Lucide                    |
+| Forms        | React Hook Form + Zod     |
+| API state    | TanStack Query            |
+| Client state | Zustand                   |
+| HTTP         | Axios                     |
+| Backend      | NestJS                    |
+| API          | REST                      |
+| Database     | PostgreSQL                |
+| ORM          | Prisma                    |
+| Auth         | JWT + Passport            |
+| API docs     | Swagger                   |
+| Charts       | Recharts                  |
+| Tables       | TanStack Table            |
+| Storage      | Cloudflare R2             |
+| Cache/Queue  | Redis + BullMQ (later)    |
+| Monorepo     | pnpm + Turborepo          |
+| Containers   | Docker + Docker Compose   |
+| Deployment   | Cloudflare Pages + Render |
+| DB Hosting   | Neon                      |
+| CI/CD        | GitHub Actions            |
+| Monitoring   | Sentry                    |
 
 ---
 
-## 14. Package philosophy
+## 13. Package philosophy
 
 Rules enforced when implementing AutoMate:
 
@@ -551,6 +517,6 @@ Rules enforced when implementing AutoMate:
 
 ---
 
-## 15. Next phase
+## 14. Next phase
 
 Lock this stack and start with **Phase 0 — Infrastructure**: monorepo, frontend bootstrap, backend bootstrap, shared packages, database, Docker, configuration, linting, and deployment foundations. **No vehicle/product modules yet.**

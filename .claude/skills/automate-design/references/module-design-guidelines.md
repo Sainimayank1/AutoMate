@@ -17,7 +17,7 @@ Each section gives the module's **job**, its **layout** (desktop → mobile), it
 3. **Metric strip** (5 cards, 2 across on phones, the last full width): Spent (net, loan principal excluded), Running cost / km, Average mileage (km/L, km/kg, km/kWh), Distance (from odometer readings), Fuel spend (with litres). Each compares like for like ("−6% vs 1–27 Oct": cost down `success`, up `warning`; mileage up `success`), says why when it can't ("Needs two full-tank fill-ups"), has an ⓘ popover with its definition, and the card opens its module.
 4. **Smart insights** (built, below the metric strip): a full-width card, a `Lightbulb` in an `insight`-tinted tile, "Smart insights" and "From your own records · rules, not AI" (never `Sparkles`: these are not AI). Up to 4 tiles (`bg-elevated`, a 2px left border in the tone: `warning` for costs and worse running, `success` for improvements, muted for context), each with its topic icon, the title ("Fuel costs 16% more per km"), the explanation with the figures, a meta line ("vs 1–27 Oct · Medium confidence") and a "View … →" link (40px tall on phones). Too few records: "Insights compare this period with the one before. They appear once expenses and full-tank fill-ups cover both periods." Nothing notable: "Nothing stands out against 1–27 Oct."
 5. **Spending** (built): "Monthly spending" (`lg:col-span-8`, stacked bars of the last 6 months, up to 12 for long periods, in the five fixed `SpendGroup` series with the legend on top; net, loan principal excluded) beside "Where it went · 1–27 Nov" (`lg:col-span-4`, categories largest first with icon, amount, % and a thin bar in the category colour, each opening its transactions for the vehicle and period). **Fuel & mileage** (built): "Mileage" (`lg:col-span-8`, the Fuel module's `MileageChart`, last 12 full-tank cycles with a dashed "Period avg" line) beside "Fuel this period" (average and latest mileage, fuel bought, fuel spend, average price, fuel cost per km, "View fuel history").
-6. **Bottom row** (built, three equal cards): **Maintenance** ("1 overdue · 2 due soon", the 4 most urgent schedules with the Maintenance module's status badge and due summary, "Last service: …", Add service record · View maintenance), **Expiry dates** (insurance and warranty with Expiring/Valid/Expired/Not added badges; "PUC, registration and licence arrive with Documents"), **Driving** (odometer distance for the period, ~km per day, last reading; below a divider the period's TRIPS: count · avg · longest, a thin stacked bar by type with the top three, "N km logged in trips" kept apart from the odometer figure, Log trip · View trips; "No trips this period" / "No trips logged yet").
+6. **Bottom row** (built, three equal cards): **Maintenance** ("1 overdue · 2 due soon", the 4 most urgent schedules with the Maintenance module's status badge and due summary, "Last service: …", Add service record · View maintenance), **Expiry dates** (the vehicle's documents with Expiring/Valid/Expired badges, soonest first; the insurance payment and vehicle warranty stand in until those documents exist, or "Not added"), **Driving** (odometer distance for the period, ~km per day, last reading; below a divider the period's TRIPS: count · avg · longest, a thin stacked bar by type with the top three, "N km logged in trips" kept apart from the odometer figure, Log trip · View trips; "No trips this period" / "No trips logged yet").
 7. **Recent activity** (built): a full-width card below: fill-ups, expenses, refunds ("−₹140.00" in `success`) and service records, newest first, 8 per page with `Pager`; a table on desktop (Date, Event with its icon and detail, Odometer, Amount), a list on phones; each row opens its record.
 
 **Widgets** (all `Card`-based and customisable): Vehicle status, Fuel Efficiency, Monthly Spending, Cost per KM, Upcoming Maintenance, Document Expiry, Recent Activity, Expense Breakdown.
@@ -115,25 +115,24 @@ Rules:
 
 **Expense overview (`/expenses`, Stitch "Expenses — Desktop / Mobile", built):**
 
-- Tabs Overview · Transactions · Recurring · Budgets · Categories; a vehicle scope (supports All vehicles) and the IST month.
+- Tabs Overview · Transactions · Recurring · Budgets · Ownership · Insights · Categories; a vehicle scope (supports All vehicles) and the IST month.
 - **KPI strip** (5 `StatCard`s, two across on phones): Operating (Nov) with the change vs last month (cost ↑ `warning`, ↓ `success`), Operating (2026) with its months, Monthly average, Running cost / km with the km it's priced over, Loan EMI outflow "of ₹… paid this month". Then the one-line operating-cost definition.
 - **Category breakdown:** this month's running cost per category, amount, % and a `Progress h-2` bar in the category colour.
 - **Recent expenses:** 5 rows (table on desktop, list on phones), chips for the most used categories, "Showing 5 of N" and "View all" into Transactions with the same scope.
 - **Monthly spending:** the last 12 months as stacked bars in the five chart groups (`SPEND_GROUP_SERIES`, the dashboard's colours; loan principal left out), a dashed muted "Same month last year" line where records cover it, the 12-month total in the header.
 - **Upcoming payments:** the next 4 recurring payments and EMIs (overdue first) with a state badge, date and amount; "View all →" opens the Recurring tab.
 
+**Ownership tab (`/expenses/ownership`, Stitch "Expenses — Ownership — Desktop / Mobile", built):** one vehicle (the scope, else the active one) and a Segmented period (This month · This year · Since purchase). Then the **money separation panel** "Three ways to count it" (a Card with 3 `bg-elevated` tiles, each with its one-line definition): Operating cost; Cash outflow, naming the loan principal inside it; Economic ownership cost with an "Estimate" badge when depreciation is in it. Loan principal never appears in operating or economic cost. Below, a 7/5 grid: "Where the economic cost goes" (rows with `Progress h-1.5`: Running cost, Insurance & legal, Loan interest & fees, Accessories & upgrades, Depreciation (estimate), then the total), and on the right the Per km / Per month tiles and a Depreciation card (bought for, on, lost so far, worth about; an "Estimate" badge and the IRDAI note; without a purchase price, a link to edit the vehicle).
+
+**Insights tab (`/expenses/insights`, Stitch "Expenses — Insights — Desktop", built):** one card "What stands out" (a teal lightbulb tile, "From your own records · rules, not AI"; never Sparkles) with a 2-column grid of tiles like the dashboard's smart insights: `bg-elevated`, a 2px left border (`warning` for over a limit or the usual, muted for worth a look), a kind icon (Target, TrendingUp, Copy, ReceiptIndianRupee), title, explanation, the figure line and a link.
+
+**Import and report:** "Import CSV" sits beside "Export CSV" on Transactions and opens Stitch "Import Expenses Dialog" (vehicle, file, four count tiles, a table of the rows that need a look with status badges, "Also import the N that look like duplicates", "Import N expenses"). "Printable report" on the Ownership tab opens Stitch "Expense Report": a light A4 sheet outside the shell with a toolbar (Back, period, "Print or save as PDF") that isn't printed.
+
 **Budgets tab (`/expenses/budgets`, Stitch "Expenses — Budgets — Desktop / Mobile" and "Add Budget Dialog — Desktop", built):** the title and one-line rule, "Add budget", three count tiles (Over budget in `destructive`, Near the limit in `warning`, On track neutral; one compact row on phones), then a 2-column grid of cards: category icon (a car for "Everything on this vehicle"), name, a period chip ("November 2026" / "2026 (yearly)"), a state badge (on track is neutral, not green) and a kebab (Edit, Delete); "₹16,978.00 of ₹20,000.00" with the percent in the state colour, a `Progress h-2` in the state colour with a tick at the warning %, and "₹3,022.00 left · warns at 80%" or "Over by ₹100.00" in `destructive`. A muted note closes it. The dialog: Vehicle, Category ("Everything on this vehicle" first), Period (Monthly / Yearly), Limit (₹) and Warn me at (%); editing locks the vehicle and category.
 
 **Recurring tab (`/expenses/recurring`, Stitch "Expenses — Recurring", built):** Upcoming / History payments (state badge, the EMI's principal and interest, "Record payment" opens a dialog with the amount filled in, a menu to skip, postpone or reset), a Loans section (a card per loan: outstanding, EMI, rate, end, progress "19 of 60 EMIs paid", "View schedule →") and a Schedules table (frequency, next due, status; pause, resume, cancel, delete). Loan details (`/expenses/loans/:id`): position tiles, rate changes and the amortisation table a page at a time, each row's state; EMIs before tracking read "Before tracking". Add/edit recurring payment and loan are task pages with numbered sections and a summary card.
 
-- Planned with phase 6 (Ownership cost): the **money separation panel** (a Card with 3 `bg-elevated` tiles, always present; definitions in `docs/architecture/expenses.md`):
-  1. **Operating cost**: running the vehicle (fuel, servicing, repairs, tolls, parking, washing). Cost per km uses only this;
-  2. **Cash outflow**: everything paid, including the full EMI (principal too);
-  3. **Economic ownership cost**: operating + insurance and taxes + loan interest and charges + accessories + depreciation (an estimate).
-     Loan principal never appears in operating or economic cost.
-
-  Each tile has a one-line definition tooltip. Principal never appears inside operating totals or cost per km.
-
+- The **money separation panel** lives on the Ownership tab (below).
 - **Category breakdown:** a donut (top 4 + Other) plus a ranked list with category icon, amount, % and a bar (`Progress h-1.5` in the category colour).
 - **List:**
   - A `DataTable` with columns Date, Category (icon + label), Description, Payment, Amount, Source.
@@ -190,22 +189,14 @@ Rules:
 
 **Job:** a vault that feels **secure, organised and premium**, plus never missing an expiry.
 
-**Documents overview (`/documents`):**
+**Built (Stitch "Documents Vault", "Add Document", "Document Details"; rules in `docs/architecture/documents.md`):**
 
-- **Expiry strip:** the documents expiring soonest as compact cards (type icon, name, "Expires in 43 days", `StatusBadge`). Example: Driving Licence, 09/01/2027.
-- **Vault grid**, grouped by type: RC, Insurance, PUC, Driving Licence, Warranty, Roadside Assistance, Loan Documents, Service Invoices, Purchase Invoices, Other.
-  - Each document card has a thumbnail (first page or image), the title, number (masked except the last 4 characters until revealed), validity dates and a status.
-  - A `Lock` overline "Encrypted storage" in the page description reinforces trust. Make no claims beyond what the backend guarantees.
-- Filter by type and status, plus search.
+- **Vault (`/documents`):** title and "Private storage for RC, insurance, PUC, licence and warranty records" (no encryption claims beyond the bucket's), "Add document"; four count tiles (Total · Valid in `success` · Expiring soon in `warning` · Expired in `destructive`); a row of type chips (All + every type, scrolling on phones) and a search (name, number, issuer); a 2-column grid of cards, expired and soonest first: a 40 px icon tile tinted by state, name, vehicle · plate (or issuer), a badge ("12 days", Valid, Expired, No expiry), and number + expiry date under a hairline (amber or red when due); a "Renewals" card on the right (expired, then expiring) with "Upload new" / "Renew".
+- **Add / Edit (task page, `/documents/new`, `/documents/:id/edit`):** one card: name, type, vehicle (optional for a driving licence), number (labelled by type: Policy no., Certificate no.…), issue and expiry dates, issued by; a dropzone with "Choose files" and "Scan with camera" (`capture="environment"`), each file sent straight to storage with a spinner, then size or the reason it failed; "Remind me 30, 7 and 1 days before it expires" plus "Also remind me on"; notes; Cancel / "Save to vault". `?renew=1` starts a renewal (new dates and copy).
+- **Details (`/documents/:id`):** header (tinted tile, name, badge, type · vehicle, Edit and a kebab with Delete); a 7/5 grid: the preview (PDF in the browser's viewer, photos inline, through a 5-minute link) and the files (select, open, download), then Details and Reminders with "Renew".
+- **Dashboard:** expired and expiring documents in the action centre (Renew), the expiry card lists the vehicle's documents, "Added …" in recent activity, and "Add document" in the hero's quick actions.
 
-**Screens:**
-
-- **Add/Edit document:** `FileUpload` first (large dropzone), then type (combobox), title, number, issue date, expiry date (hidden for types without expiry), vehicle (or "Personal" for a Driving Licence) and reminder lead times (multi-select chips: 30, 15, 7, 1 days).
-- **Document details:** `DocumentPreview` (large), a metadata panel, the reminder list, and actions (Download, Replace file, Edit, Delete).
-- **Reminders:** a list grouped by Overdue / This week / This month / Later. Each reminder has a title, linked document or record, due date, repeat setting and actions (Snooze, Mark done).
-  - **Reminder creation:** title, type (document expiry / custom), date, repeat (none, monthly, yearly), lead time, linked record.
-  - **Reminder details:** a `Sheet` with the reminder's history.
-- **Reminder calendar:** the same component as the maintenance calendar, showing reminders.
+**Not built yet:** reminder inbox, snooze and calendar (Notifications, M10), number masking and document thumbnails in the grid.
 
 ---
 
@@ -236,6 +227,8 @@ Rules:
 
 **Job:** deep, trustworthy insight into what the car really costs.
 
+**Built (Stitch "Analytics & TCO — Desktop / Mobile"; rules in `docs/architecture/analytics.md`):** `/analytics` is one page across the active vehicles: PageHeader "Total cost of ownership" with a Segmented period (This month · This year · Lifetime: the ownership periods, not a financial year) and "Export report" (the Expenses printable report for the active vehicle); four tiles (Spent, True cost / km in `primary` with depreciation included, Average mileage weighted by full-tank cycles and only across one unit, Estimated resale value labelled as an estimate); the dashboard's `SpendingSection` (monthly chart in the five groups + where it went) across vehicles; and a Vehicle comparison table (name opening its Ownership tab, plate · fuel, odometer, mileage, cost / km, service spend, total cost) with the cost-model note. Trip charts stay in Trips (linked). The tabbed layout below is the longer-term target; the three tiers live on the Expenses Ownership tab.
+
 **Layout:** PageHeader with a DateRangePicker, a vehicle scope (single vehicle or All/Compare) and Export (PDF/CSV). Tabs: Overview · Fuel · Expenses · Usage · Maintenance · Ownership cost · Compare · Reports.
 
 **Overview:**
@@ -265,52 +258,6 @@ Use a vertical stepped layout or 3 tiles connected by "+"/"−" operators so the
 
 ---
 
-## M09 · AI car assistant
-
-**Job:** a premium automotive co-pilot grounded in the user's own records. Not a generic chatbot.
-
-**Layout:**
-
-- Desktop: a 2-pane layout. On the left, conversation history (`w-72`, search, grouped by Today / Previous 7 days / Older, "New conversation"). On the right, the conversation.
-- Mobile: history in a `Sheet` from the header; the conversation is full screen.
-
-**Empty state (new conversation):**
-
-- `hero-glow`, a `Bot` icon in an `insight` tinted tile, "Ask about your Victoris" (display title) and the vehicle context chip (`PlateBadge` + odometer).
-- **Suggested questions** as a 2-column grid of `outline` cards:
-  - How is my car's mileage performing?
-  - How much did I spend on fuel this month?
-  - When is my next service due?
-  - Show my maintenance history.
-  - What is my cost per kilometre?
-  - Compare this month with last month.
-  - What should I check before a road trip?
-
-**Conversation:**
-
-- User messages are right-aligned, `bg-elevated`, `rounded-xl`, `max-w-[80%]`.
-- Assistant responses are full-width blocks without a bubble, in `text-base leading-7`. They can contain:
-  - **Metric cards:** a `StatCard` row sourced from real data;
-  - **Charts:** `ChartCard`, compact;
-  - **Tables:** a compact `Table`;
-  - **Maintenance suggestions:** a list with a `StatusBadge` and a "Schedule" action;
-  - **Record references:** chips with module icon + title, linking to the record ("Fuel entry · 19/11/2026");
-  - **Action suggestions:** `outline` buttons ("Add reminder", "Open fuel history") that require a click and never auto-execute.
-- **Recorded data vs AI advice (mandatory):**
-  - Blocks built from the user's records carry a muted caption "From your records" with a `Database` icon and are rendered with normal surfaces.
-  - AI-generated advice and general knowledge sit in a block with `border-l-2 border-l-insight bg-insight/5`, a `Sparkles` icon and the label "AI suggestion". Advice must never be styled as recorded data.
-- **Streaming:** text streams in; structured blocks appear with a skeleton until complete. A "Stop generating" button replaces Send while streaming.
-- **Composer:** a sticky bottom `Textarea` (auto-grow, max 6 lines) with a Send icon button (primary). `Enter` sends, `Shift+Enter` adds a new line. The vehicle context chip sits above the composer and can be switched.
-- **Errors:** an inline "Couldn't get a response" with Retry on the failed message. The conversation is never lost.
-
-**Other screens:**
-
-- **Conversation details:** rename and delete from the header overflow.
-- **Delete confirmation:** a destructive `ConfirmDialog` ("Delete this conversation? This can't be undone.").
-- **AI preferences** (Settings sub-section or a dialog): response length, units, whether the assistant can use location, data access scope, and clear history.
-
----
-
 ## M10 · Notifications center
 
 **Job:** one calm inbox for everything that needs attention.
@@ -318,14 +265,14 @@ Use a vertical stepped layout or 3 tiles connected by "+"/"−" operators so the
 **Layout:**
 
 - PageHeader with "Mark all as read" and Preferences.
-- Filter chips: All · Unread · Maintenance · Documents · Fuel · Expenses · Trips · AI insights.
+- Filter chips: All · Unread · Maintenance · Documents · Fuel · Expenses · Trips · Insights.
 - A list grouped by Today / This week / Earlier.
 
 **Notification row:**
 
 - A priority dot (High `destructive`, Medium `warning`, Low muted), the category icon tile, a title (`font-medium` if unread), a one-line body, the relative time and an unread cyan dot.
 - Hover or swipe actions: Snooze (`AlarmClock`; options 1 day, 3 days, 1 week, custom), Dismiss (`X`), Mark read/unread.
-- AI insight notifications use the `insight` tint and `Sparkles`.
+- Insight notifications (rule-based) use the `insight` tint and `Lightbulb`, never `Sparkles`.
 
 **Categories:** Maintenance upcoming, Maintenance overdue, Insurance expiry, PUC expiry, Fuel efficiency change, Expense reminder, Trip reminder, Custom reminder, AI insight.
 
@@ -341,24 +288,16 @@ Use a vertical stepped layout or 3 tiles connected by "+"/"−" operators so the
 
 ## M11 · Settings and personalisation
 
-**Layout:**
+**As built** (`/settings`, from the Stitch "Settings & Profile" screen; rules in `docs/architecture/settings.md`): one scrolling page of Cards in this order, `max-w-5xl`.
 
-- Desktop: a section nav on the left (`md:grid-cols-[12rem_1fr]`): Profile · Preferences · Appearance · Notifications · Security · Privacy · Account.
-- Mobile: a list of sections that each push to a sub-page.
-- Each section is a set of Cards with a title, a description and rows (label + description on the left, control on the right).
+- **Profile:** avatar (photo or initials) with "Add/Change photo" and "Remove" links, name, email, member since, and "Edit profile" (a dialog; the current password field appears only when the email changes).
+- **Preferences:** theme as a `Segmented` (Dark, Light, System) and the default vehicle `Select`, both saving immediately; below them a read-only regional format panel (₹, km, L/kg/kWh, DD/MM/YYYY, IST, English (India)) explaining it's fixed for India.
+- **Reminders & alerts:** a master "Notifications" `Switch` in the header and one row per reminder (label + description left, `Switch` right). Off: the rows disable and a line says no reminders are sent.
+- **Security:** a "Change password" row (dialog), then signed-in devices (device name, "This device" badge, last active, signed-in date, per-device "Sign out") with `Pager` and "Sign out of all other devices".
+- **Your data:** a link to Backup & Export.
+- **Account:** a danger-zone Card (`border-destructive/40`) with "Sign out" and "Delete account"; the confirmation says what is deleted, suggests backing up first and requires the password plus `DELETE`.
 
-**Preferences:**
-
-- Currency (₹ INR, locked for now, with an explanation), distance (km), fuel volume (L), fuel efficiency (km/L or L/100 km), date format (DD/MM/YYYY), timezone (Asia/Kolkata), language (English (India)), default vehicle, theme.
-- Changes save immediately (`Switch`/`Select`) with a small "Saved" toast. Forms with text fields use an explicit Save.
-
-**Appearance:** theme as 3 preview cards (Dark, recommended; Light; System), each a miniature of the shell in that theme. Density follows later.
-
-**Security:** change password, active sessions list (device, location, last active, "Sign out"), 2FA later.
-
-**Privacy:** data usage for AI, data export link (M12).
-
-**Account:** a danger zone Card (`border-destructive/30`) containing "Delete account". The destructive confirmation explains what is deleted, offers "Export my data first" and requires typing `DELETE` plus the password.
+**Not built:** per-section sub-pages on mobile (the single page stacks), preview cards for themes, biometric lock / PIN (mobile app), privacy settings. The Security section and the theme / default-vehicle row are still to design in Stitch.
 
 ---
 

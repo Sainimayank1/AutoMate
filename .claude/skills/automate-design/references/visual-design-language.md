@@ -30,16 +30,16 @@ The seven brand attributes, and what each one means on screen:
 
 These are the only decorative devices allowed. Using them consistently is what makes AutoMate recognisable.
 
-| Element                       | Spec                                                                                                                                        | Allowed on                                                                                                           |
-| ----------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------- |
-| **Hero glow**                 | `hero-glow` utility (radial cyan at 8–14%, from the top)                                                                                    | Dashboard vehicle hero, vehicle detail hero, auth/onboarding backdrop, AI Assistant empty state. Max one per screen. |
-| **Overline instrument label** | `text-xs font-medium uppercase tracking-wider text-muted-foreground`                                                                        | Metric labels, sidebar group labels, hero eyebrow ("ACTIVE VEHICLE")                                                 |
-| **Gauge arc**                 | A thin (3–4 px) circular arc, open at the bottom like a speedometer, with a cyan fill on a `muted` track (the shared `GaugeRing` component) | Vehicle health score, service-interval progress, fuel-tank estimate. Max 1–3 per screen.                             |
-| **Linear progress track**     | `Progress` `h-1.5`, fill coloured by status                                                                                                 | Odometer-to-next-service, document validity remaining, import progress                                               |
-| **Plate badge**               | A bordered chip with the registration in uppercase and wide tracking                                                                        | Wherever a vehicle is identified                                                                                     |
-| **Photo scrim**               | `bg-gradient-to-t from-background/90 via-background/40 to-transparent` over the bottom of vehicle photos                                    | Only under text that sits on a photo                                                                                 |
-| **Chart area fade**           | Series colour gradient from 24% to 0%                                                                                                       | Area charts only                                                                                                     |
-| **Translucent header**        | `bg-background/80 backdrop-blur` (existing)                                                                                                 | App header, mobile bottom nav. No other glass.                                                                       |
+| Element                       | Spec                                                                                                                                        | Allowed on                                                                                 |
+| ----------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------ |
+| **Hero glow**                 | `hero-glow` utility (radial cyan at 8–14%, from the top)                                                                                    | Dashboard vehicle hero, vehicle detail hero, auth/onboarding backdrop. Max one per screen. |
+| **Overline instrument label** | `text-xs font-medium uppercase tracking-wider text-muted-foreground`                                                                        | Metric labels, sidebar group labels, hero eyebrow ("ACTIVE VEHICLE")                       |
+| **Gauge arc**                 | A thin (3–4 px) circular arc, open at the bottom like a speedometer, with a cyan fill on a `muted` track (the shared `GaugeRing` component) | Vehicle health score, service-interval progress, fuel-tank estimate. Max 1–3 per screen.   |
+| **Linear progress track**     | `Progress` `h-1.5`, fill coloured by status                                                                                                 | Odometer-to-next-service, document validity remaining, import progress                     |
+| **Plate badge**               | A bordered chip with the registration in uppercase and wide tracking                                                                        | Wherever a vehicle is identified                                                           |
+| **Photo scrim**               | `bg-gradient-to-t from-background/90 via-background/40 to-transparent` over the bottom of vehicle photos                                    | Only under text that sits on a photo                                                       |
+| **Chart area fade**           | Series colour gradient from 24% to 0%                                                                                                       | Area charts only                                                                           |
+| **Translucent header**        | `bg-background/80 backdrop-blur` (existing)                                                                                                 | App header, mobile bottom nav. No other glass.                                             |
 
 ## Gradients, glow and glass
 
@@ -55,7 +55,6 @@ The table above is the **complete** list. There are no gradient buttons, gradien
   - Documents: vault grid.
   - Trips: timeline.
   - Reminders: calendar.
-  - AI: conversation.
   - Backup: stepper.
 
 ## Anti-patterns and their fixes

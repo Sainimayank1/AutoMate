@@ -1,7 +1,8 @@
-import { type Trip, tripLabel, TripSort } from "@automate/shared";
+import { istToday, type Trip, tripLabel, TripSort } from "@automate/shared";
 import { cn } from "cn";
 import { format, parseISO } from "date-fns";
-import { ListIcon, Plus, Route, SearchX, Trash2, Waypoints } from "lucide-react";
+import { Download, ListIcon, Plus, Route, SearchX, Trash2, Upload, Waypoints } from "lucide-react";
+import { toast } from "sonner";
 import { useState } from "react";
 import { Link } from "react-router";
 
@@ -21,12 +22,18 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Spinner } from "@/components/ui/spinner";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
+import { downloadCsv } from "@/features/expenses/utils/csv";
 import { vehicleName } from "@/features/garage/constants";
 import { useVehicles } from "@/features/garage/hooks/use-vehicles";
 import { TripFilters } from "@/features/trips/components/trip-filters";
+import { TripImportDialog } from "@/features/trips/components/trip-import-dialog";
 import { TripsLayout } from "@/features/trips/components/trips-layout";
 import { ALL_VEHICLES, useTripHistory } from "@/features/trips/hooks/use-trip-history";
+import { tripsService } from "@/features/trips/services/trips-service";
+import { tripsToCsv } from "@/features/trips/utils/trip-csv";
+import { normalizeApiError } from "@/lib/api-error";
 import {
   useBulkTrips,
   useTripCategories,
@@ -85,17 +92,48 @@ export function Component() {
   };
   // Mixed vehicles only when listing all of them.
   const showVehicle = !history.filters.vehicleId;
+  const [importing, setImporting] = useState(false);
+  const [exporting, setExporting] = useState(false);
+  /** Every trip the filters match (all pages), in the history's order, as CSV. */
+  const exportCsv = async () => {
+    setExporting(true);
+    try {
+      const trips = await tripsService.all({ ...history.filters, sort: history.sort });
+      downloadCsv(
+        `trips-${istToday(new Date())}.csv`,
+        tripsToCsv(trips, (id) => nameOf(id) ?? ""),
+      );
+    } catch (failure) {
+      toast.error(normalizeApiError(failure).message);
+    } finally {
+      setExporting(false);
+    }
+  };
 
   return (
     <TripsLayout
       tab="history"
       actions={
-        <Button asChild>
-          <Link to="/trips/new">
-            <Plus data-icon="inline-start" />
-            Log trip
-          </Link>
-        </Button>
+        <>
+          <Button variant="outline" onClick={() => setImporting(true)}>
+            <Upload data-icon="inline-start" />
+            Import
+          </Button>
+          <Button variant="outline" disabled={exporting} onClick={() => void exportCsv()}>
+            {exporting ? (
+              <Spinner data-icon="inline-start" />
+            ) : (
+              <Download data-icon="inline-start" />
+            )}
+            Export CSV
+          </Button>
+          <Button asChild>
+            <Link to="/trips/new">
+              <Plus data-icon="inline-start" />
+              Log trip
+            </Link>
+          </Button>
+        </>
       }
     >
       <section className="flex flex-wrap items-center gap-2" aria-label="Find trips">
@@ -317,6 +355,14 @@ export function Component() {
           setSelected([]);
         }}
       />
+      {importing && (
+        <TripImportDialog
+          open
+          onOpenChange={setImporting}
+          vehicles={vehicles.filter((vehicle) => !vehicle.archivedAt)}
+          vehicleId={history.filters.vehicleId}
+        />
+      )}
     </TripsLayout>
   );
 }

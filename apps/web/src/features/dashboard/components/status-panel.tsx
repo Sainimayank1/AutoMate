@@ -35,6 +35,7 @@ const SOURCE: Record<ItemSource, string> = {
   insurance: "Insurance",
   warranty: "Warranty",
   payment: "Payment",
+  document: "Document",
 };
 
 /** Row surface by state (Stitch: red for overdue, amber for due, neutral otherwise). */

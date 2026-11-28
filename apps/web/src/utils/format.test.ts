@@ -8,6 +8,7 @@ import {
   formatDateTime,
   formatDistance,
   formatEfficiency,
+  formatFileSize,
   formatNumber,
   formatRegistration,
   formatVolume,
@@ -76,5 +77,13 @@ describe("formatDateRange", () => {
     );
     expect(formatDateRange({ from: "2025-10-01", to: "2025-10-31" }, now)).toBe("1–31 Oct 2025");
     expect(formatDateRange({ from: "2026-12-01", to: "2026-12-01" }, now)).toBe("1 Dec");
+  });
+});
+
+describe("formatFileSize", () => {
+  it("reads like a file manager", () => {
+    expect(formatFileSize(512)).toBe("512 B");
+    expect(formatFileSize(284_512)).toBe("278 KB");
+    expect(formatFileSize(2_516_582)).toBe("2.4 MB");
   });
 });

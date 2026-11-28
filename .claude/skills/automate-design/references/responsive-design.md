@@ -36,7 +36,6 @@ Breakpoints are Tailwind defaults: `sm` 640, `md` 768, `lg` 1024, `xl` 1280.
 | Charts                                   | Full width, `h-56`, fewer x-ticks (`interval="preserveStartEnd"`), legend moved below, tooltips on tap                                                                           |
 | Calendar month grid                      | Agenda list grouped by week                                                                                                                                                      |
 | Hover actions on rows                    | Visible overflow button, or swipe actions (Notifications)                                                                                                                        |
-| Two-pane (AI history + chat)             | Chat full screen; history in a Sheet                                                                                                                                             |
 
 ## Mobile ergonomics
 

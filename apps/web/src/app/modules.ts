@@ -1,6 +1,5 @@
 import {
   Bell,
-  Bot,
   Car,
   ChartNoAxesCombined,
   DatabaseBackup,
@@ -132,6 +131,16 @@ export const appModules = [
         handle: { title: "Budgets" },
       },
       {
+        path: "ownership",
+        lazy: () => import("@/features/expenses/ownership-route"),
+        handle: { title: "Ownership" },
+      },
+      {
+        path: "insights",
+        lazy: () => import("@/features/expenses/insights-route"),
+        handle: { title: "Insights" },
+      },
+      {
         path: "loans/:loanId",
         lazy: () => import("@/features/expenses/loan-details-route"),
         handle: { title: "Loan" },
@@ -139,6 +148,7 @@ export const appModules = [
     ],
     taskRoutes: [
       { path: "/expenses/new", lazy: () => import("@/features/expenses/new-expense-route") },
+      { path: "/expenses/report", lazy: () => import("@/features/expenses/report-route") },
       {
         path: "/expenses/recurring/new",
         lazy: () => import("@/features/expenses/recurring-form-route"),
@@ -267,6 +277,20 @@ export const appModules = [
     icon: FileText,
     navGroup: "management",
     lazy: () => import("@/features/documents/route"),
+    children: [
+      {
+        path: ":documentId",
+        lazy: () => import("@/features/documents/document-details-route"),
+        handle: { title: "Document" },
+      },
+    ],
+    taskRoutes: [
+      { path: "/documents/new", lazy: () => import("@/features/documents/document-form-route") },
+      {
+        path: "/documents/:documentId/edit",
+        lazy: () => import("@/features/documents/document-form-route"),
+      },
+    ],
   },
   {
     id: "trips",
@@ -283,9 +307,24 @@ export const appModules = [
         handle: { title: "History" },
       },
       {
+        path: "planner",
+        lazy: () => import("@/features/trips/planner-route"),
+        handle: { title: "Planner" },
+      },
+      {
+        path: "planner/:planId",
+        lazy: () => import("@/features/trips/plan-details-route"),
+        handle: { title: "Planned trip" },
+      },
+      {
         path: "costs",
         lazy: () => import("@/features/trips/costs-route"),
         handle: { title: "Costs" },
+      },
+      {
+        path: "analytics",
+        lazy: () => import("@/features/trips/analytics-route"),
+        handle: { title: "Analytics" },
       },
       {
         path: "costs/:costId",
@@ -300,6 +339,19 @@ export const appModules = [
     ],
     taskRoutes: [
       { path: "/trips/new", lazy: () => import("@/features/trips/new-trip-route") },
+      { path: "/trips/plan", lazy: () => import("@/features/trips/new-plan-route") },
+      {
+        path: "/trips/planner/:planId/edit",
+        lazy: () => import("@/features/trips/edit-plan-route"),
+      },
+      {
+        path: "/trips/planner/:planId/itinerary",
+        lazy: () => import("@/features/trips/plan-itinerary-route"),
+      },
+      {
+        path: "/trips/:tripId/itinerary",
+        lazy: () => import("@/features/trips/trip-itinerary-route"),
+      },
       { path: "/trips/:tripId/edit", lazy: () => import("@/features/trips/edit-trip-route") },
     ],
   },
@@ -311,15 +363,6 @@ export const appModules = [
     icon: ChartNoAxesCombined,
     navGroup: "intelligence",
     lazy: () => import("@/features/analytics/route"),
-  },
-  {
-    id: "assistant",
-    title: "AI Assistant",
-    description: "Ask questions about your vehicle and its records.",
-    path: "/assistant",
-    icon: Bot,
-    navGroup: "intelligence",
-    lazy: () => import("@/features/assistant/route"),
   },
   {
     id: "notifications",

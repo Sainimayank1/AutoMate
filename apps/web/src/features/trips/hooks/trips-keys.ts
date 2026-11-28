@@ -1,4 +1,5 @@
 import type {
+  TripAnalyticsParams,
   TripCostListParams,
   TripCostSummaryParams,
   TripFilterParams,
@@ -11,8 +12,10 @@ import type {
 export const tripsKeys = {
   all: ["trips"] as const,
   overview: (params: TripOverviewParams) => ["trips", "overview", params] as const,
+  analytics: (params: TripAnalyticsParams) => ["trips", "analytics", params] as const,
   lists: ["trips", "list"] as const,
   list: (params: TripListParams) => ["trips", "list", params] as const,
+  every: (params: TripListParams) => ["trips", "list", "every", params] as const,
   summary: (params: TripFilterParams) => ["trips", "summary", params] as const,
   detail: (id: string) => ["trips", "detail", id] as const,
   categories: ["trips", "categories"] as const,

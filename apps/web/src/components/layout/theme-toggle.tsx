@@ -1,3 +1,4 @@
+import type { ThemePreference } from "@automate/shared";
 import { cn } from "cn";
 import { Monitor, Moon, Sun } from "lucide-react";
 import { useTheme } from "next-themes";
@@ -11,6 +12,7 @@ import {
   DropdownMenuRadioItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { useUpdatePreferences } from "@/features/settings/hooks/use-settings";
 
 const THEMES = [
   { value: "light", label: "Light", icon: Sun },
@@ -20,6 +22,12 @@ const THEMES = [
 
 export function ThemeToggle({ className }: { className?: string }) {
   const { theme = "dark", setTheme } = useTheme();
+  const save = useUpdatePreferences();
+  // The account keeps the choice too, so it follows the user to other devices.
+  const choose = (value: string) => {
+    setTheme(value);
+    save.mutate({ theme: value.toUpperCase() as ThemePreference });
+  };
 
   return (
     <DropdownMenu>
@@ -36,7 +44,7 @@ export function ThemeToggle({ className }: { className?: string }) {
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end">
         <DropdownMenuLabel>Theme</DropdownMenuLabel>
-        <DropdownMenuRadioGroup value={theme} onValueChange={setTheme}>
+        <DropdownMenuRadioGroup value={theme} onValueChange={choose}>
           {THEMES.map(({ value, label, icon: Icon }) => (
             <DropdownMenuRadioItem key={value} value={value}>
               <Icon />

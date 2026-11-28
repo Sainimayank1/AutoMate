@@ -2,7 +2,7 @@ import { CostClass, type Expense, type Vehicle } from "@automate/shared";
 import type { ColumnDef } from "@tanstack/react-table";
 import { cn } from "cn";
 import { format } from "date-fns";
-import { Download, ReceiptIndianRupee, Tags, Trash2 } from "lucide-react";
+import { Download, ReceiptIndianRupee, Tags, Trash2, Upload } from "lucide-react";
 import { useEffect, useState } from "react";
 import { Link, Outlet } from "react-router";
 
@@ -30,6 +30,7 @@ import { ExpenseAmount } from "@/features/expenses/components/expense-amount";
 import { ExpenseFilters, SortSelect } from "@/features/expenses/components/expense-filters";
 import { ExpenseTitle } from "@/features/expenses/components/expense-title";
 import { ExpensesLayout } from "@/features/expenses/components/expenses-layout";
+import { ImportDialog } from "@/features/expenses/components/import-dialog";
 import { RefundDialog } from "@/features/expenses/components/refund-dialog";
 import { SOURCE_LABELS } from "@/features/expenses/constants";
 import { useExpenseFilters } from "@/features/expenses/hooks/use-expense-filters";
@@ -66,6 +67,7 @@ export function Component() {
   const categories = useExpenseCategories();
   const list = useExpenses(filters.query, { enabled: filters.ready });
   const exporter = useExportExpenses();
+  const [importing, setImporting] = useState(false);
 
   const vehicles = inUse.data ?? [];
   const byId = new Map<string, Vehicle>(
@@ -196,22 +198,36 @@ export function Component() {
     <ExpensesLayout
       tab="transactions"
       actions={
-        <Button
-          variant="outline"
-          disabled={exporter.isPending || empty}
-          onClick={async () =>
-            exportCsv(await exporter.mutateAsync({ ...filters.query, page: undefined }))
-          }
-        >
-          {exporter.isPending ? (
-            <Spinner data-icon="inline-start" />
-          ) : (
-            <Download data-icon="inline-start" />
-          )}
-          Export CSV
-        </Button>
+        <>
+          <Button variant="outline" onClick={() => setImporting(true)} disabled={!vehicles.length}>
+            <Upload data-icon="inline-start" />
+            Import CSV
+          </Button>
+          <Button
+            variant="outline"
+            disabled={exporter.isPending || empty}
+            onClick={async () =>
+              exportCsv(await exporter.mutateAsync({ ...filters.query, page: undefined }))
+            }
+          >
+            {exporter.isPending ? (
+              <Spinner data-icon="inline-start" />
+            ) : (
+              <Download data-icon="inline-start" />
+            )}
+            Export CSV
+          </Button>
+        </>
       }
     >
+      {importing && (
+        <ImportDialog
+          open
+          onOpenChange={setImporting}
+          vehicles={vehicles}
+          vehicleId={filters.query.vehicleId}
+        />
+      )}
       <ExpenseFilters filters={filters} vehicles={vehicles} categories={categories.data ?? []} />
 
       {list.isError && !page ? (

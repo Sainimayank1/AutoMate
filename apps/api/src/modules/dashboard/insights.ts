@@ -13,9 +13,9 @@ import {
   spendGroupOf,
 } from "@automate/shared";
 
+import { km, monthName, rupees } from "@/common/format";
 import { Prisma } from "@/generated/prisma/client";
 
-import { km, monthName, rupees } from "./format";
 import type { WindowFigures } from "./metrics";
 import type { CategoryRow } from "./spending";
 
