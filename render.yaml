@@ -10,10 +10,14 @@ services:
     # Dev dependencies (Nest CLI, Prisma CLI) are needed to build and to migrate on start.
     buildCommand: >-
       corepack enable &&
-      NODE_ENV=development pnpm install --frozen-lockfile &&
+      CI=true NODE_ENV=development pnpm install --frozen-lockfile &&
       pnpm --filter @automate/api build
-    # Migrations run on every start (idempotent); the free plan has no pre-deploy step.
-    startCommand: pnpm --filter @automate/api prisma:deploy && pnpm --filter @automate/api start
+    # Migrations and the reference-data seed (system expense categories, which linked expenses need)
+    # run on every start; both are idempotent, and the free plan has no pre-deploy step. The CLIs
+    # come straight from node_modules, so the start doesn't depend on pnpm.
+    startCommand: >-
+      cd apps/api && export PATH="$PWD/node_modules/.bin:$PATH" &&
+      prisma migrate deploy && prisma db seed && exec node dist/main.js
     healthCheckPath: /api/v1/health
     envVars:
       - key: NODE_VERSION
