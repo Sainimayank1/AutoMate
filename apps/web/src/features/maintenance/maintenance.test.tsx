@@ -933,7 +933,7 @@ describe("workshops", () => {
     name: "Maruti Arena Service, Gurugram",
     type: "AUTHORISED",
     phone: "+91 98100 12345",
-    email: "service@arenagurugram.in",
+    email: "service@workshop.example",
     address: "Plot 42, Sector 18, Gurugram",
     city: "Gurugram",
     preferred: true,
@@ -1014,9 +1014,9 @@ describe("workshops", () => {
     expect(screen.getByText("From Expenses, net of refunds")).toBeInTheDocument();
     const visit = await screen.findByRole("link", { name: /2nd free periodic service/ });
     expect(visit).toHaveAttribute("href", `/maintenance/records/${victoris.id}/${serviced.id}`);
-    expect(screen.getByRole("link", { name: "service@arenagurugram.in" })).toHaveAttribute(
+    expect(screen.getByRole("link", { name: "service@workshop.example" })).toHaveAttribute(
       "href",
-      "mailto:service@arenagurugram.in",
+      "mailto:service@workshop.example",
     );
     expect(screen.getByText(/so it can't be deleted/)).toBeInTheDocument();
 

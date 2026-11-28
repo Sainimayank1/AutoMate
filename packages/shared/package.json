@@ -1,6 +1,8 @@
 {
   "name": "@automate/shared",
   "private": true,
+  "description": "Zod schemas, types and calculations shared by the AutoMate web app and API.",
+  "license": "AGPL-3.0-only",
   "version": "0.0.0",
   "type": "module",
   "sideEffects": false,

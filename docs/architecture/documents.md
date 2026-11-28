@@ -24,7 +24,7 @@ File bytes never pass through the JSON API and are never stored in PostgreSQL; a
 
 **Providers** (`src/storage`, `STORAGE_PROVIDER`):
 
-- `local` (the default outside production): files on disk under `STORAGE_LOCAL_DIR`, uploaded and read through `/storage/local/:token` with HMAC-signed, expiring tokens that stand in for presigned links (an upload larger than announced is refused). Env validation refuses it in production.
+- `local` (the default outside production): files on disk under `STORAGE_LOCAL_DIR`, uploaded and read through `/storage/local/:token` with HMAC-signed, expiring tokens that stand in for presigned links (an upload larger than announced is refused). Env validation refuses it in production unless `STORAGE_LOCAL_PERSISTENT=true` declares the folder a persistent, backed-up volume (self-hosting).
 - `r2` / `s3`: presigned PUT and GET with `aws4fetch` (path-style `<endpoint>/<bucket>/<key>`). A presigned PUT can't cap the size, so confirm re-checks it. The bucket stays private and its CORS rules must allow the web origin to PUT and GET.
 - Production without a bucket: documents work, file routes answer 503.
 

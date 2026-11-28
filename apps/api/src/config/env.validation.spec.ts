@@ -62,6 +62,15 @@ describe("validateEnv", () => {
     );
   });
 
+  it("allows local storage in production only on a declared persistent volume", () => {
+    const production = { ...base, NODE_ENV: "production", STORAGE_PROVIDER: "local" };
+    expect(() => validateEnv(production)).toThrow(/STORAGE_LOCAL_PERSISTENT/);
+    expect(validateEnv({ ...production, STORAGE_LOCAL_PERSISTENT: "true" })).toMatchObject({
+      STORAGE_PROVIDER: "local",
+      STORAGE_LOCAL_PERSISTENT: true,
+    });
+  });
+
   it("requires storage credentials only when a provider is set", () => {
     expect(() => validateEnv(base)).not.toThrow();
     expect(() => validateEnv({ ...base, STORAGE_PROVIDER: "r2" })).toThrow(/STORAGE_BUCKET/);

@@ -31,7 +31,7 @@ Free tiers first ([TECH_STACK.md §9](../TECH_STACK.md#9-infrastructure--keep-it
 - **Cookies across sites.** The web app and the API are on different sites, so the refresh cookie is `SameSite=None; Secure` (`REFRESH_COOKIE_SAMESITE=none` in `render.yaml`); the access token stays in memory. CORS allows only `FRONTEND_URL`, with credentials.
 - **Migrations** run on every API start (`prisma migrate deploy` is idempotent) because the free plan has no pre-deploy step. A migration that fails stops the start, and Render keeps the previous deploy serving.
 - **Cold starts.** Free Render services sleep after inactivity; the first request after that takes up to a minute. The web app's requests simply wait.
-- **Files** never pass through the API: it signs short-lived R2 links (upload and download) and checks each upload's size and magic bytes on confirm. Production refuses local storage (env validation), and without R2 configured, uploads answer 503 while the rest works.
+- **Files** never pass through the API: it signs short-lived R2 links (upload and download) and checks each upload's size and magic bytes on confirm. Production refuses local storage (env validation) unless `STORAGE_LOCAL_PERSISTENT=true` declares `STORAGE_LOCAL_DIR` a persistent, backed-up volume (a self-hosted server; Render's disk is not one). Without either, uploads answer 503 while the rest works.
 - **Secrets** live in Render (API) and, for scheduled jobs, in GitHub Actions secrets. `.env` files are local only and git-ignored.
 
 ## 3. Continuous integration

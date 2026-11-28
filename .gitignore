@@ -18,3 +18,18 @@ graphify-out/
 # Playwright output (apps/web)
 playwright-report/
 test-results/
+
+# Editors and OS files
+.vscode/
+.idea/
+*.swp
+Thumbs.db
+
+.claude/settings.json
+.claude/settings.local.json
+.claude/CLAUDE.md
+.claude/skills/graphify/
+apps/api/.agents/
+apps/api/.claude/
+apps/api/.windsurf/
+apps/api/skills-lock.json

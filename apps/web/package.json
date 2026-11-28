@@ -1,6 +1,8 @@
 {
   "name": "@automate/web",
   "private": true,
+  "description": "AutoMate web app: React, Vite, Tailwind and shadcn/ui.",
+  "license": "AGPL-3.0-only",
   "version": "0.0.0",
   "type": "module",
   "scripts": {

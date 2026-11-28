@@ -1,21 +1,55 @@
 {
   "name": "automate",
   "private": true,
+  "description": "Open-source car ownership companion: vehicles, fuel, expenses, maintenance, documents, trips and total cost of ownership.",
+  "license": "AGPL-3.0-only",
+  "author": "Mayank Saini <mayanksaini4455@gmail.com>",
+  "homepage": "https://github.com/Sainimayank1/AutoMate#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Sainimayank1/AutoMate.git"
+  },
+  "bugs": {
+    "url": "https://github.com/Sainimayank1/AutoMate/issues"
+  },
+  "keywords": [
+    "car",
+    "vehicle",
+    "fuel",
+    "mileage",
+    "expenses",
+    "maintenance",
+    "total-cost-of-ownership",
+    "self-hosted",
+    "nestjs",
+    "react",
+    "prisma",
+    "postgresql"
+  ],
   "packageManager": "pnpm@12.15.0",
   "engines": {
     "node": ">=24"
   },
   "scripts": {
+    "codegen": "pnpm --filter @automate/api codegen",
     "dev": "pnpm --filter @automate/web dev",
     "dev:api": "pnpm --filter @automate/api dev",
+    "db:up": "docker compose up -d postgres",
+    "db:down": "docker compose down",
+    "db:migrate": "pnpm --filter @automate/api prisma:migrate",
+    "db:deploy": "pnpm --filter @automate/api prisma:deploy",
+    "db:seed": "pnpm --filter @automate/api prisma:seed",
+    "db:studio": "pnpm --filter @automate/api prisma:studio",
     "build": "pnpm -r build",
     "lint": "pnpm -r lint",
     "typecheck": "pnpm -r typecheck",
     "test": "pnpm -r test",
+    "test:e2e:api": "pnpm --filter @automate/api test:e2e",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "prepare": "husky",
-    "test:e2e:web": "pnpm --filter @automate/web test:e2e"
+    "test:e2e:web": "pnpm --filter @automate/web test:e2e",
+    "check": "pnpm format:check && pnpm lint && pnpm typecheck && pnpm test"
   },
   "devDependencies": {
     "husky": "^9.1.7",

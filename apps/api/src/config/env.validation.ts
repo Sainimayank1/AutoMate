@@ -73,7 +73,9 @@ const envSchema = z
 
     /**
      * Where document files live. `local` (the default outside production) keeps them on disk under
-     * STORAGE_LOCAL_DIR and serves them through the API; production needs a private bucket.
+     * STORAGE_LOCAL_DIR and serves them through the API. Production needs a private bucket, or
+     * local storage with STORAGE_LOCAL_PERSISTENT=true (a self-hosted server whose
+     * STORAGE_LOCAL_DIR is a persistent, backed-up volume).
      */
     STORAGE_PROVIDER: z.enum(["local", "r2", "s3"]).optional(),
     STORAGE_BUCKET: z.string().optional(),
@@ -83,6 +85,8 @@ const envSchema = z
     /** The bucket's S3 endpoint, e.g. https://<account>.r2.cloudflarestorage.com. */
     STORAGE_ENDPOINT: z.url({ protocol: /^https?$/ }).optional(),
     STORAGE_LOCAL_DIR: z.string().default(".storage"),
+    /** Production only: confirms STORAGE_LOCAL_DIR survives redeploys (a mounted volume). */
+    STORAGE_LOCAL_PERSISTENT: flag.default(false),
     /** The API's own origin as browsers reach it, for local upload and download links. */
     STORAGE_PUBLIC_URL: z.url({ protocol: /^https?$/ }).optional(),
 
@@ -108,11 +112,16 @@ const envSchema = z
         message: "wildcard origin is not allowed in production",
       });
     }
-    if (env.NODE_ENV === "production" && env.STORAGE_PROVIDER === "local") {
+    if (
+      env.NODE_ENV === "production" &&
+      env.STORAGE_PROVIDER === "local" &&
+      !env.STORAGE_LOCAL_PERSISTENT
+    ) {
       ctx.addIssue({
         code: "custom",
         path: ["STORAGE_PROVIDER"],
-        message: "local storage is not allowed in production (files would be lost on redeploy)",
+        message:
+          "local storage in production needs STORAGE_LOCAL_PERSISTENT=true and a persistent volume at STORAGE_LOCAL_DIR (otherwise files are lost on redeploy)",
       });
     }
     const push = [env.PUSH_VAPID_PUBLIC_KEY, env.PUSH_VAPID_PRIVATE_KEY, env.PUSH_CONTACT];

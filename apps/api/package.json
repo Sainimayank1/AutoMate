@@ -1,6 +1,8 @@
 {
   "name": "@automate/api",
   "private": true,
+  "description": "AutoMate REST API: NestJS, Prisma and PostgreSQL.",
+  "license": "AGPL-3.0-only",
   "version": "0.0.0",
   "scripts": {
     "codegen": "pnpm --filter @automate/shared build && prisma generate",
