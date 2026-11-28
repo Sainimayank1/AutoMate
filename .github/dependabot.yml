@@ -14,7 +14,16 @@ updates:
     open-pull-requests-limit: 5
     commit-message:
       prefix: "chore(deps)"
+    ignore:
+      # Types follow the Node.js runtime (24); move them with it.
+      - dependency-name: "@types/node"
+        update-types: [version-update:semver-major]
     groups:
+      # Framework packages move together, majors included (one pull request per framework).
+      nestjs:
+        patterns: ["@nestjs/*"]
+      prisma:
+        patterns: ["prisma", "@prisma/*"]
       minor-and-patch:
         update-types: [minor, patch]
 
