@@ -41,7 +41,7 @@ export function BottomNav() {
     <>
       <nav
         aria-label="Mobile navigation"
-        className="fixed inset-x-0 bottom-0 z-20 grid grid-cols-5 items-center border-t bg-card/95 px-2 pt-1 pb-[max(0.25rem,env(safe-area-inset-bottom))] backdrop-blur supports-backdrop-filter:bg-card/80 md:hidden"
+        className="fixed inset-x-0 bottom-0 z-20 grid grid-cols-5 items-center border-t bg-card px-2 pt-1 pb-[max(0.25rem,env(safe-area-inset-bottom))] md:hidden"
       >
         {link(LINKS[0])}
         {link(LINKS[1])}

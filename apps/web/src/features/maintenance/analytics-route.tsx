@@ -197,13 +197,13 @@ function Figures({ data, periodLabel }: { data: MaintenanceAnalytics; periodLabe
                   <dl className="grid grid-cols-2 gap-3">
                     <div className="rounded-lg border bg-muted/40 p-3">
                       <dt className="text-xs text-muted-foreground">Avg. time</dt>
-                      <dd className="font-heading text-xl font-semibold tabular-nums">
+                      <dd className="font-heading text-xl font-medium tabular-nums">
                         {formatNumber(data.frequency.averageDays ?? 0)} days
                       </dd>
                     </div>
                     <div className="rounded-lg border bg-muted/40 p-3">
                       <dt className="text-xs text-muted-foreground">Avg. distance</dt>
-                      <dd className="font-heading text-xl font-semibold tabular-nums">
+                      <dd className="font-heading text-xl font-medium tabular-nums">
                         {data.frequency.averageKm !== null
                           ? formatDistance(data.frequency.averageKm)
                           : "—"}

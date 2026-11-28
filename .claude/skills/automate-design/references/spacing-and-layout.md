@@ -79,7 +79,7 @@ Vary layouts by purpose (list-detail, timeline, calendar, vault grid, conversati
 Stitch's "precision-machined" radii (`--radius: 0.5rem`): `rounded-sm` 4 px for nested tiles and chips, `rounded-lg` 8 px for buttons, inputs and small controls (the primitives' default), `rounded-xl` 12 px for cards, popovers and dialogs, `rounded-2xl` 16 px for the vehicle hero image only.
 
 - Never use `rounded-3xl` or larger on containers.
-- `rounded-full` is only for avatars, dots and status indicators. Badges keep the primitive shape.
+- `rounded-full` is only for avatars, dots, switches and status indicators. Badges keep the primitive's `rounded-md` (not pills); `PlateBadge` is `rounded-sm`.
 - Images inside cards clip to the card (`overflow-hidden`) and don't add their own radius.
 
 ## Elevation
@@ -90,7 +90,7 @@ Stitch's "precision-machined" radii (`--radius: 0.5rem`): `rounded-sm` 4 px for 
 | 1     | `bg-card` / `bg-sidebar`  | 1 px hairline (`ring-1 ring-foreground/10` from Card, or `border`) | Cards, tables, sidebar                                     |
 | 2     | `bg-elevated`             | none or hairline                                                   | Tiles inside cards, selected row, hover on clickable cards |
 | 3     | `bg-popover`              | `shadow-lg` from the primitive                                     | Menus, popovers, command palette, toasts                   |
-| 4     | `bg-popover` plus overlay | Primitive overlay and shadow                                       | Dialog, sheet, drawer                                      |
+| 4     | `bg-popover` plus overlay | Primitive overlay (`bg-black/60`, no blur) and shadow              | Dialog, sheet, drawer                                      |
 
 No shadows on cards in either theme. Hover on a clickable card shifts the surface (`hover:bg-elevated`) and optionally the border (`hover:ring-foreground/20`). It never lifts with a shadow or `translate-y`.
 

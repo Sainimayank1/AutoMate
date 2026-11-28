@@ -232,7 +232,7 @@ function ReplaceFields({ part }: { part: VehicleComponentDetail }) {
   return (
     <>
       <p className="flex items-center gap-2.5 rounded-lg border border-primary/30 bg-primary/10 px-4 py-2.5 text-sm lg:col-span-12">
-        <Info className="size-4 shrink-0 text-primary" aria-hidden />
+        <Info className="size-4 shrink-0 text-muted-foreground" aria-hidden />
         The old part is kept in its history; schedules watching it restart from this date.
       </p>
       <div className="flex flex-col gap-5 lg:col-span-8">
@@ -334,7 +334,7 @@ function ReplaceFields({ part }: { part: VehicleComponentDetail }) {
       </div>
 
       <aside className="flex flex-col gap-4 rounded-xl border bg-card p-5 lg:sticky lg:top-24 lg:col-span-4">
-        <h2 className="font-heading text-lg font-semibold">Summary</h2>
+        <h2 className="font-heading text-lg font-medium">Summary</h2>
         <div className="flex flex-col gap-2 rounded-lg border bg-muted/40 p-3.5 text-sm">
           <p>
             <span className="font-medium">{[part.brand, part.name].filter(Boolean).join(" ")}</span>
@@ -364,7 +364,7 @@ function ReplaceFields({ part }: { part: VehicleComponentDetail }) {
         </dl>
         <div className="flex items-baseline justify-between gap-2 border-t pt-3">
           <span className="text-sm text-muted-foreground">Total</span>
-          <span className="font-heading text-2xl font-semibold tabular-nums">
+          <span className="font-heading text-2xl font-medium tabular-nums">
             {formatCurrency(values.totalAmount ? values.totalAmount.replace(/,/g, "") : "0")}
           </span>
         </div>

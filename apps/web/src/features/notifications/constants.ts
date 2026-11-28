@@ -27,21 +27,16 @@ export const CATEGORY_META: Record<NotificationCategory, { label: string; icon: 
 };
 
 /** The icon tile and border by priority (High destructive, Medium warning, Low muted). */
-export const PRIORITY_META: Record<
-  NotificationPriority,
-  { label: string; tile: string; border: string }
-> = {
+export const PRIORITY_META: Record<NotificationPriority, { label: string; tile: string }> = {
   [NotificationPriority.HIGH]: {
     label: "Urgent",
     tile: "bg-destructive/15 text-destructive",
-    border: "border-destructive/50",
   },
   [NotificationPriority.MEDIUM]: {
     label: "Soon",
     tile: "bg-warning/15 text-warning",
-    border: "border-warning/50",
   },
-  [NotificationPriority.LOW]: { label: "For later", tile: "bg-muted text-primary", border: "" },
+  [NotificationPriority.LOW]: { label: "For later", tile: "bg-muted text-muted-foreground" },
 };
 
 export const REMINDER_STATE: Record<ReminderState, { tone: StatusTone; tile: string }> = {

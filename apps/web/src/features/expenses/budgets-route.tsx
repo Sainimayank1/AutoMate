@@ -73,7 +73,7 @@ export function Component() {
         className="flex flex-wrap items-center justify-between gap-4"
       >
         <div className="flex flex-col gap-0.5">
-          <h2 id="budgets-title" className="font-heading text-xl font-semibold">
+          <h2 id="budgets-title" className="font-heading text-xl font-medium">
             Budgets
           </h2>
           <p className="text-sm text-muted-foreground">
@@ -111,7 +111,7 @@ export function Component() {
                 <span className="text-xs font-medium text-muted-foreground sm:text-sm">
                   {tile.label}
                 </span>
-                <span className={cn("font-heading text-xl font-semibold tabular-nums", tile.tone)}>
+                <span className={cn("font-heading text-xl font-medium tabular-nums", tile.tone)}>
                   {items.filter((budget) => budget.state === tile.state).length}
                 </span>
               </div>

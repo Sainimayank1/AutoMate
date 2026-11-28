@@ -32,7 +32,7 @@ function NavItems({ modules }: { modules: readonly AppModule[] }) {
             isActive={pathname === item.path || pathname.startsWith(`${item.path}/`)}
             tooltip={item.title}
             // Stitch: the active item gets the raised fill plus primary-coloured text and icon.
-            className="h-10 data-active:text-sidebar-primary md:h-8"
+            className="h-10 data-active:[&_svg]:text-sidebar-primary md:h-8"
           >
             <NavLink to={item.path} onClick={() => isMobile && setOpenMobile(false)}>
               <item.icon />
@@ -55,7 +55,7 @@ export function AppSidebar() {
               <Link to="/dashboard">
                 {/* size-8! beats the menu button's [&_svg]:size-4; the mark is its own tile. */}
                 <BrandMark className="size-8!" />
-                <span className="font-heading text-lg font-semibold tracking-tight">AutoMate</span>
+                <span className="font-heading text-lg font-medium">AutoMate</span>
               </Link>
             </SidebarMenuButton>
           </SidebarMenuItem>
@@ -67,9 +67,7 @@ export function AppSidebar() {
         <SidebarContent>
           {NAV_GROUPS.map((group) => (
             <SidebarGroup key={group}>
-              <SidebarGroupLabel className="uppercase tracking-wider">
-                {NAV_GROUP_LABELS[group]}
-              </SidebarGroupLabel>
+              <SidebarGroupLabel>{NAV_GROUP_LABELS[group]}</SidebarGroupLabel>
               <SidebarGroupContent>
                 <NavItems modules={appModules.filter((item) => item.navGroup === group)} />
               </SidebarGroupContent>

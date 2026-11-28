@@ -57,7 +57,7 @@ Renders a number plus a muted unit (see the split-units rule in `typography.md`)
 
 ### PlateBadge
 
-Registration number chip (`components/common/plate-badge.tsx`): Geist Mono on a raised tile (`rounded-md border bg-elevated px-2 py-0.5 font-mono text-xs`). Use it on vehicle cards, the selector and the hero. It formats with hyphens, as in Stitch: `HR-26-EV-4821` (`formatRegistration`; plates are stored normalised as `HR26EV4821`).
+The theme's signature (`components/common/plate-badge.tsx`): the registration set like an Indian number plate. A white plate in either theme (`bg-plate`, `text-plate-foreground`, constant tokens in `@theme`), `rounded-sm` with a `border-plate-foreground/15` edge, Geist Mono `text-xs font-medium tabular-nums` letters, and a thin `w-1 bg-brand` strip on the left (the IND band, in the accent). Use it wherever a vehicle is named by its plate (the sidebar switcher, the vehicle switcher items, the dashboard hero, the vehicle card, the vehicle page) and nowhere else: not in table cells, search results or plain text, where the plate is `font-mono` text. It formats with hyphens, as in Stitch: `HR-26-EV-4821` (`formatRegistration`; plates are stored normalised as `HR26EV4821`).
 
 ### VehicleImage
 
@@ -71,14 +71,14 @@ Garage grid item:
 - body: make and model (`text-sm font-medium`), variant · fuel · transmission (caption), `PlateBadge`;
 - footer row of 3 tiles: odometer, mileage, this month's spend.
 
-States: default, hover (`bg-elevated`), active vehicle (`ring-2 ring-primary`), archived (`opacity-60` plus an "Archived" badge, hidden behind a filter by default), loading skeleton with the same shape. The whole card is a link to `/garage/:id`, and the overflow menu (`Ellipsis`) opens Edit, Set as active, Archive and Delete.
+States: default, hover (`bg-elevated`), active vehicle (a neutral `border-primary/50` plus the "Active vehicle" badge), archived (`opacity-60` plus an "Archived" badge, hidden behind a filter by default), loading skeleton with the same shape. The whole card is a link to `/garage/:id`, and the overflow menu (`Ellipsis`) opens Edit, Set as active, Archive and Delete.
 
 ### VehicleSelector
 
 Shows the active vehicle everywhere; backed by `stores/vehicle-store.ts`.
 
 - **Trigger:** `VehicleImage` thumb, model name (`text-sm font-medium`), `PlateBadge`, `ChevronsUpDown`.
-- **Content** (`components/layout/vehicle-selector.tsx`): a `DropdownMenu` (inside the mobile sidebar drawer on phones). It lists vehicles with thumb, name and plate, a check on the active one, archived vehicles hidden, and footer actions "Add vehicle" and "Manage garage". The choice is per device (`stores/vehicle-store.ts`, `useActiveVehicle()`); a missing or archived choice falls back to the first vehicle.
+- **Content** (`components/layout/vehicle-selector.tsx`): a `DropdownMenu` (inside the mobile sidebar drawer on phones). It lists vehicles with thumb, name and `PlateBadge`, a `text-brand` check on the active one, archived vehicles hidden, and footer actions "Add vehicle" and "Manage garage". The choice is per device (`stores/vehicle-store.ts`, `useActiveVehicle()`); a missing or archived choice falls back to the first vehicle.
 - **States:** loading (skeleton trigger), no vehicles (the trigger becomes "Add your first vehicle").
 - **Placement:** the desktop sidebar header (collapses to the thumb only), and the mobile header on top-level pages.
 
@@ -92,7 +92,7 @@ Card containing a `CardHeader` (title, optional description, right slot for a pe
 
 ### GaugeRing
 
-SVG arc (270°, open at the bottom), with a track in `stroke-muted` and the value in `stroke-primary` or a status token, plus the centred value via `MetricValue`. Sizes are `sm` 64 px and `lg` 160 px. It has `role="img"` and an `aria-label` ("Vehicle health 86 out of 100"). Animate the stroke from its previous value in 400 ms, ease-out, motion-safe only.
+SVG arc (270°, open at the bottom), with a track in `stroke-muted` and the value in `stroke-primary` (neutral) or a status token, plus the centred value via `MetricValue`. Sizes are `sm` 64 px and `lg` 160 px. It has `role="img"` and an `aria-label` ("Vehicle health 86 out of 100"). Animate the stroke from its previous value in 400 ms, ease-out, motion-safe only.
 
 ### FilterBar
 
@@ -114,7 +114,7 @@ Vertical list grouped by date ("Today", "Yesterday", then DD/MM/YYYY). Each item
 Built on `react-dropzone` (a planned dependency).
 
 - **Dropzone:** a dashed `border-input` box, `rounded-xl`, with an `Upload` icon, the copy "Drop a photo or PDF, or browse", and the limits (types and size) in a caption.
-- **States:** idle, drag-over (`border-primary bg-primary/5`), uploading (a `Progress` per file with a cancel button), done (file row with thumbnail, name, size and remove), error (destructive caption with retry).
+- **States:** idle, drag-over (`border-primary`, neutral), uploading (a `Progress` per file with a cancel button), done (file row with thumbnail, name, size and remove), error (destructive caption with retry).
 - On mobile, the "browse" button offers the camera through `accept="image/*,application/pdf"` with `capture` left unset, so the OS lets the user choose.
 
 ### DocumentPreview
@@ -133,7 +133,7 @@ See `application-navigation.md`.
 
 **Button**
 
-- `default` (cyan) is the main action, one per region.
+- `default` (the neutral `primary`: off-white in dark, ink in light) is the main action, one per region. Buttons are never cyan.
 - `outline` and `secondary` are for alternatives.
 - `ghost` is for toolbars, "View all" and icon buttons.
 - `destructive` appears only inside confirmations and the Settings danger zone.
@@ -141,7 +141,7 @@ See `application-navigation.md`.
 - **Loading:** keep the label, prepend `<Spinner />`, set `disabled` and change the label to its present participle ("Saving…").
 - Icon buttons use `size="icon"` and `className="size-10 md:size-8"` for touch.
 
-**Badge.** Only for status, counts and short metadata (Primary, Archived, Partial fill). It is never decorative. Use `StatusBadge` for statuses.
+**Badge.** Only for status, counts and short metadata (Primary, Archived, Partial fill). It is never decorative. Use `StatusBadge` for statuses. Badges are `rounded-md` (the primitive's shape), not pills, and they are where status colour lives, together with icon tiles; the card or row around them keeps a neutral hairline.
 
 **Card.** Groups an instrument or a set of related content. It must have a title unless it's a single `StatCard`. No card-in-card.
 

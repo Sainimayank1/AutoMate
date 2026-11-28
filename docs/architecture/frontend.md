@@ -81,7 +81,7 @@ features/fuel/
 | Charts             | recharts 3 via shadcn `chart` (first used by Fuel; import only from lazy feature routes) | `components/ui/chart.tsx`                              |
 | Dates              | date-fns 4, react-day-picker (via shadcn calendar)                                       | `utils/format.ts`, `components/common/date-picker.tsx` |
 | Error boundaries   | react-error-boundary + router `errorElement`                                             | `app/App.tsx`, `app/router/routes.tsx`                 |
-| Fonts              | @fontsource-variable/manrope, inter, geist-mono (self-hosted, Stitch)                    | `styles/index.css`                                     |
+| Fonts              | @fontsource-variable/geist, geist-mono (self-hosted, Night dash theme)                   | `styles/index.css`                                     |
 | Tests              | vitest, @testing-library/react, user-event, jest-dom, jsdom                              | `vite.config.ts`, `test/setup.ts`                      |
 | Lint/format        | eslint 10 (typescript-eslint, react-hooks, react-refresh, simple-import-sort), prettier  | `eslint.config.js`, root `.prettierrc`                 |
 
@@ -96,7 +96,7 @@ features/fuel/
 **Deviations from TECH_STACK.md:**
 
 - `clsx` + `tailwind-merge` are replaced by `cn`, shadcn's own drop-in that their generated components import.
-- **Manrope + Inter + Geist Mono** are the fonts, from the Stitch design (replacing shadcn Nova's Geist).
+- **Geist + Geist Mono** are the fonts (the Night dash theme in `design-system.md`; Stitch's Manrope and Inter were dropped).
 - **TypeScript 6.0**, not 7: typescript-eslint supports TypeScript below 6.1 only.
 - **TanStack Table 8**, not 9: shadcn's data-table pattern targets v8.
 

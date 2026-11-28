@@ -28,7 +28,7 @@ describe("session restore on page load", () => {
     mockApi(fail(401, "UNAUTHORIZED", "Your session has expired."));
 
     const router = renderApp("/trips");
-    expect(await screen.findByRole("heading", { name: "Welcome back" })).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: "Log in" })).toBeInTheDocument();
     expect(router.state.location.pathname).toBe("/login");
   });
 });
@@ -52,9 +52,7 @@ describe("app shell", () => {
   it("redirects / to the dashboard and shows a not-found page for unknown paths", async () => {
     signIn();
     const router = renderApp("/");
-    expect(
-      await screen.findByRole("heading", { level: 1, name: /^Good (morning|afternoon|evening)/ }),
-    ).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { level: 1, name: "Dashboard" })).toBeInTheDocument();
     expect(router.state.location.pathname).toBe("/dashboard");
 
     await router.navigate("/nope");
@@ -65,9 +63,7 @@ describe("app shell", () => {
   it("keeps signed-in users away from the sign-in page", async () => {
     signIn();
     const router = renderApp("/login");
-    expect(
-      await screen.findByRole("heading", { level: 1, name: /^Good (morning|afternoon|evening)/ }),
-    ).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { level: 1, name: "Dashboard" })).toBeInTheDocument();
     expect(router.state.location.pathname).toBe("/dashboard");
   });
 });

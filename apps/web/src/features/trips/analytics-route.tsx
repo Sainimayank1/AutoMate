@@ -363,7 +363,7 @@ function Analytics({
           </CardHeader>
           <CardContent className="flex flex-col gap-4">
             <div>
-              <p className="font-heading text-3xl font-semibold tabular-nums">
+              <p className="font-heading text-3xl font-medium tabular-nums">
                 {data.cost.actual ? formatCurrency(data.cost.actual) : "—"}
               </p>
               <p className="text-sm text-muted-foreground">
@@ -475,7 +475,7 @@ function Tile({
   return (
     <div className="flex flex-col gap-1 rounded-xl border bg-card p-4">
       <span className="text-sm text-muted-foreground">{label}</span>
-      <span className="font-heading text-xl font-semibold tabular-nums">{value}</span>
+      <span className="font-heading text-xl font-medium tabular-nums">{value}</span>
       <span className="flex flex-wrap items-center gap-1.5 text-xs text-muted-foreground tabular-nums">
         {change != null && change !== 0 && (
           <span className="inline-flex items-center font-medium text-foreground">
@@ -507,7 +507,7 @@ function Figure({
   return (
     <div className="flex min-w-0 flex-col gap-0.5">
       <dt className="text-xs text-muted-foreground">{label}</dt>
-      <dd className="font-heading font-semibold tabular-nums">{children}</dd>
+      <dd className="font-heading font-medium tabular-nums">{children}</dd>
       {caption &&
         (link ? (
           <Link to={link} className="truncate text-xs text-primary hover:underline">

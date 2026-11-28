@@ -31,7 +31,7 @@ export function PlanBudget({ plan, fuelType }: { plan: TripPlan; fuelType?: Fuel
   return (
     <div className="flex flex-col gap-4">
       <div>
-        <p className="font-heading text-3xl font-semibold tabular-nums">
+        <p className="font-heading text-3xl font-medium tabular-nums">
           {formatCurrency(plan.budget.total)}
         </p>
         {plan.budget.perKm && (

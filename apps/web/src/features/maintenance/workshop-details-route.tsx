@@ -103,7 +103,7 @@ export function Component() {
             Workshops
           </Link>
           <div className="flex flex-wrap items-center gap-2.5">
-            <h1 className="font-heading text-2xl font-semibold tracking-tight">{workshop.name}</h1>
+            <h1 className="font-heading text-2xl font-medium">{workshop.name}</h1>
             <Badge variant="secondary">{PROVIDER_TYPE_LABELS[workshop.type]}</Badge>
             {workshop.preferred && (
               <Badge variant="outline" className="border-transparent bg-warning/15 text-warning">
@@ -274,7 +274,7 @@ function Stat({
   return (
     <div className="flex flex-col gap-1 rounded-xl border bg-card p-4">
       <span className="text-sm text-muted-foreground">{label}</span>
-      <span className="font-heading text-xl font-semibold tabular-nums">{children}</span>
+      <span className="font-heading text-xl font-medium tabular-nums">{children}</span>
       {caption && <span className="text-xs text-muted-foreground">{caption}</span>}
     </div>
   );

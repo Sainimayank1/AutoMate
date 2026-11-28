@@ -16,10 +16,10 @@ export function FormSection({
     <section className="flex flex-col gap-4 rounded-xl border bg-card p-5">
       <div className="flex items-center justify-between gap-3">
         <div className="flex items-center gap-2.5">
-          <span className="inline-flex size-6 items-center justify-center rounded-full bg-primary/15 text-xs font-semibold text-primary tabular-nums">
+          <span className="inline-flex size-6 items-center justify-center rounded-full bg-primary/15 text-xs font-medium text-primary tabular-nums">
             {step}
           </span>
-          <h2 className="font-heading text-base font-semibold">{title}</h2>
+          <h2 className="font-heading text-base font-medium">{title}</h2>
         </div>
         {aside}
       </div>

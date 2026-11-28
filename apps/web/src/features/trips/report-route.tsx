@@ -154,7 +154,7 @@ function Report({
         <BrandLogo size="md" />
         <div className="flex flex-wrap items-end justify-between gap-2">
           <div>
-            <h1 className="font-heading text-2xl font-semibold">Trips report</h1>
+            <h1 className="font-heading text-2xl font-medium">Trips report</h1>
             <p className="text-sm">{vehicleLabel}</p>
           </div>
           <p className="text-sm text-muted-foreground tabular-nums">
@@ -260,7 +260,7 @@ function Report({
 function Section({ title, children }: { title: string; children: ReactNode }) {
   return (
     <section className="flex flex-col gap-3 break-inside-avoid-page">
-      <h2 className="font-heading text-base font-semibold">{title}</h2>
+      <h2 className="font-heading text-base font-medium">{title}</h2>
       {children}
     </section>
   );
@@ -270,7 +270,7 @@ function Figure({ label, value, note }: { label: string; value: string; note?: s
   return (
     <div className="flex flex-col gap-1 border-l-2 pl-3">
       <dt className="text-muted-foreground">{label}</dt>
-      <dd className="font-heading text-lg font-semibold">{value}</dd>
+      <dd className="font-heading text-lg font-medium">{value}</dd>
       {note && <dd className="text-xs text-muted-foreground">{note}</dd>}
     </div>
   );

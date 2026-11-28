@@ -90,7 +90,7 @@ export function Component() {
             Maintenance
           </Link>
           <div className="flex flex-wrap items-center gap-2.5">
-            <h1 className="font-heading text-2xl font-semibold tracking-tight">{record.title}</h1>
+            <h1 className="font-heading text-2xl font-medium">{record.title}</h1>
             <Badge variant="outline">{RECORD_TYPE_LABELS[record.type]}</Badge>
             <Badge variant="secondary">{maintenanceCategoryName(record.categoryKey)}</Badge>
           </div>
@@ -138,7 +138,7 @@ export function Component() {
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
-                <ShieldCheck className="size-4 text-primary" aria-hidden />
+                <ShieldCheck className="size-4 text-muted-foreground" aria-hidden />
                 Warranty
               </CardTitle>
             </CardHeader>
@@ -157,9 +157,7 @@ export function Component() {
           </Card>
           <Card>
             <CardContent className="flex flex-col gap-2.5">
-              <span className="text-xs font-semibold tracking-wider text-muted-foreground uppercase">
-                Linked expense
-              </span>
+              <span className="text-xs font-medium text-muted-foreground">Linked expense</span>
               {record.expenseId ? (
                 <>
                   <p className="text-sm tabular-nums">
@@ -237,7 +235,7 @@ function Hero({ record }: { record: ServiceRecord }) {
         </dl>
         <div className="shrink-0 sm:border-l sm:pl-5 sm:text-right">
           <span className="block text-xs text-muted-foreground">Total paid</span>
-          <span className="font-heading text-3xl font-semibold tracking-tight tabular-nums">
+          <span className="font-heading text-3xl font-medium tabular-nums">
             {formatCurrency(record.totalAmount)}
           </span>
           {record.paymentMethod && (
@@ -349,7 +347,7 @@ function CostBreakdown({ record }: { record: ServiceRecord }) {
           )}
           <div className="flex items-center justify-between gap-3 border-t pt-2.5">
             <dt className="font-medium">Total</dt>
-            <dd className="font-heading text-lg font-semibold">
+            <dd className="font-heading text-lg font-medium">
               {formatCurrency(record.totalAmount)}
             </dd>
           </div>
@@ -362,9 +360,7 @@ function CostBreakdown({ record }: { record: ServiceRecord }) {
 function TextBlock({ title, children }: { title: string; children: ReactNode }) {
   return (
     <div className="flex flex-col gap-1.5 not-first:border-t not-first:pt-3">
-      <h2 className="text-xs font-semibold tracking-wider text-muted-foreground uppercase">
-        {title}
-      </h2>
+      <h2 className="text-xs font-medium text-muted-foreground">{title}</h2>
       <p className="text-sm text-pretty whitespace-pre-line">{children}</p>
     </div>
   );

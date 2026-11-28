@@ -12,8 +12,8 @@ Each section gives the module's **job**, its **layout** (desktop → mobile), it
 
 **Layout (desktop, `lg:grid-cols-12`):**
 
-1. **Greeting row** (Stitch "Dashboard"): "Good afternoon, Arjun" and "27 Nov 2026 · Your vehicle ownership overview"; on the right the vehicle selector (the app's active vehicle; a compact model chip on phones), the period selector (This month by default; custom range shows two date pickers) and Refresh. "Customise" opens the customisation sheet (below).
-2. **Vehicle hero** (`lg:col-span-8`): `VehicleImage` with the `PlateBadge` on it; overline "ACTIVE VEHICLE", the name, "LXI · 1.5L · Petrol · Manual · 2025", the ownership badge, the odometer, then **Quick actions** (Add fuel, Add expense, Add service record, Log trip, Update odometer, View in Garage). **Vehicle status** (`lg:col-span-4`) beside it, the action centre: facts from records the user keeps (insurance expiry from the insurance payment, warranty from the vehicle, due and overdue maintenance schedules; documents when built), most urgent first under "Up next". Each row: a state badge (Overdue, Due today, Due soon, Info), its source, the title and detail opening its record, and the action that resolves it ("Log service", "Add renewal"; none for information). The 3 most urgent show, the rest behind "Show N more" so the panel stays beside the hero. Titles: "Attention required", "Vehicle health information incomplete" (while maintenance or documents aren't tracked, saying which), "No issues recorded". **Never** a health score, gauge or "healthy".
+1. **Title row** (Stitch "Dashboard", minus its greeting): the h1 "Dashboard" and the date ("Saturday, 28 Nov 2026"), no greeting; on the right the vehicle selector (the app's active vehicle; a compact model chip on phones), the period selector (This month by default; custom range shows two date pickers) and Refresh. "Customise" opens the customisation sheet (below).
+2. **Vehicle hero** (`lg:col-span-8`): `VehicleImage` with the `PlateBadge` on it; the small label "Active vehicle", the name, "LXI · 1.5L · Petrol · Manual · 2025", the ownership badge, the odometer (Geist Mono in `text-brand`, the screen's one cyan figure), then **Quick actions** (Add fuel, Add expense, Add service record, Log trip, Update odometer, View in Garage). **Vehicle status** (`lg:col-span-4`) beside it, the action centre: facts from records the user keeps (insurance expiry from the insurance payment, warranty from the vehicle, due and overdue maintenance schedules; documents when built), most urgent first under "Up next". Each row is a neutral `bg-muted/40` tile with a hairline (no tinted fill or coloured border): a state badge (Overdue, Due today, Due soon, Info), its source, the title and detail opening its record, and the action that resolves it ("Log service", "Add renewal"; none for information). The 3 most urgent show, the rest behind "Show N more" so the panel stays beside the hero. Titles: "Attention required", "Vehicle health information incomplete" (while maintenance or documents aren't tracked, saying which), "No issues recorded". **Never** a health score, gauge or "healthy".
 3. **Metric strip** (5 cards, 2 across on phones, the last full width): Spent (net, loan principal excluded), Running cost / km, Average mileage (km/L, km/kg, km/kWh), Distance (from odometer readings), Fuel spend (with litres). Each compares like for like ("−6% vs 1–27 Oct": cost down `success`, up `warning`; mileage up `success`), says why when it can't ("Needs two full-tank fill-ups"), has an ⓘ popover with its definition, and the card opens its module.
 4. **Smart insights** (built, below the metric strip): a full-width card, a `Lightbulb` in an `insight`-tinted tile, "Smart insights" and "From your own records · rules, not AI" (never `Sparkles`: these are not AI). Up to 4 tiles (`bg-elevated`, a 2px left border in the tone: `warning` for costs and worse running, `success` for improvements, muted for context), each with its topic icon, the title ("Fuel costs 16% more per km"), the explanation with the figures, a meta line ("vs 1–27 Oct · Medium confidence") and a "View … →" link (40px tall on phones). Too few records: "Insights compare this period with the one before. They appear once expenses and full-tank fill-ups cover both periods." Nothing notable: "Nothing stands out against 1–27 Oct."
 5. **Spending** (built): "Monthly spending" (`lg:col-span-8`, stacked bars of the last 6 months, up to 12 for long periods, in the five fixed `SpendGroup` series with the legend on top; net, loan principal excluded) beside "Where it went · 1–27 Nov" (`lg:col-span-4`, categories largest first with icon, amount, % and a thin bar in the category colour, each opening its transactions for the vehicle and period). **Fuel & mileage** (built): "Mileage" (`lg:col-span-8`, the Fuel module's `MileageChart`, last 12 full-tank cycles with a dashed "Period avg" line) beside "Fuel this period" (average and latest mileage, fuel bought, fuel spend, average price, fuel cost per km, "View fuel history").
@@ -22,7 +22,7 @@ Each section gives the module's **job**, its **layout** (desktop → mobile), it
 
 **Widgets** (all `Card`-based and customisable): Vehicle status, Fuel Efficiency, Monthly Spending, Cost per KM, Upcoming Maintenance, Document Expiry, Recent Activity, Expense Breakdown.
 
-**Customisation** (built, Stitch "Dashboard — Customise — Desktop / Mobile"): "Customise" (outline, `SlidersHorizontal`; icon-only on phones) after Refresh opens a `Sheet` (right on desktop, `max-w-md`; a bottom sheet up to 85% high on phones): "Customise dashboard", a SECTIONS list (`bg-elevated`, dividers) with a `Switch`, the name (muted when hidden) and up/down icon buttons (40px on phones; moves are announced), then KEY FIGURES checkboxes ("Choose at least one": the last can't be unticked), and a pinned footer: "Reset to default" (ghost), Cancel, Save. Saved per user. The greeting, the hero and the status panel are fixed and can't be hidden. Every section hidden: a dashed note "Every section is hidden. Use Customise to show them again."
+**Customisation** (built, Stitch "Dashboard — Customise — Desktop / Mobile"): "Customise" (outline, `SlidersHorizontal`; icon-only on phones) after Refresh opens a `Sheet` (right on desktop, `max-w-md`; a bottom sheet up to 85% high on phones): "Customise dashboard", a "Sections" list (`bg-elevated`, dividers) with a `Switch`, the name (muted when hidden) and up/down icon buttons (40px on phones; moves are announced), then "Key figures" checkboxes ("Choose at least one": the last can't be unticked), and a pinned footer: "Reset to default" (ghost), Cancel, Save. Saved per user. The title row, the hero and the status panel are fixed and can't be hidden. Every section hidden: a dashed note "Every section is hidden. Use Customise to show them again."
 
 **Rules:**
 
@@ -41,7 +41,7 @@ Each section gives the module's **job**, its **layout** (desktop → mobile), it
 
 **Job:** a beautiful, image-rich collection of the user's vehicles, and the hub for each vehicle. **Built** from the Stitch Garage, Vehicle Details, Add Vehicle (steps 1–5), Edit Vehicle, empty-state and delete-dialog screens (`features/garage`).
 
-**Garage overview (`/garage`):** PageHeader "Your garage" with fleet totals and "Add vehicle"; filter chips from the data (All, Owned, Financed, each fuel type, Archived); a `lg:grid-cols-2` grid of `VehicleCard`s (Active vehicle / Standby / Archived badge, plate, odometer · fuel · ownership tiles, profile completion, Set active / Restore, View profile). The active vehicle has the primary border. First use shows the glow-panel empty state.
+**Garage overview (`/garage`):** PageHeader "Your garage" with fleet totals and "Add vehicle"; filter chips from the data (All, Owned, Financed, each fuel type, Archived); a `lg:grid-cols-2` grid of `VehicleCard`s (Active vehicle / Standby / Archived badge, plate, odometer · fuel · ownership tiles, profile completion, Set active / Restore, View profile). The active vehicle has a neutral `border-primary/50`. First use shows the graphite-panel empty state.
 
 **Add vehicle wizard (`/garage/new`, task page outside the shell):** a five-segment step rail (labels hide on phones) and one card per step.
 
@@ -124,7 +124,7 @@ Rules:
 
 **Ownership tab (`/expenses/ownership`, Stitch "Expenses — Ownership — Desktop / Mobile", built):** one vehicle (the scope, else the active one) and a Segmented period (This month · This year · Since purchase). Then the **money separation panel** "Three ways to count it" (a Card with 3 `bg-elevated` tiles, each with its one-line definition): Operating cost; Cash outflow, naming the loan principal inside it; Economic ownership cost with an "Estimate" badge when depreciation is in it. Loan principal never appears in operating or economic cost. Below, a 7/5 grid: "Where the economic cost goes" (rows with `Progress h-1.5`: Running cost, Insurance & legal, Loan interest & fees, Accessories & upgrades, Depreciation (estimate), then the total), and on the right the Per km / Per month tiles and a Depreciation card (bought for, on, lost so far, worth about; an "Estimate" badge and the IRDAI note; without a purchase price, a link to edit the vehicle).
 
-**Insights tab (`/expenses/insights`, Stitch "Expenses — Insights — Desktop", built):** one card "What stands out" (a teal lightbulb tile, "From your own records · rules, not AI"; never Sparkles) with a 2-column grid of tiles like the dashboard's smart insights: `bg-elevated`, a 2px left border (`warning` for over a limit or the usual, muted for worth a look), a kind icon (Target, TrendingUp, Copy, ReceiptIndianRupee), title, explanation, the figure line and a link.
+**Insights tab (`/expenses/insights`, Stitch "Expenses — Insights — Desktop", built):** one card "What stands out" (a neutral `insight` lightbulb tile, "From your own records · rules, not AI"; never Sparkles) with a 2-column grid of tiles like the dashboard's smart insights: `bg-elevated`, a 2px left border (`warning` for over a limit or the usual, muted for worth a look), a kind icon (Target, TrendingUp, Copy, ReceiptIndianRupee), title, explanation, the figure line and a link.
 
 **Import and report:** "Import CSV" sits beside "Export CSV" on Transactions and opens Stitch "Import Expenses Dialog" (vehicle, file, four count tiles, a table of the rows that need a look with status badges, "Also import the N that look like duplicates", "Import N expenses"). "Printable report" on the Ownership tab opens Stitch "Expense Report": a light A4 sheet outside the shell with a toolbar (Back, period, "Print or save as PDF") that isn't printed.
 
@@ -143,7 +143,7 @@ Rules:
 
 **Add/Edit expense (task page, Stitch "Add Expense" / "Edit Expense": `/expenses/new`, `/expenses/:id/edit`; numbered sections with a summary card as the review step):**
 
-- **Field order:** Category first, as a grid of icon tiles (3 columns on mobile, 4 on desktop); the selected tile gets a cyan ring. Then Amount (large `text-2xl` input with the ₹ prefix), Date, Vehicle, Payment method, Vendor (optional), Odometer (optional), Receipt, Notes.
+- **Field order:** Category first, as a grid of icon tiles (3 columns on mobile, 4 on desktop); the selected tile gets a neutral `primary` ring. Then Amount (large `text-2xl` input with the ₹ prefix), Date, Vehicle, Payment method, Vendor (optional), Odometer (optional), Receipt, Notes.
 - Choosing **Fuel** redirects to the Fuel form ("Fuel expenses are created from fuel entries").
 - Choosing **EMI** shows the principal/interest split read-only, from the loan schedule.
 
@@ -159,7 +159,7 @@ Rules:
 
 **Maintenance overview (`/maintenance`):**
 
-- **Status banner:** one line from the schedules (Overdue maintenance / Attention required / Upcoming maintenance / All caught up / Maintenance data incomplete). **No health score or gauge:** maintenance data can't show a vehicle is healthy.
+- **Status banner:** one neutral `bg-card` line with a hairline (the tone shows on its icon and text, not a tinted fill), from the schedules (Overdue maintenance / Attention required / Upcoming maintenance / All caught up / Maintenance data incomplete). **No health score or gauge:** maintenance data can't show a vehicle is healthy.
 - **Instruments:** maintenance spend for the period (from Expenses) with the previous window, overdue count, due & upcoming count, next service.
 - **Next service card:** "Periodic service · due at 10,000 km or 14/03/2027, whichever comes first". Show two progress tracks:
   - distance: 8,450 / 10,000 km, "1,550 km left";
@@ -266,7 +266,7 @@ Use a vertical stepped layout or 3 tiles connected by "+"/"−" operators so the
 
 - **Layout:** `max-w-4xl`; PageHeader ("N unread", Preferences link to Settings, "Mark all as read") and two tabs, Inbox and Reminders.
 - **Inbox:** chips (`ToggleGroup`) All · Unread · Maintenance · Documents · Expenses · Fuel · Trips · Reminders · Snoozed, kept in the URL; grouped Today / This week / Earlier (snoozed ones on their own, with when they come back).
-- **Card:** the category icon on a tile tinted by priority (High `destructive`, Medium `warning`, Low muted), a priority border while unread, the title (semibold with the cyan dot while unread), the body, the vehicle and relative time; "Open" goes to the record and marks it read; the menu marks read/unread, snoozes (1 day, 3 days, 1 week) or dismisses.
+- **Card:** the category icon on a tile tinted by priority (High `destructive`, Medium `warning`, Low muted); the card itself keeps a neutral hairline (no priority border); the title (`font-medium`, with a `primary` dot while unread), the body, the vehicle and relative time; "Open" goes to the record and marks it read; the menu marks read/unread, snoozes (1 day, 3 days, 1 week) or dismisses.
 - **Reminders tab:** Open / Done `Segmented`; rows with a calendar tile tinted by state, a `StatusBadge` ("Due in 2 days", "Overdue", "Upcoming"), date · lead · vehicle, "Mark done" and a menu (Edit, Delete with confirmation). The dialog: what, date, "Remind me" (on the day … 1 month before), vehicle (optional), notes.
 - **Bell** (header): the unread count ("9+" past nine); desktop opens a `w-96` popover with the latest six, "Mark all as read" and "View all notifications"; phones go to the inbox.
 - **Empty:** "You're all caught up" with `BellOff`; reminders: "No reminders yet" with `BellPlus`.
@@ -312,11 +312,11 @@ Use a vertical stepped layout or 3 tiles connected by "+"/"−" operators so the
 Built from the Stitch screens "Login — Desktop/Mobile" and "Register — Desktop/Mobile" (`features/auth`).
 
 - **Layout** (`AuthLayout`):
-  - Desktop (`lg+`): a 5/7 split. On the left, a brand panel: `bg-card` with `hero-glow`, `BrandLogo size="lg"`, an overline, a headline and three highlights with icons (`primary`, or `insight` for the AI one). On the right, the form column (`max-w-md`) with the theme switch top-right and a short footer line.
+  - Desktop (`lg+`): a 5/7 split. On the left, a plain brand panel: `bg-card` (no glow), `BrandLogo size="lg"`, a sentence-case `text-sm text-muted-foreground` eyebrow, a headline and three highlights with muted icons. On the right, the form column (`max-w-md`) with the theme switch top-right and a short footer line.
   - Mobile: the form only, with the logo and theme switch on top.
-  - Stitch's panel uses a vehicle photograph; it is replaced by `hero-glow` until a licensed photo is added to the repo.
+  - Stitch's panel uses a vehicle photograph; it stays a plain graphite panel until a licensed photo is added to the repo.
 - **Built screens:**
-  - **Sign in** (`/login`): email, password (reveal toggle), "Keep me signed in on this device" (on by default: a 30-day session; off: ends with the browser session). Wrong credentials show one form-level message ("Incorrect email or password."), never revealing whether the email exists.
+  - **Sign in** (`/login`, titled "Log in"): email, password (reveal toggle), "Keep me signed in on this device" (on by default: a 30-day session; off: ends with the browser session). Wrong credentials show one form-level message ("Incorrect email or password."), never revealing whether the email exists.
   - **Create account** (`/register`): full name, email, password (hint: at least 8 characters with a letter and a number) and a required terms checkbox. A taken email is shown on the email field (registration can't hide it until email verification exists).
 - **Deliberately left out of the Stitch screens:** Google and mobile-OTP sign-in, the mobile number field (it only served OTP) and the "Forgot password?" link (no reset flow yet).
 - **Not built yet** (generate the Stitch screens first, then build): forgot password → "If an account exists, we've sent a link", reset password, email verification (code or link, with resend and a countdown). They need an email provider (Resend in the tech stack).
@@ -326,7 +326,7 @@ Built from the Stitch screens "Login — Desktop/Mobile" and "Register — Deskt
 
 A full-screen stepper with progress dots and "Skip for now" where allowed.
 
-1. **Welcome:** `hero-glow`, a display title ("Let's set up your garage") and 3 value points with icons.
+1. **Welcome:** a plain graphite panel (no glow), a display title ("Let's set up your garage") and 3 value points with icons.
 2. **Add first vehicle:** make and model.
 3. **Vehicle information:** variant, fuel, transmission, registration.
 4. **Set odometer:** large numeric input, the photo upload optional.

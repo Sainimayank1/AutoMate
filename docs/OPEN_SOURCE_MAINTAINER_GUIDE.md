@@ -5,6 +5,12 @@ GitHub settings a maintainer has to configure by hand. **None of the settings be
 the repository itself, and none of them has been verified as enabled**: check each one in
 **Settings** on GitHub.
 
+**State seen through the public GitHub API on 28/11/2026:** the repository is already **public**;
+GitHub detects the AGPL-3.0 licence; the description and topics are empty; Issues are on and
+Discussions off; CI and Security pass on `main`; Dependabot is running; dependency review fails
+with "Forbidden" (the dependency graph appears to be off). Settings the API doesn't show (branch
+rules, private vulnerability reporting, secret scanning) are unknown.
+
 ## 1. In the repository (done)
 
 | Area           | Files                                                                                                                                                                                                   |
@@ -20,14 +26,15 @@ the repository itself, and none of them has been verified as enabled**: check ea
 
 ## 2. GitHub settings to configure (manual)
 
-### Before making the repository public
+### Right away (the repository is already public)
 
 - [ ] Check the latest **Actions** runs on `main` are green (CI, Security).
 - [ ] Turn on **private vulnerability reporting** (below). `SECURITY.md` points people to it.
+- [ ] Turn on the **dependency graph** (below), so the dependency review check stops failing.
+- [ ] Add the description and topics (below).
 - [ ] Optional: make your commit email private for future commits (GitHub → Settings → Emails →
       "Keep my email addresses private"; then `git config user.email <id>+<login>@users.noreply.github.com`).
       Past commits keep their email.
-- [ ] **Settings → General → Danger Zone → Change visibility → Public.**
 
 ### General (Settings → General)
 
@@ -50,7 +57,7 @@ Create a ruleset for the default branch `main`:
 - Require a pull request before merging (1 approval once there are other maintainers; with a single
   maintainer, requiring the checks alone avoids blocking yourself).
 - Require status checks to pass, and the branch to be up to date: `checks`, `browser`, `docker` and
-  `Secret scan (Gitleaks)`. Add `CodeQL` once it has run after the repository is public.
+  `Secret scan (Gitleaks)`, plus the `CodeQL` checks (they already run on `main`).
 - Block force pushes and deletion.
 
 ### Actions (Settings → Actions → General)
@@ -66,6 +73,8 @@ Create a ruleset for the default branch `main`:
 ### Security (Settings → Security / Code security)
 
 - **Private vulnerability reporting:** enable.
+- **Dependency graph:** enable. The dependency review check on pull requests fails with
+  "Forbidden" while it is off (it was off when this guide was written, judging by those failures).
 - **Dependabot alerts** and **Dependabot security updates:** enable. Version updates come from
   `.github/dependabot.yml`.
 - **Secret scanning** and **push protection:** enable (free for public repositories).
@@ -87,8 +96,7 @@ been tagged yet.
 
 - **CODEOWNERS** (`.github/CODEOWNERS` with `* @Sainimayank1`) to request your review on every pull
   request automatically.
-- **OpenSSF Scorecard** (the `ossf/scorecard-action` workflow) and its badge, once the repository is
-  public.
+- **OpenSSF Scorecard** (the `ossf/scorecard-action` workflow) and its badge.
 - **GitHub Discussions** for questions and ideas.
 - **Sponsorship** with `.github/FUNDING.yml`.
 - **A live demo instance** for the README, running the Docker stack with the demo data

@@ -126,7 +126,7 @@ function FuelEmptyState() {
           <Fuel className="size-7 text-muted-foreground" aria-hidden />
         </div>
         <div className="flex max-w-md flex-col gap-2">
-          <h2 className="font-heading text-xl font-semibold tracking-tight">No fill-ups yet</h2>
+          <h2 className="font-heading text-xl font-medium">No fill-ups yet</h2>
           <p className="text-sm text-pretty text-muted-foreground">
             Log every fill-up to track real-world mileage and fuel spend. Mileage appears after two
             full-tank fills.
@@ -248,12 +248,12 @@ function Benchmarks({ summary }: { summary: FuelSummary }) {
               className="flex items-center justify-between gap-3 rounded-lg border bg-muted p-3.5"
             >
               <div>
-                <p className="text-xs font-semibold text-muted-foreground">{label}</p>
+                <p className="text-xs font-medium text-muted-foreground">{label}</p>
                 <p className="text-sm text-muted-foreground tabular-nums">
                   {formatDate(point?.date)}
                 </p>
               </div>
-              <span className={`font-heading text-lg font-semibold tabular-nums ${tone}`}>
+              <span className={`font-heading text-lg font-medium tabular-nums ${tone}`}>
                 {formatEfficiency(point?.mileage, efficiency)}
               </span>
             </div>

@@ -154,10 +154,7 @@ export function Component() {
           if (!inGroup.length) return null;
           return (
             <section key={group} aria-labelledby={`group-${group}`} className="flex flex-col gap-3">
-              <h2
-                id={`group-${group}`}
-                className="text-xs font-medium tracking-wide text-muted-foreground uppercase"
-              >
+              <h2 id={`group-${group}`} className="text-xs font-medium text-muted-foreground">
                 {group}
               </h2>
               {inGroup.map((item) => (

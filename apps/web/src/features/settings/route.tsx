@@ -125,7 +125,7 @@ export function Component() {
       <SecurityCard onChangePassword={() => setDialog("password")} />
       <Card>
         <CardContent className="flex flex-wrap items-center justify-between gap-4">
-          <h2 className="font-heading text-base font-semibold">Your data</h2>
+          <h2 className="font-heading text-base font-medium">Your data</h2>
           <Link
             to="/backup"
             className="inline-flex items-center gap-1.5 text-sm font-medium text-primary hover:underline max-md:min-h-10"
@@ -184,7 +184,7 @@ function ProfileCard({ onEdit }: { onEdit: () => void }) {
             </AvatarFallback>
           </Avatar>
           <div className="min-w-0">
-            <h2 className="truncate font-heading text-lg font-semibold">{user.name}</h2>
+            <h2 className="truncate font-heading text-lg font-medium">{user.name}</h2>
             <p className="truncate text-sm text-muted-foreground">{user.email}</p>
             <p className="text-xs text-muted-foreground">
               Member since {formatDate(user.createdAt)}

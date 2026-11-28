@@ -67,13 +67,8 @@ export function VehicleSelector() {
                 className="size-8!"
               />
               <span className="grid min-w-0 flex-1 gap-0.5 text-left leading-tight">
-                <span className="flex items-center gap-1.5 truncate font-medium">
-                  <span className="size-2 shrink-0 rounded-full bg-success" aria-hidden />
-                  <span className="truncate">{vehicleName(activeVehicle)}</span>
-                </span>
-                <span className="truncate font-mono text-xs text-muted-foreground">
-                  {formatRegistration(activeVehicle.registrationNumber)}
-                </span>
+                <span className="truncate font-medium">{vehicleName(activeVehicle)}</span>
+                <PlateBadge value={activeVehicle.registrationNumber} className="w-fit" />
               </span>
               <ChevronsUpDown className="ml-auto text-muted-foreground" />
             </SidebarMenuButton>
@@ -116,9 +111,7 @@ function VehicleMenuItems({ onDone }: { onDone?: () => void }) {
             <span className="truncate font-medium">{vehicleName(vehicle)}</span>
             <PlateBadge value={vehicle.registrationNumber} className="w-fit" />
           </span>
-          {vehicle.id === activeVehicle?.id && (
-            <Check className="text-primary" aria-label="Active" />
-          )}
+          {vehicle.id === activeVehicle?.id && <Check className="text-brand" aria-label="Active" />}
         </DropdownMenuItem>
       ))}
       <DropdownMenuSeparator />
@@ -161,7 +154,7 @@ export function HeaderVehicleSelector({ fallback }: { fallback: ReactNode }) {
             className="size-8 shrink-0"
           />
           <span className="grid min-w-0 leading-tight">
-            <span className="truncate text-sm font-semibold">{activeVehicle.model}</span>
+            <span className="truncate text-sm font-medium">{activeVehicle.model}</span>
             <span className="truncate font-mono text-xs text-muted-foreground">
               {formatRegistration(activeVehicle.registrationNumber)}
             </span>

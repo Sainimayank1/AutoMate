@@ -1,6 +1,5 @@
 import { FUEL_UNIT, type FuelEntry, MileageStatus } from "@automate/shared";
 import type { ColumnDef } from "@tanstack/react-table";
-import { cn } from "cn";
 import { CircleDashed, EllipsisVertical, Pencil, Trash2 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { Link } from "react-router";
@@ -215,17 +214,13 @@ export function FuelHistory({ vehicleId, showFuel }: { vehicleId: string; showFu
           {FILTERS.map((item) => (
             <Button
               key={item.id}
-              variant="outline"
+              variant={item.id === filterId ? "default" : "outline"}
               size="sm"
               aria-pressed={item.id === filterId}
               onClick={() => {
                 setFilterId(item.id);
                 setPage(1);
               }}
-              className={cn(
-                item.id === filterId &&
-                  "border-primary bg-secondary text-primary hover:text-primary",
-              )}
             >
               {item.label}
             </Button>
@@ -241,7 +236,7 @@ export function FuelHistory({ vehicleId, showFuel }: { vehicleId: string; showFu
           <SearchInput
             value={search}
             onValueChange={setSearch}
-            placeholder="Search stations, notes…"
+            placeholder="Search"
             aria-label="Search fill-ups"
             className="h-9 w-full sm:w-64"
           />

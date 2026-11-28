@@ -339,7 +339,7 @@ AutoMate stands on many open-source projects, among them [React](https://react.d
 [shadcn/ui](https://ui.shadcn.com), [Radix UI](https://www.radix-ui.com),
 [Tailwind CSS](https://tailwindcss.com), [TanStack](https://tanstack.com),
 [Recharts](https://recharts.org), [Leaflet](https://leafletjs.com) and
-[Lucide](https://lucide.dev) icons. Fonts: Inter, Manrope and Geist Mono (SIL Open Font License),
+[Lucide](https://lucide.dev) icons. Fonts: Geist and Geist Mono (SIL Open Font License),
 via Fontsource.
 
 Maps and places use [OpenStreetMap](https://www.openstreetmap.org/copyright) data

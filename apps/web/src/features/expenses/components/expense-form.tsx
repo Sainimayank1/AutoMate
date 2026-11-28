@@ -743,7 +743,7 @@ function Summary({ vehicles }: { vehicles: Vehicle[] }) {
         <CardTitle className="font-heading text-base">Summary</CardTitle>
       </CardHeader>
       <CardContent className="flex flex-col gap-3">
-        <p className="font-heading text-2xl font-semibold tabular-nums">
+        <p className="font-heading text-2xl font-medium tabular-nums">
           {isAmount(amount) ? formatCurrency(amount) : "₹—"}
         </p>
         <dl className="flex flex-col gap-2 text-sm">

@@ -288,7 +288,7 @@ function FullBackupCard() {
     <Card>
       <CardContent className="flex flex-wrap items-center justify-between gap-4">
         <div className="flex max-w-2xl flex-col gap-1">
-          <h2 className="font-heading text-base font-semibold">Full backup</h2>
+          <h2 className="font-heading text-base font-medium">Full backup</h2>
           <p className="text-sm text-muted-foreground">
             Everything: vehicles, fill-ups, service records, expenses with receipts, loans and
             recurring payments, budgets, parts and schedules, trips, documents with their files and

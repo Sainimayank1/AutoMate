@@ -178,7 +178,7 @@ export function RestoreCard() {
             }}
           >
             <div className="flex items-center gap-3.5">
-              <span className="flex size-10 shrink-0 items-center justify-center rounded-md bg-muted text-primary">
+              <span className="flex size-10 shrink-0 items-center justify-center rounded-md bg-muted text-muted-foreground">
                 <FileUp className="size-5" aria-hidden />
               </span>
               <p className="text-sm text-muted-foreground">

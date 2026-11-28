@@ -44,9 +44,7 @@ export function StatCard({
         {loading ? (
           <Skeleton className="h-7 w-24" />
         ) : (
-          <div className="font-heading text-2xl font-semibold tracking-tight tabular-nums">
-            {value}
-          </div>
+          <div className="font-heading text-2xl font-medium tabular-nums">{value}</div>
         )}
         {hint && !loading && <div className="text-xs text-muted-foreground">{hint}</div>}
       </CardContent>

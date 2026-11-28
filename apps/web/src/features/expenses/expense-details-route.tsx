@@ -112,7 +112,7 @@ export function Component() {
               <SheetDescription>
                 {expense.category.name} · {COST_CLASS_TEXT[expense.category.costClass].label}
               </SheetDescription>
-              <p className="font-heading text-3xl font-semibold tracking-tight tabular-nums">
+              <p className="font-heading text-3xl font-medium tabular-nums">
                 {expense.kind === ExpenseKind.REFUND ? "−" : ""}
                 {formatCurrency(expense.amount)}
               </p>
@@ -308,7 +308,7 @@ function Block({
   return (
     <section className="flex flex-col gap-1 rounded-lg border bg-muted/40 p-3">
       <div className="flex items-center justify-between gap-2">
-        <h3 className="text-sm font-semibold">{title}</h3>
+        <h3 className="text-sm font-medium">{title}</h3>
         {action}
       </div>
       {note && <p className="text-xs text-muted-foreground">{note}</p>}

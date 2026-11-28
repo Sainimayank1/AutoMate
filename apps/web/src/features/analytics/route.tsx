@@ -250,7 +250,7 @@ function Tile({
   return (
     <div className="flex flex-col gap-1.5 rounded-xl border bg-card p-4">
       <span className="text-xs font-medium text-muted-foreground">{label}</span>
-      <span className={cn("font-heading text-2xl font-semibold tabular-nums", tone)}>{value}</span>
+      <span className={cn("font-heading text-2xl font-medium tabular-nums", tone)}>{value}</span>
       <span className="text-xs text-muted-foreground">{note}</span>
     </div>
   );

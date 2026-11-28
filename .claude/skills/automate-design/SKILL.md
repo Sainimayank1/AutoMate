@@ -1,24 +1,24 @@
 ---
 name: automate-design
-description: AutoMate's visual identity and UI/UX design system. Covers the premium, dark-first automotive cockpit look, colour/typography/spacing tokens, the app shell and navigation, component standards, screen guidelines for all 11 modules (Dashboard, Garage, Fuel, Expenses, Maintenance, Documents, Trips, Analytics, Notifications, Settings, Backup) plus auth and onboarding, Indian localisation, canonical sample data and a design review checklist. Use for ANY frontend work in apps/web, such as building or changing a screen, page, layout, component, chart, form, dialog, empty/loading/error state, theme or style. Includes the Stitch-first rule: build every screen from its Stitch design (project "AutoMate Design System Platform"), and generate the screen in Stitch first when it doesn't exist. Also use when reviewing UI for design consistency.
+description: AutoMate's visual identity and UI/UX design system. Covers the dark-first "Night dash" instrument-cluster look, colour/typography/spacing tokens, the app shell and navigation, component standards, screen guidelines for all 11 modules (Dashboard, Garage, Fuel, Expenses, Maintenance, Documents, Trips, Analytics, Notifications, Settings, Backup) plus auth and onboarding, Indian localisation, canonical sample data and a design review checklist. Use for ANY frontend work in apps/web, such as building or changing a screen, page, layout, component, chart, form, dialog, empty/loading/error state, theme or style. Includes the Stitch-first rule: build every screen from its Stitch design (project "AutoMate Design System Platform"), and generate the screen in Stitch first when it doesn't exist. Also use when reviewing UI for design consistency.
 ---
 
 # AutoMate Design System
 
-AutoMate is a **premium vehicle-ownership companion**, not a CRUD admin panel. Every screen should feel like part of one product, somewhere between a luxury car's digital cockpit and a high-end fintech app. The direction is **premium, futuristic, sophisticated and minimal**: graphite surfaces, a single ice-blue accent, hairline borders, precise tabular numbers and calm motion.
+AutoMate is a **premium vehicle-ownership companion**, not a CRUD admin panel. Every screen should feel like part of one product, somewhere between a car's instrument cluster and a high-end fintech app. The theme is **Night dash**, an instrument cluster at night: exact, unhurried, a little mechanical. Neutral graphite surfaces, off-white text, hairline borders, Geist with Geist Mono figures, precise tabular numbers, one cyan accent (`brand`) used rarely, the registration plate as the signature, and calm motion.
 
-This skill tells you how things should look and behave. **The Stitch project is the visual source of truth** (see below). `docs/MODULES.md` says _what_ each module does. `docs/architecture/frontend.md` says _how the code is organised_.
+This skill tells you how things should look and behave. **The Stitch project is the source of truth for layouts and screens** (see below). **The Night dash theme overrides Stitch's colour and type** (palette, fonts, weights, labels, glow, the plate): Stitch wasn't updated, so take those from `docs/architecture/design-system.md` and `references/`, never from the Stitch HTML. `docs/MODULES.md` says _what_ each module does. `docs/architecture/frontend.md` says _how the code is organised_.
 
 ## Stitch: design first, then build
 
-The approved designs live in the Stitch project **"AutoMate Design System Platform"** (`projects/4873202931996632861`), whose design system is **"AutoMate Cockpit"** (`assets/canvas_node_node_14159650301022119993`). The app's tokens in `index.css` are the Stitch tokens, so a Stitch screen translates almost one-to-one into our primitives.
+The approved designs live in the Stitch project **"AutoMate Design System Platform"** (`projects/4873202931996632861`), whose design system is **"AutoMate Cockpit"** (`assets/canvas_node_node_14159650301022119993`). Stitch's layouts translate almost one-to-one into our primitives; its colours and fonts don't (they predate Night dash), so map its colour classes to our tokens by role.
 
 **Reading** works through the Stitch MCP tools (deferred; load them with ToolSearch `select:mcp__stitch__list_screens,mcp__stitch__get_screen,mcp__stitch__download_file`). **Writing doesn't:** this is a web-canvas project (`DESIGN_V2`). For it, MCP `generate_screen_from_text` returns an id but never places the screen on the canvas: the id then 404s, and the screen uses a different design system at 2560 px. `edit_screens` can't find canvas screens at all. Create and edit screens through the **Stitch web app's chat** on the project canvas (https://stitch.google.com/projects/4873202931996632861), which applies the AutoMate tokens and 1280 / 390 px sizes.
 
 **Before building or changing any screen:**
 
 1. **Find it.** Run `list_screens` with project id `4873202931996632861`. Screens come in pairs, "<Screen> — Desktop" (1280 px) and "<Screen> — Mobile" (390 px). Desktop/mobile pairs exist for most modules (Dashboard, Login, Register, Garage, Vehicle Details, Add Vehicle steps 1–5, Edit Vehicle, Expenses, Fuel, Maintenance, Documents, Trips, Analytics & TCO, Settings, Notifications) plus dialogs and empty states; `list_screens` is the current list.
-2. **If it exists,** `download_file` its `htmlCode.name` and build from it: the same layout, hierarchy, copy and states, translated to our primitives and tokens (`dark-surface-container-low` → `bg-card`; the full mapping is in `references/color-system.md`). Big screens overflow the tool output and are saved to a file; extract the parts you need from it.
+2. **If it exists,** `download_file` its `htmlCode.name` and build from it: the same layout, hierarchy, copy and states, translated to our primitives and tokens (`dark-surface-container-low` → `bg-card`; the full mapping is in `references/color-system.md`). Drop what Night dash replaced: its ice-blue and teal, Manrope/Inter, semibold weights, uppercase overlines, greetings and glows. Big screens overflow the tool output and are saved to a file; extract the parts you need from it.
 3. **If the flow needs a screen that doesn't exist** (a new page, dialog, sheet, wizard step, or an empty, error or success state), **create it in Stitch first, then build from it:**
    - In the Stitch web app chat for this project (use the browser tools, or ask the user to run it if you have no browser access), ask for the screen by exact title, "<Screen> — Desktop" (1280 px) and "<Screen> — Mobile" (390 px), "using the AutoMate design system and the existing app shell".
    - Put the relevant data in the prompt:
@@ -34,7 +34,8 @@ The approved designs live in the Stitch project **"AutoMate Design System Platfo
    - removing controls for features that aren't built ("Forgot password?", social sign-in);
    - accessibility fixes;
    - removing copy that makes claims we can't verify;
-   - replacing external images with tokens.
+   - replacing external images with tokens;
+   - the Night dash theme (colour, type, sentence-case labels, no glow, the plate) and its copy rules (no greeting headline, "Log in", "Search").
 
    Note each one in the component's doc comment.
 
@@ -42,16 +43,16 @@ The approved designs live in the Stitch project **"AutoMate Design System Platfo
 
 These apply to every UI change. The references explain the details.
 
-1. **Tokens only.** Use semantic classes (`bg-card`, `text-muted-foreground`, `bg-primary`, `text-warning`, `bg-elevated`, `text-insight`…). Never use hex/rgb values, `[#…]` arbitrary colours or Tailwind palette classes (`bg-zinc-900`, `text-cyan-400`) in components. → `references/color-system.md`
+1. **Tokens only.** Use semantic classes (`bg-card`, `text-muted-foreground`, `bg-primary`, `text-warning`, `bg-elevated`, `text-brand`…). Never use hex/rgb values, `[#…]` arbitrary colours or Tailwind palette classes (`bg-zinc-900`, `text-cyan-400`) in components. → `references/color-system.md`
 2. **Dark-first.** Design and check the dark theme first. Then check the light theme, which must keep the same hierarchy.
-3. **One accent.** Ice blue (`primary`) marks the primary action, the active nav item, selection, focus and the focus chart series. Keep it to roughly 5–10% of any screen. Teal (`insight`) is only for AI and insight content.
+3. **One accent, used rarely.** Cyan (`brand`) appears only on the active nav icon, the selected-vehicle check, the dashboard odometer figure, `chart-1`, the focus ring, the logo and the plate's strip. `primary` is neutral (off-white in dark, ink in light): it fills the main button, and `text-primary` reads as foreground. `insight` is a neutral grey for rule-based insights.
 4. **Reuse before you build.** Check `components/ui` (shadcn), `components/common`, `components/feedback` and `components/layout` first. Never hand-roll a button, dialog, menu, tabs, popover, tooltip or sheet. If a shadcn primitive is missing, add it with `pnpm dlx shadcn@latest add <name>` in `apps/web`. → `references/component-guidelines.md`
 5. **One shell.** Every module uses `AppShell` (sidebar, header and the mobile bottom nav). Modules never get their own header, sidebar or palette. → `references/application-navigation.md`
 6. **Numbers come from the API and are formatted with `utils/format.ts`.** Use `formatCurrency`, `formatDistance`, `formatVolume`, `formatEfficiency`, `formatDate` and the others. Add `tabular-nums` wherever figures line up. Never compute mileage, costs or due status in a component.
 7. **Truthful data.** Never show a mileage figure the full-tank sequence can't support. Always separate operating cost, loan principal and cash outflow. Always label AI advice separately from recorded data. → `references/module-design-guidelines.md`
 8. **Every screen has every state.** That means loading (a skeleton shaped like the content), empty (first-use or filtered), error (with retry), success feedback, disabled-with-reason and confirmation for destructive actions. → `references/interaction-patterns.md`
 9. **Genuinely responsive.** Lay out deliberately for 360, 390, 768, 1280 and 1440 px. Tables become lists, dialogs become bottom sheets, and there is no horizontal page scroll. → `references/responsive-design.md`
-10. **Restraint.** Gradients, glow and glass appear only where `references/visual-design-language.md` allows them. No emoji, clipart, rainbow categories, oversized radii or grids of identical cards.
+10. **Restraint.** No gradients, glow, glass or backdrop blur (the chart area fade is the one exception; see `references/visual-design-language.md`). Weights 400 and 500 only, sentence-case labels (no uppercase or tracking). No emoji, clipart, rainbow categories, oversized radii or grids of identical cards.
 11. **Indian locale.** Use ₹ with Indian grouping (₹1,25,000.00), km, L, km/L and DD/MM/YYYY, with Indian English spelling (kilometres, litres, licence, tyres). Mockups use the canonical sample data. → `references/localization-and-sample-data.md`
 12. **Never downgrade.** When you extend a screen, keep its existing premium patterns. Don't replace them with generic ones.
 
@@ -86,7 +87,7 @@ All paths are relative to `.claude/skills/automate-design/references/`.
 ## Precedence
 
 - **Behaviour and data rules:** `docs/MODULES.md` and the root `CLAUDE.md` win.
-- **Look and feel:** the Stitch project wins, then this skill. If they disagree, follow Stitch and update this skill in the same change.
+- **Look and feel:** for layouts and screens, the Stitch project wins, then this skill; if they disagree, follow Stitch and update this skill in the same change. For colour, type, labels, glow and the plate, the Night dash theme in this skill and `docs/architecture/design-system.md` wins over Stitch.
 - **Implemented conventions:** `docs/architecture/design-system.md` records what the code does today. If it disagrees with this skill (for example the palette), the task that implements the skill's version must update that doc in the same change, so the two never drift.
 
 ## Where the code doesn't match the spec yet
@@ -98,4 +99,4 @@ Apply each item the first time a task touches that area, in the same change, and
 | Missing primitives                              | none                                | `drawer` (vaul), `command` (cmdk), `scroll-area` (`chart`, `progress`, `toggle-group` are done)     | Add with the shadcn CLI when first needed |
 | Auth: forgot/reset password, email verification | not built (needs an email provider) | Generate the Stitch screens, then build them in `features/auth` (see `module-design-guidelines.md`) | `features/auth`, `apps/api` auth module   |
 
-Done already: the mobile bottom nav with the quick-add sheet (and the header's "+" menu), `formatCurrencyCompact` on money chart axes, the `chart` primitive (Fuel), the Stitch palette and fonts, the radius, the `elevated`/`insight`/`brand` tokens, `hero-glow`, dark as the default theme, the Stitch nav groups, the logo and favicon, and the sign-in and registration screens.
+Done already: the mobile bottom nav with the quick-add sheet (and the header's "+" menu), `formatCurrencyCompact` on money chart axes, the `chart` primitive (Fuel), the Night dash palette and Geist fonts (replacing the Stitch ones), the radius, the `elevated`/`insight`/`brand`/`plate` tokens, the plate signature, dark as the default theme, the Stitch nav groups, the logo and favicon, and the sign-in and registration screens.

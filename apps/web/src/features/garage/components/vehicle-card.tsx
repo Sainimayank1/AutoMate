@@ -64,9 +64,7 @@ export function VehicleCard({
           <PlateBadge value={vehicle.registrationNumber} />
         </div>
         <div className="absolute inset-x-4 bottom-4">
-          <h2 className="font-heading text-lg font-semibold tracking-tight sm:text-xl">
-            {vehicleName(vehicle)}
-          </h2>
+          <h2 className="font-heading text-lg font-medium sm:text-xl">{vehicleName(vehicle)}</h2>
           <p className="text-xs text-muted-foreground">{vehicleSummary(vehicle)}</p>
         </div>
       </VehicleImage>

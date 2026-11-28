@@ -115,7 +115,7 @@ export function Component() {
             <CardContent className="flex flex-col gap-2 text-sm">
               <Link
                 to={`/trips/planner/${next.id}`}
-                className="font-heading text-lg font-semibold hover:underline"
+                className="font-heading text-lg font-medium hover:underline"
               >
                 {tripLabel(next)}
               </Link>
@@ -206,10 +206,10 @@ function PlanCard({ plan, today }: { plan: TripPlan; today: string }) {
         className="flex w-14 shrink-0 flex-col items-center justify-center rounded-lg bg-muted py-2 tabular-nums"
         aria-hidden
       >
-        <span className="text-xs font-medium text-muted-foreground uppercase">
+        <span className="text-xs font-medium text-muted-foreground">
           {day.toLocaleDateString("en-IN", { month: "short" })}
         </span>
-        <span className="font-heading text-xl font-semibold">{day.getDate()}</span>
+        <span className="font-heading text-xl font-medium">{day.getDate()}</span>
         <span className="text-xs text-muted-foreground">
           {day.toLocaleDateString("en-IN", { weekday: "short" })}
         </span>

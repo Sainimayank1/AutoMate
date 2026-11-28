@@ -257,7 +257,7 @@ export function TripImportDialog({
                 ).map(([status, label]) => (
                   <div key={status} className="flex flex-col gap-0.5 rounded-lg border p-3">
                     <dt className="text-xs text-muted-foreground">{label}</dt>
-                    <dd className="font-heading text-lg font-semibold tabular-nums">
+                    <dd className="font-heading text-lg font-medium tabular-nums">
                       {preview.counts[status]}
                     </dd>
                   </div>

@@ -12,12 +12,6 @@ export const PERIOD_LABELS: Record<ReportingPeriod, string> = {
   [ReportingPeriod.ALL_TIME]: "All time",
 };
 
-/** "Good morning" until noon, "Good afternoon" until 5 pm, then "Good evening" (the device's clock). */
-export function greeting(now: Date) {
-  const hour = now.getHours();
-  return hour < 12 ? "Good morning" : hour < 17 ? "Good afternoon" : "Good evening";
-}
-
 /** The sections the user can show, hide and reorder (Customise). */
 export const WIDGET_LABELS: Record<DashboardWidget, string> = {
   [DashboardWidget.METRICS]: "Key figures",
