@@ -21,7 +21,22 @@ export type TripFormValues = {
   distanceKm: string;
   origin: string;
   destination: string;
+  originLat: number | null;
+  originLng: number | null;
+  destinationLat: number | null;
+  destinationLng: number | null;
+  stops: TripStopFormValues[];
+  /** Method ROUTE: the chosen route (0 = the provider's best). */
+  routeIndex: number;
   notes: string;
+};
+
+export type TripStopFormValues = {
+  label: string;
+  latitude: number | null;
+  longitude: number | null;
+  arrivalTime: string;
+  departureTime: string;
 };
 
 export const tripFormSchema = tripFieldsSchema.omit({ id: true }).superRefine(checkTrip);
@@ -45,6 +60,12 @@ export function newTripForm(today: string, vehicleId: string, odometerKm?: numbe
     distanceKm: "",
     origin: "",
     destination: "",
+    originLat: null,
+    originLng: null,
+    destinationLat: null,
+    destinationLng: null,
+    stops: [],
+    routeIndex: 0,
     notes: "",
   };
 }
@@ -64,6 +85,18 @@ export function editTripForm(trip: Trip): TripFormValues {
     distanceKm: trip.method === "DISTANCE" ? trip.distanceKm : "",
     origin: text(trip.origin),
     destination: text(trip.destination),
+    originLat: trip.originPoint?.latitude ?? null,
+    originLng: trip.originPoint?.longitude ?? null,
+    destinationLat: trip.destinationPoint?.latitude ?? null,
+    destinationLng: trip.destinationPoint?.longitude ?? null,
+    stops: trip.stops.map((stop) => ({
+      label: stop.label,
+      latitude: stop.latitude,
+      longitude: stop.longitude,
+      arrivalTime: text(stop.arrivalTime),
+      departureTime: text(stop.departureTime),
+    })),
+    routeIndex: 0,
     notes: text(trip.notes),
   };
 }

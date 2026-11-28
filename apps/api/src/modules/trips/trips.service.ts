@@ -9,6 +9,8 @@ import {
   type PaginationQuery,
   ReportingPeriod,
   resolvePeriod,
+  type RoutePoint,
+  type RouteResult,
   SYSTEM_TRIP_CATEGORIES,
   type SystemTripCategoryKey,
   type Trip,
@@ -38,6 +40,7 @@ import { pageArgs, Paginated } from "@/common/pagination/paginated";
 import { PrismaService } from "@/database/prisma.service";
 import { Prisma, type Vehicle } from "@/generated/prisma/client";
 import { LinkedExpensesService } from "@/modules/expenses/linked-expenses.service";
+import { RoutingService } from "@/modules/geocoding/routing.service";
 import { OdometerHistoryService } from "@/modules/vehicles/odometer-history.service";
 import { VehiclesService } from "@/modules/vehicles/vehicles.service";
 
@@ -66,7 +69,7 @@ const SORTS: Record<TripSort, Prisma.TripOrderByWithRelationInput[]> = {
   shortest: [{ distanceKm: "asc" }, ...ORDER],
 };
 
-function assertActive(vehicle: Vehicle) {
+export function assertActive(vehicle: Vehicle) {
   if (vehicle.archivedAt) {
     throw new ConflictException(
       `${vehicle.make} ${vehicle.model} is archived. Restore it to change its trips.`,
@@ -88,6 +91,7 @@ export class TripsService {
     private readonly vehicles: VehiclesService,
     private readonly odometer: OdometerHistoryService,
     private readonly linked: LinkedExpensesService,
+    private readonly routing: RoutingService,
   ) {}
 
   /** The history: filtered and sorted on the server, then paged. */
@@ -123,7 +127,7 @@ export class TripsService {
     const ids = [...new Set(input.ids)];
     const count = await this.prisma.$transaction(async (tx) => {
       const rows = await tx.trip.findMany({
-        where: { id: { in: ids }, userId },
+        where: { id: { in: ids }, userId, status: "COMPLETED" },
         select: { id: true, vehicleId: true, endKm: true },
       });
       if (rows.length !== ids.length)
@@ -153,7 +157,7 @@ export class TripsService {
 
   async get(userId: string, id: string): Promise<Trip> {
     const row = await this.prisma.trip.findFirst({
-      where: { id, userId },
+      where: { id, userId, status: "COMPLETED" },
       include: TRIP_INCLUDE,
     });
     if (!row) throw new NotFoundException(NOT_FOUND);
@@ -161,6 +165,8 @@ export class TripsService {
   }
 
   async create(userId: string, input: CreateTripValues): Promise<Trip> {
+    // The provider is called before the transaction (it can be slow); never inside it.
+    const route = input.method === "ROUTE" ? await this.routeFor(input) : null;
     const id = await this.prisma.$transaction(async (tx) => {
       const vehicle = await this.vehicles.lockOwned(userId, input.vehicleId, tx);
       assertActive(vehicle);
@@ -175,7 +181,10 @@ export class TripsService {
       const id = input.id ?? randomUUID();
       await this.assertCategory(tx, userId, input.categoryId);
       await this.assertReadings(tx, vehicle, id, input);
-      await tx.trip.create({ data: { ...columns(input), id, userId, vehicleId: vehicle.id } });
+      await tx.trip.create({
+        data: { ...columns(input, route), id, userId, vehicleId: vehicle.id },
+      });
+      await this.writeStops(tx, id, input.stops ?? []);
       if (input.endKm != null) await this.vehicles.raiseOdometer(vehicle.id, input.endKm, tx);
       return id;
     });
@@ -183,21 +192,35 @@ export class TripsService {
     return this.get(userId, id);
   }
 
-  /** Merges and re-checks the whole trip; a lowered reading corrects the vehicle down. */
+  /**
+   * Merges and re-checks the whole trip; a lowered reading corrects the vehicle down. A route
+   * trip whose places change gets a fresh route from the provider (before the transaction).
+   */
   async update(userId: string, id: string, input: UpdateTripValues): Promise<Trip> {
+    const before = await this.prisma.trip.findFirst({
+      where: { id, userId, status: "COMPLETED" },
+      include: TRIP_INCLUDE,
+    });
+    if (!before) throw new NotFoundException(NOT_FOUND);
+    const values = merged(before, input);
+    const placesChanged = PLACE_KEYS.some((key) => input[key] !== undefined);
+    const route =
+      values.method !== "ROUTE"
+        ? null
+        : before.method === "ROUTE" && !placesChanged
+          ? storedRoute(before)
+          : await this.routeFor(values);
     await this.prisma.$transaction(async (tx) => {
       const { vehicle, row } = await this.locked(tx, userId, id);
-      const changes = Object.fromEntries(
-        Object.entries(input).filter(([, value]) => value !== undefined),
-      );
-      const parsed = createTripSchema.safeParse({ ...asTripInput(row), ...changes });
-      if (!parsed.success) throw new ZodValidationException(parsed.error);
-      const values = parsed.data;
+      if (row.updatedAt.getTime() !== before.updatedAt.getTime()) {
+        throw new ConflictException("This trip changed while you were saving. Try again.");
+      }
       if (values.categoryId !== row.categoryId) {
         await this.assertCategory(tx, userId, values.categoryId);
       }
       await this.assertReadings(tx, vehicle, id, values);
-      await tx.trip.update({ where: { id }, data: columns(values) });
+      await tx.trip.update({ where: { id }, data: columns(values, route) });
+      if (input.stops !== undefined) await this.writeStops(tx, id, values.stops ?? []);
       if (values.endKm != null) await this.vehicles.raiseOdometer(vehicle.id, values.endKm, tx);
       if (row.endKm != null && (values.endKm ?? 0) < row.endKm) {
         await this.vehicles.correctOdometer(vehicle.id, row.endKm, 0, tx);
@@ -205,6 +228,11 @@ export class TripsService {
     });
     this.logger.log(`Trip ${id} updated`);
     return this.get(userId, id);
+  }
+
+  /** The provider's routes through the trip's places (`POST /trips/routes/calculate`). */
+  calculateRoute(points: RoutePoint[]): Promise<RouteResult> {
+    return this.routing.route(points);
   }
 
   /** The vehicle's odometer stays at the highest reading left in its history. */
@@ -229,6 +257,7 @@ export class TripsService {
     const period = resolvePeriod(query.period, new Date(), custom);
     const where: Prisma.TripWhereInput = {
       userId,
+      status: "COMPLETED",
       ...(vehicleId && { vehicleId }),
       date: { gte: toDbDate(period.from)!, lte: toDbDate(period.to)! },
     };
@@ -258,7 +287,7 @@ export class TripsService {
             - split_part(start_time, ':', 1)::int * 60 - split_part(start_time, ':', 2)::int
             AS minutes
           FROM trips
-          WHERE user_id = ${userId}::uuid ${vehicleSql}
+          WHERE user_id = ${userId}::uuid ${vehicleSql} AND status = 'COMPLETED'
             AND date BETWEEN ${period.from}::date AND ${period.to}::date
             AND start_time IS NOT NULL AND end_time IS NOT NULL
         ) t WHERE minutes >= 0`,
@@ -274,7 +303,7 @@ export class TripsService {
     >`
       SELECT date_trunc(${unit}, date)::date AS start, sum(distance_km) AS km, count(*)::int AS trips
       FROM trips
-      WHERE user_id = ${userId}::uuid ${vehicleSql}
+      WHERE user_id = ${userId}::uuid ${vehicleSql} AND status = 'COMPLETED'
         AND date BETWEEN ${period.from}::date AND ${period.to}::date
       GROUP BY 1`;
     const byStart = new Map(buckets.map((row) => [isoDate(row.start), row]));
@@ -288,7 +317,7 @@ export class TripsService {
       averageKm: totals._count ? distance.div(totals._count).toFixed(1) : null,
       longest: longest && {
         id: longest.id,
-        distanceKm: longest.distanceKm.toFixed(1),
+        distanceKm: longest.distanceKm!.toFixed(1),
         label: tripLabel(longest),
       },
       drivingMinutes: timed!.trips ? timed!.minutes : null,
@@ -323,10 +352,14 @@ export class TripsService {
     const where: Prisma.TripWhereInput = {
       userId,
       vehicleId,
+      status: "COMPLETED",
       date: { gte: toDbDate(window.from)!, lte: toDbDate(window.to)! },
     };
     const [any, totals, longest, groups] = await Promise.all([
-      this.prisma.trip.findFirst({ where: { userId, vehicleId }, select: { id: true } }),
+      this.prisma.trip.findFirst({
+        where: { userId, vehicleId, status: "COMPLETED" },
+        select: { id: true },
+      }),
       this.prisma.trip.aggregate({ where, _count: true, _sum: { distanceKm: true } }),
       this.prisma.trip.aggregate({ where, _max: { distanceKm: true } }),
       this.prisma.trip.groupBy({
@@ -353,7 +386,7 @@ export class TripsService {
 
   /** The vehicle's latest trips and how many it has (the dashboard's activity feed). */
   async recent(userId: string, vehicleId: string, take: number) {
-    const where = { userId, vehicleId };
+    const where = { userId, vehicleId, status: "COMPLETED" as const };
     const [rows, count] = await this.prisma.$transaction([
       this.prisma.trip.findMany({ where, include: TRIP_INCLUDE, orderBy: ORDER, take }),
       this.prisma.trip.count({ where }),
@@ -453,6 +486,7 @@ export class TripsService {
     const contains = (value: string) => ({ contains: value, mode: "insensitive" as const });
     return {
       userId,
+      status: "COMPLETED",
       ...(vehicleId && { vehicleId }),
       ...(categoryId && { categoryId }),
       ...(method && { method }),
@@ -476,6 +510,35 @@ export class TripsService {
         ],
       }),
     };
+  }
+
+  /** The chosen route through origin, stops and destination, from the provider (or 503). */
+  async routeFor(values: RoutedPlaces): Promise<StoredRoute> {
+    const result = await this.routing.route(routePoints(values));
+    const chosen = result.routes[values.routeIndex ?? 0];
+    if (!chosen) {
+      throw new BadRequestException(
+        fieldError("routeIndex", "That route isn't offered any more. Calculate the route again."),
+      );
+    }
+    return { provider: result.provider, ...chosen };
+  }
+
+  async writeStops(tx: Prisma.TransactionClient, tripId: string, stops: TripStopValues[]) {
+    await tx.tripStop.deleteMany({ where: { tripId } });
+    if (!stops.length) return;
+    await tx.tripStop.createMany({
+      data: stops.map((stop, position) => ({
+        tripId,
+        position,
+        label: stop.label,
+        latitude: stop.latitude ?? null,
+        longitude: stop.longitude ?? null,
+        arrivalTime: stop.arrivalTime ?? null,
+        departureTime: stop.departureTime ?? null,
+        notes: stop.notes ?? null,
+      })),
+    });
   }
 
   // ---- money
@@ -531,7 +594,10 @@ export class TripsService {
   // ---- checks
 
   private async locked(tx: Prisma.TransactionClient, userId: string, id: string) {
-    const row = await tx.trip.findFirst({ where: { id, userId }, include: TRIP_INCLUDE });
+    const row = await tx.trip.findFirst({
+      where: { id, userId, status: "COMPLETED" },
+      include: TRIP_INCLUDE,
+    });
     if (!row) throw new NotFoundException(NOT_FOUND);
     const vehicle = await this.vehicles.lockOwned(userId, row.vehicleId, tx);
     assertActive(vehicle);
@@ -539,7 +605,7 @@ export class TripsService {
   }
 
   /** A system type or the user's own, in use (not archived). */
-  private async assertCategory(tx: Prisma.TransactionClient, userId: string, categoryId: string) {
+  async assertCategory(tx: Prisma.TransactionClient, userId: string, categoryId: string) {
     const category = await tx.tripCategory.findFirst({
       where: { id: categoryId, OR: [{ userId: null }, { userId }], archivedAt: null },
       select: { id: true },
@@ -553,7 +619,7 @@ export class TripsService {
    * Readings join the vehicle's one odometer history: the start can't be below a reading from an
    * earlier day, the end can't be above one from a later day, and no two trips cover the same km.
    */
-  private async assertReadings(
+  async assertReadings(
     tx: Prisma.TransactionClient,
     vehicle: Vehicle,
     tripId: string,
@@ -622,8 +688,61 @@ export class TripsService {
   }
 }
 
+/** A route as stored on the trip (from the provider). */
+/** What a route goes through (a trip's or a plan's places) and which option was chosen. */
+export type RoutedPlaces = Pick<
+  CreateTripValues,
+  "originLat" | "originLng" | "destinationLat" | "destinationLng" | "stops" | "routeIndex"
+>;
+export type StoredRoute = {
+  provider: string;
+  distanceKm: string;
+  durationMinutes: number;
+  geometry: string;
+};
+type TripStopValues = NonNullable<CreateTripValues["stops"]>[number];
+
+/** What a PATCH can touch that changes the route. */
+export const PLACE_KEYS = [
+  "method",
+  "originLat",
+  "originLng",
+  "destinationLat",
+  "destinationLng",
+  "stops",
+  "routeIndex",
+] as const satisfies readonly (keyof UpdateTripValues)[];
+
+/** Origin, the stops in order, destination (all pinned: checkTrip requires it for routes). */
+const routePoints = (values: RoutedPlaces): RoutePoint[] => [
+  { latitude: values.originLat!, longitude: values.originLng! },
+  ...(values.stops ?? []).map((stop) => ({ latitude: stop.latitude!, longitude: stop.longitude! })),
+  { latitude: values.destinationLat!, longitude: values.destinationLng! },
+];
+
+export const storedRoute = (row: TripRow): StoredRoute => ({
+  provider: row.routeProvider!,
+  // A plan's route is its planned distance; a done trip's, its distance.
+  distanceKm: (row.distanceKm ?? row.plannedDistanceKm)!.toFixed(1),
+  durationMinutes: row.routeDurationMinutes ?? 0,
+  geometry: row.routeGeometry!,
+});
+
+/** A stored trip with a PATCH on top, checked whole. */
+function merged(row: TripRow, input: UpdateTripValues): CreateTripValues {
+  const changes = Object.fromEntries(
+    Object.entries(input).filter(([, value]) => value !== undefined),
+  );
+  const parsed = createTripSchema.safeParse({ ...asTripInput(row), ...changes });
+  if (!parsed.success) throw new ZodValidationException(parsed.error);
+  return parsed.data;
+}
+
+export const decimal = (value: number | null | undefined) =>
+  value == null ? null : new Prisma.Decimal(value);
+
 /** What a create or a merged update writes; the distance is computed here, never trusted. */
-function columns(values: CreateTripValues) {
+export function columns(values: CreateTripValues, route: StoredRoute | null) {
   const odometer = values.method === "ODOMETER";
   return {
     method: values.method,
@@ -635,9 +754,16 @@ function columns(values: CreateTripValues) {
     endTime: values.endTime ?? null,
     startKm: odometer ? values.startKm! : null,
     endKm: odometer ? values.endKm! : null,
-    distanceKm: new Prisma.Decimal(tripDistance(values)!),
+    distanceKm: new Prisma.Decimal(route ? route.distanceKm : tripDistance(values)!),
     origin: values.origin ?? null,
     destination: values.destination ?? null,
+    originLat: decimal(values.originLat),
+    originLng: decimal(values.originLng),
+    destinationLat: decimal(values.destinationLat),
+    destinationLng: decimal(values.destinationLng),
+    routeProvider: route?.provider ?? null,
+    routeGeometry: route?.geometry ?? null,
+    routeDurationMinutes: route?.durationMinutes ?? null,
     notes: values.notes ?? null,
   };
 }

@@ -4,6 +4,7 @@ import type {
   TripFilterParams,
   TripListParams,
   TripOverviewParams,
+  TripPlanListParams,
 } from "@/features/trips/services/trips-service";
 
 /** Query keys of the trips module; other modules import these to refresh it. */
@@ -15,6 +16,9 @@ export const tripsKeys = {
   summary: (params: TripFilterParams) => ["trips", "summary", params] as const,
   detail: (id: string) => ["trips", "detail", id] as const,
   categories: ["trips", "categories"] as const,
+  plans: ["trips", "plans"] as const,
+  planList: (params: TripPlanListParams) => ["trips", "plans", "list", params] as const,
+  plan: (id: string) => ["trips", "plans", "detail", id] as const,
   /** One trip's money: costs, linked fill-ups, candidates and spending. */
   money: (tripId: string) => ["trips", "money", tripId] as const,
   costs: (tripId: string) => ["trips", "money", tripId, "costs"] as const,

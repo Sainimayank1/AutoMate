@@ -1,5 +1,5 @@
 import {
-  type CostClass,
+  CostClass,
   type DateWindow,
   type ExpenseCategoryRef,
   type ExpenseIcon,
@@ -65,6 +65,44 @@ export class ExpenseFiguresService {
       operating: new Prisma.Decimal(row!.operating),
       fuel: new Prisma.Decimal(row!.fuel),
     };
+  }
+
+  /**
+   * Net money by cost class in a window (refunds subtracted; FINANCING is interest and charges
+   * only), plus what was paid in cash and the loan principal in it (Ownership cost, phase 6).
+   */
+  async byCostClass(userId: string, vehicleId: string, window: DateWindow) {
+    const rows = await this.prisma.$queryRaw<
+      {
+        cost_class: CostClass;
+        cost: Prisma.Decimal;
+        cash: Prisma.Decimal;
+        principal: Prisma.Decimal;
+      }[]
+    >`
+      SELECT c.cost_class,
+             sum(CASE WHEN e.kind = 'REFUND' THEN -e.amount
+                      ELSE e.amount - coalesce(e.principal_amount, 0) END) AS cost,
+             sum(CASE WHEN e.kind = 'REFUND' THEN -e.amount ELSE e.amount END) AS cash,
+             sum(CASE WHEN e.kind = 'REFUND' THEN 0 ELSE coalesce(e.principal_amount, 0) END)
+               AS principal
+      FROM expenses e
+      JOIN expense_categories c ON c.id = e.category_id
+      WHERE e.user_id = ${userId}::uuid AND e.vehicle_id = ${vehicleId}::uuid
+        AND e.date >= ${window.from}::date AND e.date <= ${window.to}::date
+      GROUP BY c.cost_class`;
+    const zero = new Prisma.Decimal(0);
+    const cost = Object.fromEntries(
+      Object.values(CostClass).map((costClass) => [costClass, zero]),
+    ) as Record<CostClass, Prisma.Decimal>;
+    let cash = zero;
+    let principal = zero;
+    for (const row of rows) {
+      cost[row.cost_class] = new Prisma.Decimal(row.cost);
+      cash = cash.plus(row.cash);
+      principal = principal.plus(row.principal);
+    }
+    return { cost, cash, principal };
   }
 
   /**

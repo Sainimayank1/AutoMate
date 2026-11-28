@@ -4,6 +4,7 @@ import type {
   ExpenseDetail,
   ExpenseSummary,
   ExpenseTrend,
+  OwnershipCost,
 } from "@automate/shared";
 import {
   Body,
@@ -35,6 +36,7 @@ import {
   CreateRefundDto,
   ExpenseListQueryDto,
   ExpenseSummaryQueryDto,
+  OwnershipQueryDto,
   UpdateExpenseDto,
 } from "./dto/expense.dto";
 import {
@@ -43,15 +45,20 @@ import {
   EXPENSE_SCHEMA,
   EXPENSE_SUMMARY_SCHEMA,
   EXPENSE_TREND_SCHEMA,
+  OWNERSHIP_COST_SCHEMA,
 } from "./expenses.constants";
 import { ExpensesService } from "./expenses.service";
+import { OwnershipService } from "./ownership.service";
 
 /** Expenses across all the user's vehicles (`?vehicleId=` narrows to one). */
 @ApiTags("expenses")
 @ApiBearerAuth()
 @Controller("expenses")
 export class ExpensesController {
-  constructor(private readonly expenses: ExpensesService) {}
+  constructor(
+    private readonly expenses: ExpensesService,
+    private readonly ownershipCost: OwnershipService,
+  ) {}
 
   @Get()
   @ApiOperation({ summary: "Expenses, newest first, filtered and a page at a time" })
@@ -93,6 +100,19 @@ export class ExpensesController {
     @Query() query: ExpenseSummaryQueryDto,
   ): Promise<ExpenseTrend> {
     return this.expenses.trend(user.id, query);
+  }
+
+  @Get("ownership")
+  @ApiOperation({
+    summary: "Operating, cash outflow and economic ownership cost (depreciation estimated)",
+  })
+  @ApiEnvelopeResponse(OWNERSHIP_COST_SCHEMA)
+  @ApiErrorResponses(400, 401, 404)
+  ownership(
+    @CurrentUser() user: AuthUser,
+    @Query() query: OwnershipQueryDto,
+  ): Promise<OwnershipCost> {
+    return this.ownershipCost.cost(user.id, query);
   }
 
   @Post("bulk/delete")

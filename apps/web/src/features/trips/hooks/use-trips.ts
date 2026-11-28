@@ -89,7 +89,7 @@ export function useTripCategories() {
  * A trip write may move the vehicle's odometer, which Maintenance's due figures and the
  * dashboard read: refresh trips, vehicles, maintenance and the dashboard.
  */
-function useSyncTrips() {
+export function useSyncTrips() {
   const queryClient = useQueryClient();
   return () =>
     Promise.all([
@@ -101,7 +101,7 @@ function useSyncTrips() {
 }
 
 // The form shows errors inline (applyServerErrors), so these opt out of the global error toast.
-const handledByForm = () => {};
+export const handledByForm = () => {};
 
 export function useCreateTrip() {
   const sync = useSyncTrips();

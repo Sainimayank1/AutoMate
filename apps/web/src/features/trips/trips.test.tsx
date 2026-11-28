@@ -2,12 +2,22 @@ import type { Trip, TripCategory, TripOverview } from "@automate/shared";
 import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { InternalAxiosRequestConfig } from "axios";
-import { beforeEach, describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { useSessionStore } from "@/stores/session-store";
 import { useActiveVehicleStore } from "@/stores/vehicle-store";
 import { fail, mockApi, type MockReply, ok, okPage, testUser, testVehicle } from "@/test/mock-api";
 import { renderApp } from "@/test/render-app";
+
+// Leaflet doesn't render in jsdom; the map's inputs are what matter here.
+vi.mock("@/features/trips/components/trip-map", () => ({
+  default: ({ places, geometry }: { places: { label: string }[]; geometry?: string | null }) => (
+    <div data-testid="trip-map">
+      {places.map((place) => place.label).join(" → ")}
+      {geometry ? " (route)" : ""}
+    </div>
+  ),
+}));
 
 const victoris = testVehicle({ odometerKm: 8732 });
 const types: TripCategory[] = [
@@ -38,7 +48,12 @@ const jaipur: Trip = {
   origin: "Gurugram",
   destination: "Jaipur",
   notes: "Breakfast stop near Behror.",
+  originPoint: null,
+  destinationPoint: null,
+  stops: [],
+  route: null,
   actualCost: null,
+  plan: null,
   createdAt: "2026-11-22T05:00:00.000Z",
   updatedAt: "2026-11-22T05:00:00.000Z",
 };
@@ -517,5 +532,157 @@ describe("trip costs", () => {
     });
     renderApp(`/trips/costs/${toll.id}`);
     expect(await screen.findByRole("heading", { name: "Gurugram → Jaipur" })).toBeInTheDocument();
+  });
+});
+
+describe("routes", () => {
+  const place = (label: string, latitude: number, longitude: number) => ({
+    label,
+    latitude,
+    longitude,
+  });
+  const hisar = place("Hisar, Haryana", 29.1492, 75.7217);
+  const shimla = place("Shimla, Himachal Pradesh", 31.1048, 77.1734);
+  const manali = place("Manali, Himachal Pradesh", 32.2432, 77.1892);
+
+  it(
+    "builds a route from searched places and stops, and saves the chosen option",
+    { timeout: 20_000 },
+    async () => {
+      const calls = api({
+        "GET /vehicles": () => okPage([victoris]),
+        "GET /trip-categories": () => okPage(types),
+        "POST /geocode/search": (config) => {
+          const query = String(bodyOf(config).query).toLowerCase();
+          return ok(
+            query.startsWith("his") ? [hisar] : query.startsWith("shi") ? [shimla] : [manali],
+          );
+        },
+        "POST /trips/routes/calculate": () =>
+          ok({
+            provider: "OpenStreetMap (OSRM)",
+            routes: [
+              { distanceKm: "512.4", durationMinutes: 640, geometry: "_p~iF~ps|U" },
+              { distanceKm: "530.0", durationMinutes: 700, geometry: "_p~iF~ps|U" },
+            ],
+          }),
+        "POST /trips": () => ok(jaipur, 201),
+        [`GET /trips/${jaipur.id}`]: () => ok(jaipur),
+      });
+      renderApp("/trips/new");
+      const user = userEvent.setup();
+
+      await user.click(await screen.findByRole("radio", { name: "Route" }));
+      await user.click(screen.getByRole("combobox", { name: "Trip type" }));
+      await user.click(await screen.findByRole("option", { name: "Road trip" }));
+      expect(screen.getByRole("button", { name: "Calculate route" })).toBeDisabled();
+
+      const pick = async (input: HTMLElement, typed: string, label: string, chosen: string) => {
+        await user.type(input, `${typed}{Enter}`);
+        await user.click(
+          await within(await screen.findByRole("list", { name: `Places for ${label}` })).findByRole(
+            "button",
+            { name: chosen },
+          ),
+        );
+      };
+      await pick(screen.getByLabelText(/^From/), "Hisar", "From", hisar.label);
+      await user.click(screen.getByRole("button", { name: "Add stop" }));
+      await pick(screen.getByPlaceholderText("e.g. Chandigarh"), "Shimla", "stop 1", shimla.label);
+      await pick(screen.getByLabelText(/^To/), "Manali", "To", manali.label);
+      expect(bodyOf(calls.filter((call) => call.url === "/geocode/search").at(-1)).query).toBe(
+        "Manali",
+      );
+
+      await user.click(screen.getByRole("button", { name: "Calculate route" }));
+      expect(await screen.findByTestId("trip-map")).toHaveTextContent(
+        "Hisar, Haryana → Shimla, Himachal Pradesh → Manali, Himachal Pradesh (route)",
+      );
+      expect(calls.find((call) => call.url === "/trips/routes/calculate")?.data).toContain(
+        "31.1048",
+      );
+      await user.click(screen.getByRole("radio", { name: /Alternative 1.*530 km/ }));
+
+      await user.click(screen.getByRole("button", { name: "Save trip" }));
+      await waitFor(() =>
+        expect(calls.some((call) => call.url === "/trips" && call.method === "post")).toBe(true),
+      );
+      expect(
+        bodyOf(calls.find((call) => call.url === "/trips" && call.method === "post")),
+      ).toMatchObject({
+        method: "ROUTE",
+        origin: hisar.label,
+        originLat: hisar.latitude,
+        destinationLng: manali.longitude,
+        stops: [{ label: shimla.label, latitude: shimla.latitude, longitude: shimla.longitude }],
+        routeIndex: 1,
+      });
+    },
+  );
+
+  it("refuses a route without places chosen from the search", { timeout: 15_000 }, async () => {
+    const calls = api({
+      "GET /vehicles": () => okPage([victoris]),
+      "GET /trip-categories": () => okPage(types),
+    });
+    renderApp("/trips/new");
+    const user = userEvent.setup();
+
+    await user.click(await screen.findByRole("radio", { name: "Route" }));
+    await user.click(screen.getByRole("combobox", { name: "Trip type" }));
+    await user.click(await screen.findByRole("option", { name: "Road trip" }));
+    await user.type(screen.getByLabelText(/^From/), "My village");
+    await user.click(screen.getByRole("button", { name: "Save trip" }));
+    expect(
+      await screen.findByText("Choose where from in the search to get a route"),
+    ).toBeInTheDocument();
+    expect(calls.some((call) => call.method === "post")).toBe(false);
+  });
+
+  it("shows a route trip on the map with its stops", async () => {
+    const routed = {
+      ...jaipur,
+      method: "ROUTE" as const,
+      startKm: null,
+      endKm: null,
+      origin: "Hisar",
+      destination: "Manali",
+      originPoint: { latitude: 29.1492, longitude: 75.7217 },
+      destinationPoint: { latitude: 32.2432, longitude: 77.1892 },
+      stops: [
+        {
+          id: "s1",
+          label: "Shimla",
+          latitude: 31.1048,
+          longitude: 77.1734,
+          arrivalTime: "13:10",
+          departureTime: null,
+          notes: null,
+        },
+      ],
+      route: {
+        provider: "OpenStreetMap (OSRM)",
+        distanceKm: "512.4",
+        durationMinutes: 640,
+        geometry: "_p~iF~ps|U",
+      },
+      distanceKm: "512.4",
+    };
+    api({
+      "GET /vehicles": () => okPage([victoris]),
+      [`GET /trips/${jaipur.id}`]: () => ok(routed),
+    });
+    renderApp(`/trips/${jaipur.id}`);
+
+    expect(await screen.findByTestId("trip-map")).toHaveTextContent(
+      "Hisar → Shimla → Manali (route)",
+    );
+    expect(screen.getByText("1. Shimla")).toBeInTheDocument();
+    expect(screen.getByText("arrived 13:10")).toBeInTheDocument();
+    expect(screen.getByText(/From the route \(OpenStreetMap \(OSRM\)\)/)).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Open in OpenStreetMap" })).toHaveAttribute(
+      "href",
+      expect.stringContaining("route=29.1492,75.7217;32.2432,77.1892"),
+    );
   });
 });

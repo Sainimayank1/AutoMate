@@ -2,6 +2,8 @@ import { z } from "zod/mini";
 
 const envSchema = z.object({
   VITE_API_BASE_URL: z.url(),
+  /** Map tiles ({z}/{x}/{y}); OpenStreetMap's own when unset (light use, attribution shown). */
+  VITE_MAP_TILE_URL: z.optional(z.string()),
 });
 
 export type Env = z.infer<typeof envSchema>;

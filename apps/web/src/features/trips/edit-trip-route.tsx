@@ -39,6 +39,7 @@ export function Component() {
       mode="edit"
       vehicles={[...(active.data ?? []), ...(archived.data ?? [])]}
       defaultValues={editTripForm(trip.data)}
+      storedRoute={trip.data.route}
       backTo={`/trips/${tripId}`}
       onSave={({ vehicleId: _, ...values }) => update.mutateAsync(values)}
     />

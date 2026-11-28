@@ -11,13 +11,14 @@ import {
   positiveDecimal,
 } from "../common/fields.js";
 import { PaymentMethod } from "../common/payment-method.js";
+import { fromPaise, toPaise } from "../expenses/expense.schema.js";
 import { checkPeriodQuery, type PeriodWindow, periodQueryFields } from "../common/periods.js";
 import { type FuelType, ODOMETER_MAX_KM } from "../vehicles/vehicle.schema.js";
 
 /** Trips contract (module 7). Rules: docs/architecture/trips.md. */
 
-/** How the distance is known: from two odometer readings, or entered by the user. */
-export const TripMethod = { ODOMETER: "ODOMETER", DISTANCE: "DISTANCE" } as const;
+/** How the distance is known: two odometer readings, entered, or a provider's route. */
+export const TripMethod = { ODOMETER: "ODOMETER", DISTANCE: "DISTANCE", ROUTE: "ROUTE" } as const;
 export type TripMethod = (typeof TripMethod)[keyof typeof TripMethod];
 
 /** The default trip types every user has; users add their own beside them. */
@@ -47,6 +48,22 @@ const time = z
   )
   .optional();
 
+const coordinate = (min: number, max: number) =>
+  z.number({ error: "Choose a place from the search" }).min(min).max(max).nullable().optional();
+const latitude = coordinate(-90, 90);
+const longitude = coordinate(-180, 180);
+export const TRIP_STOPS_MAX = 10;
+
+/** A stop on the way, in order: a place (with coordinates when chosen from the search). */
+export const tripStopSchema = z.object({
+  label: z.string().trim().min(1, "Enter the place").max(120, "Use 120 characters or fewer"),
+  latitude,
+  longitude,
+  arrivalTime: time,
+  departureTime: time,
+  notes: optionalText(300),
+});
+
 export const tripFieldsSchema = z.object({
   /** Optional client-generated id: a retried save returns the same trip. */
   id: z.uuid("Invalid id").optional(),
@@ -67,10 +84,26 @@ export const tripFieldsSchema = z.object({
   distanceKm: optionalDecimal(5, 1, "Enter the distance in km"),
   origin: optionalText(120),
   destination: optionalText(120),
+  originLat: latitude,
+  originLng: longitude,
+  destinationLat: latitude,
+  destinationLng: longitude,
+  /** Between origin and destination, in order (replaced whole on edit). */
+  stops: z.array(tripStopSchema).max(TRIP_STOPS_MAX, `Up to ${TRIP_STOPS_MAX} stops`).optional(),
+  /** Method ROUTE: which of the provider's routes (0 = its best). */
+  routeIndex: z.number().int().min(0).max(2).optional(),
   notes: optionalText(1000),
 });
 
+type Place = { latitude?: number | null; longitude?: number | null };
 type TripCheckInput = {
+  origin?: string | null;
+  destination?: string | null;
+  originLat?: number | null;
+  originLng?: number | null;
+  destinationLat?: number | null;
+  destinationLng?: number | null;
+  stops?: (Place & { label?: string })[];
   method?: TripMethod;
   date?: string;
   endDate?: string | null;
@@ -91,6 +124,29 @@ export function checkTrip(values: TripCheckInput, ctx: z.RefinementCtx) {
     if (values.startKm != null && values.endKm != null && values.endKm <= values.startKm) {
       issue("endKm", "Must be more than the starting odometer");
     }
+  }
+  // A place's coordinates come as a pair (chosen from the search) or not at all.
+  const pinned = (lat?: number | null, lng?: number | null) => lat != null && lng != null;
+  const half = (lat?: number | null, lng?: number | null) => (lat == null) !== (lng == null);
+  if (half(values.originLat, values.originLng)) issue("origin", "Choose the place again");
+  if (half(values.destinationLat, values.destinationLng))
+    issue("destination", "Choose the place again");
+  if (values.method === TripMethod.ROUTE) {
+    if (!pinned(values.originLat, values.originLng)) {
+      issue("origin", "Choose where from in the search to get a route");
+    }
+    if (!pinned(values.destinationLat, values.destinationLng)) {
+      issue("destination", "Choose where to in the search to get a route");
+    }
+    values.stops?.forEach((stop, index) => {
+      if (!pinned(stop.latitude, stop.longitude)) {
+        ctx.addIssue({
+          code: "custom",
+          path: ["stops", index, "label"],
+          message: "Choose this stop in the search to get a route",
+        });
+      }
+    });
   }
   if (values.method === TripMethod.DISTANCE) {
     if (values.distanceKm == null || !/[1-9]/.test(values.distanceKm)) {
@@ -286,6 +342,145 @@ export type UpdateTripCostValues = z.output<typeof updateTripCostSchema>;
 export type TripCostListQuery = z.output<typeof tripCostListQuerySchema>;
 export type TripCostSummaryQuery = z.output<typeof tripCostSummaryQuerySchema>;
 
+// ---- planned trips
+
+/** A trip's life: planned (a draft or a plan), done, or called off. Only done trips count. */
+export const TripStatus = {
+  DRAFT: "DRAFT",
+  PLANNED: "PLANNED",
+  COMPLETED: "COMPLETED",
+  CANCELLED: "CANCELLED",
+} as const;
+export type TripStatus = (typeof TripStatus)[keyof typeof TripStatus];
+
+const estimate = (message: string) => optionalDecimal(10, 2, message);
+
+/**
+ * A plan: where, when, the planned distance (entered, or from a route) and the budget's
+ * assumptions and estimates. Estimates are never spending; completing turns it into a trip.
+ */
+export const tripPlanFieldsSchema = z.object({
+  id: z.uuid("Invalid id").optional(),
+  vehicleId: z.uuid("Choose a vehicle"),
+  status: z.enum(["DRAFT", "PLANNED"]).optional(),
+  categoryId: z.uuid("Choose a trip type"),
+  title: optionalText(80),
+  /** Departure; any date (plans are usually ahead). */
+  date: z.iso.date("Enter the departure date"),
+  /** Return or last day. */
+  endDate: optionalDate({ pastOnly: false }),
+  startTime: time,
+  /** DISTANCE: planned distance entered; ROUTE: measured on the provider's route. */
+  method: z.enum(["DISTANCE", "ROUTE"]).optional(),
+  plannedDistanceKm: optionalDecimal(5, 1, "Enter the distance in km"),
+  plannedDurationMinutes: optionalInt(0, 60 * 24 * 60, "Enter the duration in minutes"),
+  origin: optionalText(120),
+  destination: optionalText(120),
+  originLat: latitude,
+  originLng: longitude,
+  destinationLat: latitude,
+  destinationLng: longitude,
+  stops: z.array(tripStopSchema).max(TRIP_STOPS_MAX, `Up to ${TRIP_STOPS_MAX} stops`).optional(),
+  routeIndex: z.number().int().min(0).max(2).optional(),
+  /** Assumptions: the vehicle's mileage (km per L, kg or kWh) and fuel price per unit. */
+  estMileage: optionalDecimal(3, 2, "Enter the mileage, e.g. 18.5"),
+  estFuelPrice: optionalDecimal(5, 2, "Enter the price, e.g. 104.32"),
+  estToll: estimate("Enter the toll estimate"),
+  estParking: estimate("Enter the parking estimate"),
+  estAccommodation: estimate("Enter the stay estimate"),
+  estOther: estimate("Enter other costs"),
+  notes: optionalText(1000),
+});
+
+/** Dates in order; a route plan needs its places chosen from the search (as trips). */
+export function checkPlan(
+  values: z.output<typeof tripPlanFieldsSchema> | Partial<z.output<typeof tripPlanFieldsSchema>>,
+  ctx: z.RefinementCtx,
+) {
+  if (values.date && values.endDate && values.endDate < values.date) {
+    ctx.addIssue({ code: "custom", path: ["endDate"], message: "Before the departure" });
+  }
+  if (values.method === "ROUTE") {
+    checkTrip({ ...values, method: TripMethod.ROUTE, distanceKm: null }, ctx);
+  }
+}
+
+export const createTripPlanSchema = tripPlanFieldsSchema.superRefine(checkPlan);
+/** PATCH: the vehicle can't change; the API re-checks the whole plan. */
+export const updateTripPlanSchema = tripPlanFieldsSchema
+  .omit({ id: true, vehicleId: true })
+  .partial();
+/** `GET /trip-plans`: upcoming (drafts and plans, soonest first) or cancelled (latest first). */
+export const tripPlanListQuerySchema = paginationQuerySchema.extend({
+  vehicleId: z.uuid().optional(),
+  view: z.enum(["upcoming", "cancelled"]).default("upcoming"),
+});
+
+/**
+ * `POST /trip-plans/:id/complete`: what actually happened. The plan's places, type and notes
+ * carry over unless sent; the plan's figures stay for planned vs actual.
+ */
+export const completeTripPlanSchema = tripFieldsSchema
+  .pick({
+    method: true,
+    date: true,
+    endDate: true,
+    startTime: true,
+    endTime: true,
+    startKm: true,
+    endKm: true,
+    distanceKm: true,
+    routeIndex: true,
+    notes: true,
+  })
+  .partial()
+  .required({ method: true, date: true });
+export type CompleteTripPlanValues = z.output<typeof completeTripPlanSchema>;
+
+export type CreateTripPlanValues = z.output<typeof createTripPlanSchema>;
+export type UpdateTripPlanValues = z.output<typeof updateTripPlanSchema>;
+export type TripPlanListQuery = z.output<typeof tripPlanListQuerySchema>;
+
+/**
+ * A plan's budget from its distance and assumptions, in exact paise (integer maths, one
+ * rounding): fuel = distance ÷ mileage × price; total = fuel + toll + parking + stay + other.
+ * Unknown parts are left out (and said so by being null), never guessed.
+ */
+export function planBudget(plan: {
+  plannedDistanceKm?: string | null;
+  estMileage?: string | null;
+  estFuelPrice?: string | null;
+  estToll?: string | null;
+  estParking?: string | null;
+  estAccommodation?: string | null;
+  estOther?: string | null;
+}): {
+  fuelQuantity: string | null;
+  fuelCost: string | null;
+  total: string | null;
+  perKm: string | null;
+} {
+  // Tenths of a km and hundredths of a km per unit, as integers.
+  const tenths = plan.plannedDistanceKm ? Math.round(Number(plan.plannedDistanceKm) * 10) : null;
+  const mileage = plan.estMileage ? Math.round(Number(plan.estMileage) * 100) : null;
+  const fuel = tenths && mileage ? (tenths * 10) / mileage : null;
+  const fuelCost =
+    tenths && mileage && plan.estFuelPrice
+      ? Math.round((tenths * toPaise(plan.estFuelPrice) * 10) / mileage)
+      : null;
+  const parts = [plan.estToll, plan.estParking, plan.estAccommodation, plan.estOther]
+    .filter((part): part is string => !!part)
+    .map(toPaise);
+  const known = fuelCost !== null || parts.length > 0;
+  const total = (fuelCost ?? 0) + parts.reduce((sum, part) => sum + part, 0);
+  return {
+    fuelQuantity: fuel === null ? null : fuel.toFixed(1),
+    fuelCost: fuelCost === null ? null : fromPaise(fuelCost),
+    total: known ? fromPaise(total) : null,
+    perKm: known && tenths ? fromPaise(Math.round((total * 10) / tenths)) : null,
+  };
+}
+
 export type CreateTripValues = z.output<typeof createTripSchema>;
 export type UpdateTripValues = z.output<typeof updateTripSchema>;
 export type TripListQuery = z.output<typeof tripListQuerySchema>;
@@ -323,10 +518,59 @@ export interface Trip {
   origin: string | null;
   destination: string | null;
   notes: string | null;
+  /** Coordinates when the place was chosen from the search. */
+  originPoint: { latitude: number; longitude: number } | null;
+  destinationPoint: { latitude: number; longitude: number } | null;
+  stops: TripStop[];
+  /** Method ROUTE: the provider's route it was measured on (never drawn otherwise). */
+  route: { provider: string; distanceKm: string; durationMinutes: number; geometry: string } | null;
   /** Recorded costs plus linked fill-ups; null when none is recorded (never 0 for "unknown"). */
   actualCost: string | null;
+  /** A trip done from a plan keeps the plan's figures (planned vs actual). */
+  plan: { distanceKm: string | null; durationMinutes: number | null; budget: string | null } | null;
   createdAt: string;
   updatedAt: string;
+}
+
+export interface TripPlan {
+  id: string;
+  vehicleId: string;
+  status: TripStatus;
+  category: Pick<TripCategory, "id" | "key" | "name">;
+  title: string | null;
+  date: string;
+  endDate: string | null;
+  startTime: string | null;
+  method: "DISTANCE" | "ROUTE";
+  plannedDistanceKm: string | null;
+  plannedDurationMinutes: number | null;
+  origin: string | null;
+  destination: string | null;
+  originPoint: { latitude: number; longitude: number } | null;
+  destinationPoint: { latitude: number; longitude: number } | null;
+  stops: TripStop[];
+  route: { provider: string; distanceKm: string; durationMinutes: number; geometry: string } | null;
+  estMileage: string | null;
+  estFuelPrice: string | null;
+  estToll: string | null;
+  estParking: string | null;
+  estAccommodation: string | null;
+  estOther: string | null;
+  /** Computed (`planBudget`); estimates, never spending. */
+  budget: ReturnType<typeof planBudget>;
+  notes: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface TripStop {
+  id: string;
+  label: string;
+  latitude: number | null;
+  longitude: number | null;
+  arrivalTime: string | null;
+  departureTime: string | null;
+  notes: string | null;
 }
 
 export interface TripCost {

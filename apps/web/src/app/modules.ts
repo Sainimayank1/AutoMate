@@ -127,6 +127,11 @@ export const appModules = [
         handle: { title: "Recurring" },
       },
       {
+        path: "budgets",
+        lazy: () => import("@/features/expenses/budgets-route"),
+        handle: { title: "Budgets" },
+      },
+      {
         path: "loans/:loanId",
         lazy: () => import("@/features/expenses/loan-details-route"),
         handle: { title: "Loan" },

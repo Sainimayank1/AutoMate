@@ -18,6 +18,8 @@ import {
 import { Skeleton } from "@/components/ui/skeleton";
 import { vehicleName } from "@/features/garage/constants";
 import { useVehicles } from "@/features/garage/hooks/use-vehicles";
+import { LazyTripMap } from "@/features/trips/components/lazy-trip-map";
+import type { MapPlace } from "@/features/trips/components/trip-map";
 import { CostsCard, FuelCard, SpendingCard } from "@/features/trips/components/trip-money";
 import { METHOD_LABELS } from "@/features/trips/constants";
 import { useDeleteTrip, useTrip } from "@/features/trips/hooks/use-trips";
@@ -26,9 +28,9 @@ import { formatDate, formatDateTime, formatDistance, formatNumber } from "@/util
 
 /**
  * Stitch "Trip Details — Desktop / Mobile": distance (and how it was measured), duration, average
- * speed when both are known, the odometer range, the journey from and to, notes and details.
- * Deviation: no route map or drawn route; maps arrive with the maps phase, and none is shown
- * without real route data.
+ * speed when both are known, the odometer range, the journey (map, from, stops, to), costs, fuel,
+ * notes and details. The map draws a route only from the provider's route data; places chosen
+ * from the search show as markers; nothing is invented.
  */
 export function Component() {
   const { tripId = "" } = useParams();
@@ -68,6 +70,20 @@ export function Component() {
   }
 
   const vehicle = vehicles.find((item) => item.id === trip.vehicleId);
+  // Only places chosen from the search have coordinates; the rest are just names.
+  const pinned = [
+    trip.originPoint && { label: trip.origin ?? "From", ...trip.originPoint },
+    ...trip.stops.map(
+      (stop) =>
+        stop.latitude != null &&
+        stop.longitude != null && {
+          label: stop.label,
+          latitude: stop.latitude,
+          longitude: stop.longitude,
+        },
+    ),
+    trip.destinationPoint && { label: trip.destination ?? "To", ...trip.destinationPoint },
+  ].filter((place): place is MapPlace => !!place);
   // An archived vehicle's trips are read-only (the API refuses changes).
   const readOnly = !!vehicle?.archivedAt;
   const speed =
@@ -133,7 +149,13 @@ export function Component() {
       <section className="grid grid-cols-2 gap-4 lg:grid-cols-4" aria-label="Trip figures">
         <Stat
           label="Distance"
-          caption={trip.method === "ODOMETER" ? "From odometer readings" : "Distance entered"}
+          caption={
+            trip.method === "ODOMETER"
+              ? "From odometer readings"
+              : trip.method === "ROUTE"
+                ? `From the route (${trip.route?.provider ?? "OpenStreetMap"})`
+                : "Distance entered"
+          }
         >
           {formatDistance(trip.distanceKm)}
         </Stat>
@@ -162,14 +184,29 @@ export function Component() {
               <CardTitle>Journey</CardTitle>
             </CardHeader>
             <CardContent className="flex flex-col gap-4">
+              {pinned.length > 0 && <LazyTripMap places={pinned} geometry={trip.route?.geometry} />}
               <ol className="relative flex flex-col gap-6 border-l pl-6">
                 <JourneyPoint
                   label={trip.origin ?? "Start not recorded"}
                   detail={[formatDate(trip.date), trip.startTime].filter(Boolean).join(" · ")}
                   tone="muted"
                 />
+                {trip.stops.map((stop, index) => (
+                  <JourneyPoint
+                    key={stop.id}
+                    label={`${index + 1}. ${stop.label}`}
+                    detail={[
+                      stop.arrivalTime && `arrived ${stop.arrivalTime}`,
+                      stop.departureTime && `left ${stop.departureTime}`,
+                    ]
+                      .filter(Boolean)
+                      .join(" · ")}
+                    tone="muted"
+                  />
+                ))}
                 <li className="-ml-6 pl-6 text-sm text-muted-foreground tabular-nums">
                   {formatDistance(trip.distanceKm)}
+                  {trip.route && ` · ${durationText(trip.route.durationMinutes)} by road`}
                 </li>
                 <JourneyPoint
                   label={trip.destination ?? "End not recorded"}
@@ -179,9 +216,25 @@ export function Component() {
                   tone="primary"
                 />
               </ol>
-              <p className="text-xs text-muted-foreground">
-                Route maps arrive later; no route is drawn without real route data.
-              </p>
+              <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-muted-foreground">
+                <span>
+                  {trip.route
+                    ? `Route by ${trip.route.provider}; no live traffic.`
+                    : pinned.length
+                      ? "Places only: no route is drawn without route data."
+                      : "Choose places from the search to see them on a map."}
+                </span>
+                {trip.originPoint && trip.destinationPoint && (
+                  <a
+                    href={`https://www.openstreetmap.org/directions?engine=fossgis_osrm_car&route=${trip.originPoint.latitude},${trip.originPoint.longitude};${trip.destinationPoint.latitude},${trip.destinationPoint.longitude}`}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="font-medium text-primary hover:underline"
+                  >
+                    Open in OpenStreetMap
+                  </a>
+                )}
+              </div>
             </CardContent>
           </Card>
           <CostsCard trip={trip} readOnly={readOnly} />

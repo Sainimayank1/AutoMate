@@ -22,6 +22,7 @@ export const typeColor = (key: SystemTripCategoryKey | null) =>
 export const METHOD_LABELS: Record<TripMethod, string> = {
   ODOMETER: "Odometer readings",
   DISTANCE: "Distance entered",
+  ROUTE: "Route distance",
 };
 
 /** The periods the trips pages offer, in picker order. */

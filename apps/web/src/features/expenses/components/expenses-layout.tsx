@@ -7,11 +7,12 @@ import { PageHeader } from "@/components/common/page-header";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
-/** Tabs that exist today; later phases add Budgets, Ownership cost, Insights. */
+/** Tabs that exist today; later phases add Ownership cost and Insights. */
 const TABS = [
   { value: "overview", label: "Overview", path: "/expenses" },
   { value: "transactions", label: "Transactions", path: "/expenses/transactions" },
   { value: "recurring", label: "Recurring", path: "/expenses/recurring" },
+  { value: "budgets", label: "Budgets", path: "/expenses/budgets" },
   { value: "categories", label: "Categories", path: "/expenses/categories" },
 ] as const;
 

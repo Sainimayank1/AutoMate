@@ -1,8 +1,11 @@
 import {
+  completeTripPlanSchema,
   createTripCostSchema,
+  createTripPlanSchema,
   createTripSchema,
   linkFuelEntrySchema,
   paginationQuerySchema,
+  routeCalculateSchema,
   tripBulkSchema,
   tripCategoryFieldsSchema,
   tripCostListQuerySchema,
@@ -10,7 +13,9 @@ import {
   tripFiltersSchema,
   tripListQuerySchema,
   tripOverviewQuerySchema,
+  tripPlanListQuerySchema,
   updateTripCostSchema,
+  updateTripPlanSchema,
   updateTripSchema,
 } from "@automate/shared";
 import { createZodDto } from "nestjs-zod";
@@ -28,3 +33,8 @@ export class UpdateTripCostDto extends createZodDto(updateTripCostSchema) {}
 export class LinkFuelEntryDto extends createZodDto(linkFuelEntrySchema) {}
 export class TripCostListQueryDto extends createZodDto(tripCostListQuerySchema) {}
 export class TripCostSummaryQueryDto extends createZodDto(tripCostSummaryQuerySchema) {}
+export class RouteCalculateDto extends createZodDto(routeCalculateSchema) {}
+export class CreateTripPlanDto extends createZodDto(createTripPlanSchema) {}
+export class UpdateTripPlanDto extends createZodDto(updateTripPlanSchema) {}
+export class TripPlanListQueryDto extends createZodDto(tripPlanListQuerySchema) {}
+export class CompleteTripPlanDto extends createZodDto(completeTripPlanSchema) {}

@@ -115,12 +115,14 @@ Rules:
 
 **Expense overview (`/expenses`, Stitch "Expenses — Desktop / Mobile", built):**
 
-- Tabs Overview · Transactions · Recurring · Categories; a vehicle scope (supports All vehicles) and the IST month.
+- Tabs Overview · Transactions · Recurring · Budgets · Categories; a vehicle scope (supports All vehicles) and the IST month.
 - **KPI strip** (5 `StatCard`s, two across on phones): Operating (Nov) with the change vs last month (cost ↑ `warning`, ↓ `success`), Operating (2026) with its months, Monthly average, Running cost / km with the km it's priced over, Loan EMI outflow "of ₹… paid this month". Then the one-line operating-cost definition.
 - **Category breakdown:** this month's running cost per category, amount, % and a `Progress h-2` bar in the category colour.
 - **Recent expenses:** 5 rows (table on desktop, list on phones), chips for the most used categories, "Showing 5 of N" and "View all" into Transactions with the same scope.
 - **Monthly spending:** the last 12 months as stacked bars in the five chart groups (`SPEND_GROUP_SERIES`, the dashboard's colours; loan principal left out), a dashed muted "Same month last year" line where records cover it, the 12-month total in the header.
 - **Upcoming payments:** the next 4 recurring payments and EMIs (overdue first) with a state badge, date and amount; "View all →" opens the Recurring tab.
+
+**Budgets tab (`/expenses/budgets`, Stitch "Expenses — Budgets — Desktop / Mobile" and "Add Budget Dialog — Desktop", built):** the title and one-line rule, "Add budget", three count tiles (Over budget in `destructive`, Near the limit in `warning`, On track neutral; one compact row on phones), then a 2-column grid of cards: category icon (a car for "Everything on this vehicle"), name, a period chip ("November 2026" / "2026 (yearly)"), a state badge (on track is neutral, not green) and a kebab (Edit, Delete); "₹16,978.00 of ₹20,000.00" with the percent in the state colour, a `Progress h-2` in the state colour with a tick at the warning %, and "₹3,022.00 left · warns at 80%" or "Over by ₹100.00" in `destructive`. A muted note closes it. The dialog: Vehicle, Category ("Everything on this vehicle" first), Period (Monthly / Yearly), Limit (₹) and Warn me at (%); editing locks the vehicle and category.
 
 **Recurring tab (`/expenses/recurring`, Stitch "Expenses — Recurring", built):** Upcoming / History payments (state badge, the EMI's principal and interest, "Record payment" opens a dialog with the amount filled in, a menu to skip, postpone or reset), a Loans section (a card per loan: outstanding, EMI, rate, end, progress "19 of 60 EMIs paid", "View schedule →") and a Schedules table (frequency, next due, status; pause, resume, cancel, delete). Loan details (`/expenses/loans/:id`): position tiles, rate changes and the amortisation table a page at a time, each row's state; EMIs before tracking read "Before tracking". Add/edit recurring payment and loan are task pages with numbered sections and a summary card.
 

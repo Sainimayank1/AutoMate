@@ -43,6 +43,46 @@ export const TRIP_SCHEMA: Schema = {
   },
 };
 
+const money = { type: "string", nullable: true, example: "1200.00" } as const;
+
+export const TRIP_PLAN_SCHEMA: Schema = {
+  type: "object",
+  properties: {
+    id: { type: "string", format: "uuid" },
+    vehicleId: { type: "string", format: "uuid" },
+    status: { type: "string", enum: ["DRAFT", "PLANNED", "CANCELLED"] },
+    category,
+    title: { type: "string", nullable: true },
+    date: { type: "string", format: "date" },
+    endDate: { type: "string", format: "date", nullable: true },
+    startTime: { type: "string", nullable: true, example: "06:00" },
+    method: { type: "string", enum: ["DISTANCE", "ROUTE"] },
+    plannedDistanceKm: { type: "string", nullable: true, example: "540.0" },
+    plannedDurationMinutes: { type: "integer", nullable: true, example: 600 },
+    origin: { type: "string", nullable: true, example: "Hisar" },
+    destination: { type: "string", nullable: true, example: "Manali" },
+    estMileage: { type: "string", nullable: true, example: "18.50" },
+    estFuelPrice: { type: "string", nullable: true, example: "104.32" },
+    estToll: money,
+    estParking: money,
+    estAccommodation: money,
+    estOther: money,
+    budget: {
+      type: "object",
+      description: "Estimates from the assumptions; unknown parts are null, never spending",
+      properties: {
+        fuelQuantity: { type: "string", nullable: true, example: "30.0" },
+        fuelCost: money,
+        total: money,
+        perKm: money,
+      },
+    },
+    notes: { type: "string", nullable: true },
+    createdAt: { type: "string", format: "date-time" },
+    updatedAt: { type: "string", format: "date-time" },
+  },
+};
+
 export const TRIP_OVERVIEW_SCHEMA: Schema = {
   type: "object",
   description: "Trips in the period (by start date), aggregated in the database",
@@ -125,5 +165,23 @@ export const TRIP_COSTS_SUMMARY_SCHEMA: Schema = {
     total: { type: "string" },
     byCategory: { type: "array", items: { type: "object" } },
     perKm: { type: "string", nullable: true },
+  },
+};
+
+export const ROUTE_RESULT_SCHEMA: Schema = {
+  type: "object",
+  properties: {
+    provider: { type: "string", example: "OpenStreetMap (OSRM)" },
+    routes: {
+      type: "array",
+      items: {
+        type: "object",
+        properties: {
+          distanceKm: { type: "string", example: "268.4" },
+          durationMinutes: { type: "integer", example: 252 },
+          geometry: { type: "string", description: "Encoded polyline, precision 6" },
+        },
+      },
+    },
   },
 };

@@ -1,3 +1,4 @@
+import type { PlaceResult } from "@automate/shared";
 import { Injectable, Logger } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 
@@ -29,6 +30,21 @@ export function toShortAddress(body: ReverseResponse): string | null {
     .filter((part): part is string => !!part);
   const address = [...new Set(parts)].join(", ") || body.display_name?.trim() || null;
   return address?.slice(0, MAX_ADDRESS) ?? null;
+}
+
+/** Nominatim's `/search` result: only what we read. */
+export type SearchResponse = ReverseResponse & { lat?: string; lon?: string };
+
+/** Place results with usable coordinates, labelled like reverse geocoding. */
+export function toPlaces(body: SearchResponse[]): PlaceResult[] {
+  return body.flatMap((item) => {
+    const latitude = Number(item.lat);
+    const longitude = Number(item.lon);
+    const label = toShortAddress(item);
+    return label && Number.isFinite(latitude) && Number.isFinite(longitude)
+      ? [{ label, latitude, longitude }]
+      : [];
+  });
 }
 
 /**
@@ -68,6 +84,41 @@ export class GeocodingService {
     } catch (error) {
       this.logger.warn(`Reverse geocoding failed: ${(error as Error).name}`);
       return null;
+    }
+  }
+
+  /**
+   * Places matching what the user typed (the provider's `/search`, beside the configured
+   * `/reverse`), in India first. Explicit searches only: Nominatim's policy forbids
+   * search-as-you-type. Never throws; place names are personal data and never logged.
+   */
+  async search(query: string): Promise<PlaceResult[]> {
+    const url = new URL(
+      this.config.get("GEOCODER_URL", { infer: true }).replace(/\/reverse\/?$/, "/search"),
+    );
+    url.search = new URLSearchParams({
+      q: query,
+      format: "json",
+      limit: "5",
+      addressdetails: "1",
+      countrycodes: "in",
+      "accept-language": "en",
+    }).toString();
+    const key = this.config.get("GEOCODER_API_KEY", { infer: true });
+    if (key) url.searchParams.set("key", key);
+    try {
+      const response = await fetch(url, {
+        headers: { "User-Agent": USER_AGENT, Accept: "application/json" },
+        signal: AbortSignal.timeout(TIMEOUT_MS),
+      });
+      if (!response.ok) {
+        this.logger.warn(`Place search failed with HTTP ${response.status}`);
+        return [];
+      }
+      return toPlaces((await response.json()) as SearchResponse[]);
+    } catch (error) {
+      this.logger.warn(`Place search failed: ${(error as Error).name}`);
+      return [];
     }
   }
 }

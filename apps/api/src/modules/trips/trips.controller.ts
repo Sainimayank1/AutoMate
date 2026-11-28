@@ -1,4 +1,4 @@
-import type { Trip, TripCategory, TripOverview, TripSummary } from "@automate/shared";
+import type { RouteResult, Trip, TripCategory, TripOverview, TripSummary } from "@automate/shared";
 import {
   Body,
   Controller,
@@ -13,6 +13,7 @@ import {
   Query,
 } from "@nestjs/common";
 import { ApiBearerAuth, ApiOperation, ApiTags } from "@nestjs/swagger";
+import { Throttle } from "@nestjs/throttler";
 
 import {
   ApiEnvelopeResponse,
@@ -24,6 +25,7 @@ import { CurrentUser } from "@/modules/auth/decorators/current-user.decorator";
 
 import {
   CreateTripDto,
+  RouteCalculateDto,
   TripBulkDto,
   TripCategoryDto,
   TripCategoryListQueryDto,
@@ -33,6 +35,7 @@ import {
   UpdateTripDto,
 } from "./dto/trips.dto";
 import {
+  ROUTE_RESULT_SCHEMA,
   TRIP_BULK_SCHEMA,
   TRIP_CATEGORY_SCHEMA,
   TRIP_OVERVIEW_SCHEMA,
@@ -73,6 +76,16 @@ export class TripsController {
   @ApiErrorResponses(400, 401, 404, 409)
   bulk(@CurrentUser() user: AuthUser, @Body() body: TripBulkDto): Promise<{ count: number }> {
     return this.trips.bulk(user.id, body);
+  }
+
+  @Post("trips/routes/calculate")
+  @HttpCode(HttpStatus.OK)
+  @Throttle({ default: { limit: 20, ttl: 60_000 } })
+  @ApiOperation({ summary: "Driving routes through places, from the configured provider" })
+  @ApiEnvelopeResponse(ROUTE_RESULT_SCHEMA)
+  @ApiErrorResponses(400, 401, 503)
+  calculateRoute(@Body() body: RouteCalculateDto): Promise<RouteResult> {
+    return this.trips.calculateRoute(body.points);
   }
 
   @Get("trips")

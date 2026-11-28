@@ -63,6 +63,11 @@ const envSchema = z
       .url({ protocol: /^https?$/ })
       .default("https://nominatim.openstreetmap.org/reverse"),
     GEOCODER_API_KEY: z.string().optional(),
+    /**
+     * Driving routes for trips: any OSRM-compatible server. The public demo (default) is for
+     * development only (light use); point production at a hosted or self-run OSRM.
+     */
+    ROUTER_URL: z.url({ protocol: /^https?$/ }).default("https://router.project-osrm.org"),
 
     STORAGE_PROVIDER: z.enum(["r2", "s3"]).optional(),
     STORAGE_BUCKET: z.string().optional(),

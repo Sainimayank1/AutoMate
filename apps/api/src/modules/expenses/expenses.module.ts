@@ -2,12 +2,15 @@ import { Module } from "@nestjs/common";
 
 import { VehiclesModule } from "@/modules/vehicles/vehicles.module";
 
+import { ExpenseBudgetsController } from "./expense-budgets.controller";
+import { ExpenseBudgetsService } from "./expense-budgets.service";
 import { ExpenseCategoriesController } from "./expense-categories.controller";
 import { ExpenseCategoriesService } from "./expense-categories.service";
 import { ExpenseFiguresService } from "./expense-figures.service";
 import { ExpensesController } from "./expenses.controller";
 import { ExpensesService } from "./expenses.service";
 import { LinkedExpensesService } from "./linked-expenses.service";
+import { OwnershipService } from "./ownership.service";
 import { RecurringExpensesController } from "./recurring-expenses.controller";
 import { RecurringExpensesService } from "./recurring-expenses.service";
 import { VehicleLoansController } from "./vehicle-loans.controller";
@@ -20,6 +23,7 @@ import { VehicleLoansService } from "./vehicle-loans.service";
     ExpenseCategoriesController,
     RecurringExpensesController,
     VehicleLoansController,
+    ExpenseBudgetsController,
   ],
   providers: [
     ExpensesService,
@@ -28,6 +32,8 @@ import { VehicleLoansService } from "./vehicle-loans.service";
     LinkedExpensesService,
     RecurringExpensesService,
     VehicleLoansService,
+    ExpenseBudgetsService,
+    OwnershipService,
   ],
   // Fuel (and later Maintenance, Trips) keep their money here through LinkedExpensesService.
   exports: [

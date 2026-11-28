@@ -183,14 +183,15 @@ export class TripCostsService {
     const recorded = byCategory.length > 0;
     const actual = byCategory.reduce((sum, row) => sum.plus(row.amount), new Prisma.Decimal(0));
     const mileage = summary.averageMileage ? new Prisma.Decimal(summary.averageMileage) : null;
-    const quantity = mileage?.gt(0) ? trip.distanceKm.div(mileage) : null;
+    const distance = trip.distanceKm!; // done trips only (ownedTrip)
+    const quantity = mileage?.gt(0) ? distance.div(mileage) : null;
     return {
       actual: recorded ? actual.toFixed(2) : null,
       byCategory: byCategory.map((row) => ({
         category: row.category,
         amount: row.amount.toFixed(2),
       })),
-      perKm: recorded && trip.distanceKm.gt(0) ? actual.div(trip.distanceKm).toFixed(2) : null,
+      perKm: recorded && distance.gt(0) ? actual.div(distance).toFixed(2) : null,
       fuelEntries: fuel._count,
       estimate:
         quantity && mileage
@@ -212,7 +213,7 @@ export class TripCostsService {
   ): Promise<TripCostsSummary> {
     if (vehicleId) await this.vehicles.findOwned(userId, vehicleId);
     const window = this.window(period, from, to);
-    const tripScope = { userId, ...(vehicleId && { vehicleId }) };
+    const tripScope = { userId, status: "COMPLETED" as const, ...(vehicleId && { vehicleId }) };
     const costWhere: Prisma.TripCostWhereInput = {
       userId,
       ...(vehicleId && { trip: { vehicleId } }),
@@ -421,7 +422,9 @@ export class TripCostsService {
   }
 
   private async ownedTrip(userId: string, tripId: string) {
-    const trip = await this.prisma.trip.findFirst({ where: { id: tripId, userId } });
+    const trip = await this.prisma.trip.findFirst({
+      where: { id: tripId, userId, status: "COMPLETED" },
+    });
     if (!trip) throw new NotFoundException("Trip not found");
     return trip;
   }
@@ -429,7 +432,7 @@ export class TripCostsService {
   /** The trip under its vehicle's lock; archived vehicles' trips are read-only. */
   private async lockedTrip(tx: Prisma.TransactionClient, userId: string, tripId: string) {
     const trip = await tx.trip.findFirst({
-      where: { id: tripId, userId },
+      where: { id: tripId, userId, status: "COMPLETED" },
       select: COST_INCLUDE.trip.select,
     });
     if (!trip) throw new NotFoundException("Trip not found");

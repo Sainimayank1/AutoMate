@@ -1,4 +1,6 @@
 import {
+  BudgetPeriod,
+  BudgetState,
   CostClass,
   ExpenseKind,
   ExpenseSource,
@@ -362,5 +364,67 @@ export const EXPENSE_TREND_SCHEMA: Schema = {
     },
     total: money("118430.00"),
     previousTotal: money("96210.00", true),
+  },
+};
+
+/** OpenAPI shape of `Budget` (@automate/shared). */
+export const BUDGET_SCHEMA: Schema = {
+  type: "object",
+  properties: {
+    id: { type: "string", format: "uuid" },
+    vehicleId: { type: "string", format: "uuid" },
+    category: { ...CATEGORY_REF, nullable: true, description: "null: everything on the vehicle" },
+    period: { type: "string", enum: Object.values(BudgetPeriod) },
+    amount: money("8000.00"),
+    alertPercent: { type: "integer", example: 80 },
+    window: {
+      type: "object",
+      description: "The current IST month or year",
+      properties: { from: date("2026-11-01"), to: date("2026-11-30") },
+    },
+    spent: money("6718.21"),
+    remaining: { ...money("1281.79"), description: "Negative once over" },
+    percent: { type: "integer", example: 83 },
+    state: { type: "string", enum: Object.values(BudgetState) },
+    createdAt: { type: "string", format: "date-time" },
+    updatedAt: { type: "string", format: "date-time" },
+  },
+};
+
+/** OpenAPI shape of `OwnershipCost` (@automate/shared). */
+export const OWNERSHIP_COST_SCHEMA: Schema = {
+  type: "object",
+  properties: {
+    period: { type: "string", enum: ["this_month", "this_year", "all_time"] },
+    window: {
+      type: "object",
+      description: "All time runs from the purchase date (or the first record)",
+      properties: { from: date("2026-01-01"), to: date("2026-11-28") },
+    },
+    operating: money("58210.40"),
+    ownership: money("15400.00"),
+    financingCharges: money("44520.00"),
+    capital: money("6500.00"),
+    depreciation: {
+      type: "object",
+      nullable: true,
+      description: "An estimate on the IRDAI schedule; null without a purchase price and date",
+      properties: {
+        amount: money("146100.00"),
+        purchasePrice: money("1145000.00"),
+        purchaseDate: date("2025-04-10"),
+        ageMonths: { type: "integer", example: 19 },
+        percent: { type: "string", example: "17.9" },
+        estimatedValue: money("940045.00"),
+        beyondSchedule: { type: "boolean" },
+      },
+    },
+    economic: money("270730.40"),
+    cashOutflow: money("246950.40"),
+    principal: money("133100.00"),
+    distanceKm: { type: "integer", nullable: true, example: 8438 },
+    economicPerKm: { ...money("32.08"), nullable: true },
+    months: { type: "string", example: "10.9" },
+    perMonth: money("24837.65"),
   },
 };

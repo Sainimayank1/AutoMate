@@ -35,6 +35,7 @@ model User {
   preference           UserPreference?
   recurringExpenses    RecurringExpense[]
   vehicleLoans         VehicleLoan[]
+  expenseBudgets       ExpenseBudget[]
   trips                Trip[]
   tripCategories       TripCategory[]
   tripCosts            TripCost[]
@@ -148,6 +149,7 @@ model Vehicle {
   expenses             Expense[]
   recurringExpenses    RecurringExpense[]
   vehicleLoans         VehicleLoan[]
+  expenseBudgets       ExpenseBudget[]
   maintenanceSchedules MaintenanceSchedule[]
   serviceRecords       ServiceRecord[]
   components           VehicleComponent[]
@@ -264,6 +266,7 @@ model ExpenseCategory {
   subExpenses   Expense[]          @relation("ExpenseSubcategory")
   recurring     RecurringExpense[] @relation("RecurringCategory")
   subRecurring  RecurringExpense[] @relation("RecurringSubcategory")
+  budgets       ExpenseBudget[]
 
   @@index([userId])
   @@index([parentId])
@@ -405,6 +408,36 @@ model RecurringOccurrence {
 
   @@unique([recurringId, dueDate])
   @@map("recurring_occurrences")
+}
+
+enum BudgetPeriod {
+  MONTH
+  YEAR
+}
+
+/// A spending limit for one vehicle per IST month or year, overall (no category) or for one main
+/// category (Expenses phase 5). Spending is worked out on read, never stored.
+model ExpenseBudget {
+  id           String       @id @default(uuid(7)) @db.Uuid
+  userId       String       @map("user_id") @db.Uuid
+  vehicleId    String       @map("vehicle_id") @db.Uuid
+  /// null: everything on the vehicle. One budget per vehicle and category (checked under the
+  /// vehicle lock, since NULLs don't clash in a unique index).
+  categoryId   String?      @map("category_id") @db.Uuid
+  period       BudgetPeriod @default(MONTH)
+  amount       Decimal      @db.Decimal(12, 2)
+  /// Warn once spending reaches this % of the limit.
+  alertPercent Int          @default(80) @map("alert_percent")
+  createdAt    DateTime     @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt    DateTime     @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  user     User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  vehicle  Vehicle          @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
+  category ExpenseCategory? @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+
+  @@unique([vehicleId, categoryId])
+  @@index([userId, vehicleId])
+  @@map("expense_budgets")
 }
 
 enum LoanMethod {
@@ -796,6 +829,15 @@ model InspectionItem {
 enum TripMethod {
   ODOMETER
   DISTANCE
+  ROUTE
+}
+
+/// Only COMPLETED trips count anywhere (distance, costs, odometer, dashboard).
+enum TripStatus {
+  DRAFT
+  PLANNED
+  COMPLETED
+  CANCELLED
 }
 
 /// Trip types (MODULES.md M7): the system defaults (no user, a key) and each user's own. Names
@@ -819,36 +861,57 @@ model TripCategory {
 /// A journey (MODULES.md M7): distance from two odometer readings or entered by the user. Its
 /// readings join the vehicle's one odometer history (docs/architecture/trips.md).
 model Trip {
-  id          String     @id @default(uuid(7)) @db.Uuid
-  userId      String     @map("user_id") @db.Uuid
-  vehicleId   String     @map("vehicle_id") @db.Uuid
-  categoryId  String     @map("category_id") @db.Uuid
-  method      TripMethod
-  title       String?
-  date        DateTime   @db.Date
+  id                     String     @id @default(uuid(7)) @db.Uuid
+  userId                 String     @map("user_id") @db.Uuid
+  vehicleId              String     @map("vehicle_id") @db.Uuid
+  categoryId             String     @map("category_id") @db.Uuid
+  method                 TripMethod
+  status                 TripStatus @default(COMPLETED)
+  title                  String?
+  date                   DateTime   @db.Date
   /// Overnight and multi-day trips; null when it ends the day it starts.
-  endDate     DateTime?  @map("end_date") @db.Date
+  endDate                DateTime?  @map("end_date") @db.Date
   /// "HH:MM", India time.
-  startTime   String?    @map("start_time")
-  endTime     String?    @map("end_time")
-  startKm     Int?       @map("start_km")
-  endKm       Int?       @map("end_km")
-  /// From the readings (method ODOMETER) or as entered.
-  distanceKm  Decimal    @map("distance_km") @db.Decimal(6, 1)
-  origin      String?
-  destination String?
-  notes       String?
-  createdAt   DateTime   @default(now()) @map("created_at") @db.Timestamptz(3)
-  updatedAt   DateTime   @updatedAt @map("updated_at") @db.Timestamptz(3)
+  startTime              String?    @map("start_time")
+  endTime                String?    @map("end_time")
+  startKm                Int?       @map("start_km")
+  endKm                  Int?       @map("end_km")
+  /// From the readings (method ODOMETER), as entered, or the route's; null until done (plans).
+  distanceKm             Decimal?   @map("distance_km") @db.Decimal(6, 1)
+  /// The plan (kept after it's done, for planned vs actual): distance, duration, assumptions and
+  /// estimates. Never spending.
+  plannedDistanceKm      Decimal?   @map("planned_distance_km") @db.Decimal(6, 1)
+  plannedDurationMinutes Int?       @map("planned_duration_minutes")
+  estMileage             Decimal?   @map("est_mileage") @db.Decimal(5, 2)
+  estFuelPrice           Decimal?   @map("est_fuel_price") @db.Decimal(7, 2)
+  estToll                Decimal?   @map("est_toll") @db.Decimal(12, 2)
+  estParking             Decimal?   @map("est_parking") @db.Decimal(12, 2)
+  estAccommodation       Decimal?   @map("est_accommodation") @db.Decimal(12, 2)
+  estOther               Decimal?   @map("est_other") @db.Decimal(12, 2)
+  origin                 String?
+  destination            String?
+  /// Set when the place was chosen from the search (OpenStreetMap).
+  originLat              Decimal?   @map("origin_lat") @db.Decimal(9, 6)
+  originLng              Decimal?   @map("origin_lng") @db.Decimal(9, 6)
+  destinationLat         Decimal?   @map("destination_lat") @db.Decimal(9, 6)
+  destinationLng         Decimal?   @map("destination_lng") @db.Decimal(9, 6)
+  /// Method ROUTE: the provider's route (encoded polyline, precision 6) the distance came from.
+  routeProvider          String?    @map("route_provider")
+  routeGeometry          String?    @map("route_geometry")
+  routeDurationMinutes   Int?       @map("route_duration_minutes")
+  notes                  String?
+  createdAt              DateTime   @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt              DateTime   @updatedAt @map("updated_at") @db.Timestamptz(3)
 
   user        User         @relation(fields: [userId], references: [id], onDelete: Cascade)
   vehicle     Vehicle      @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
   category    TripCategory @relation(fields: [categoryId], references: [id], onDelete: Restrict)
   costs       TripCost[]
   fuelEntries FuelEntry[]
+  stops       TripStop[]
 
   @@index([vehicleId, date])
-  @@index([userId, date])
+  @@index([userId, status, date])
   @@index([categoryId])
   @@map("trips")
 }
@@ -882,4 +945,23 @@ model TripCost {
   @@index([tripId])
   @@index([userId, date])
   @@map("trip_costs")
+}
+
+/// A stop between a trip's origin and destination, in order (replaced whole on edit).
+model TripStop {
+  id            String   @id @default(uuid(7)) @db.Uuid
+  tripId        String   @map("trip_id") @db.Uuid
+  position      Int
+  label         String
+  latitude      Decimal? @db.Decimal(9, 6)
+  longitude     Decimal? @db.Decimal(9, 6)
+  /// "HH:MM", India time.
+  arrivalTime   String?  @map("arrival_time")
+  departureTime String?  @map("departure_time")
+  notes         String?
+
+  trip Trip @relation(fields: [tripId], references: [id], onDelete: Cascade)
+
+  @@unique([tripId, position])
+  @@map("trip_stops")
 }

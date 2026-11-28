@@ -79,8 +79,11 @@ export function useLoanSchedule(id: string, page: number, pageSize = 12) {
   });
 }
 
-/** Every write here can record or remove money: refresh expenses, vehicles and the dashboard. */
-function useWrite<TArgs, TResult>(
+/**
+ * Every write here can record or remove money: refresh expenses, vehicles and the dashboard, then
+ * confirm with a toast. Budgets use it too.
+ */
+export function useWrite<TArgs, TResult>(
   run: (args: TArgs) => Promise<TResult>,
   success: string | ((result: TResult) => string),
   { form = false } = {},

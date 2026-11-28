@@ -37,7 +37,7 @@ src/
 │   ├── vehicles/               Garage (M2): CRUD, archive/restore, profile completion (vehicles.mapper.ts)
 │   ├── fuel/                   Fuel (M3): fill-ups under /vehicles/:id, mileage + summary (fuel.calculations.ts)
 │   ├── expenses/               Expenses (M4): expenses, categories (seeded), refunds, shared splits (docs/architecture/expenses.md)
-│   └── geocoding/              POST /geocode/reverse: coordinates → short address (Nominatim-compatible, GEOCODER_URL)
+│   └── geocoding/              POST /geocode/reverse and /geocode/search (Nominatim-compatible, GEOCODER_URL); RoutingService (OSRM-compatible, ROUTER_URL)
 ├── storage/                    StorageProvider contract
 └── generated/prisma/           Prisma client (generated, gitignored)
 ```

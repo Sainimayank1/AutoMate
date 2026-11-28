@@ -1,7 +1,12 @@
 import type {
+  CompleteTripPlanValues,
   CreateTripCostValues,
+  CreateTripPlanValues,
   CreateTripValues,
   PaginationQuery,
+  PlaceResult,
+  RoutePoint,
+  RouteResult,
   Trip,
   TripBulkValues,
   TripCategory,
@@ -15,9 +20,12 @@ import type {
   TripListQuery,
   TripOverview,
   TripOverviewQuery,
+  TripPlan,
+  TripPlanListQuery,
   TripSpending,
   TripSummary,
   UpdateTripCostValues,
+  UpdateTripPlanValues,
   UpdateTripValues,
 } from "@automate/shared";
 
@@ -29,8 +37,10 @@ export type TripCostSummaryParams = Partial<TripCostSummaryQuery>;
 export type TripFilterParams = Partial<TripFilters>;
 export type TripOverviewParams = Partial<TripOverviewQuery>;
 export type CategoryListParams = Partial<PaginationQuery>;
+export type TripPlanListParams = Partial<TripPlanListQuery>;
 
 const CATEGORIES = "/trip-categories";
+const PLANS = "/trip-plans";
 
 /** Trips endpoints; every call is scoped to the signed-in user. */
 export const tripsService = {
@@ -48,6 +58,27 @@ export const tripsService = {
   update: (id: string, values: UpdateTripValues) =>
     request<Trip>({ method: "PATCH", url: `/trips/${id}`, data: values }),
   remove: (id: string) => request<void>({ method: "DELETE", url: `/trips/${id}` }),
+  /** Planned trips: upcoming (soonest first) or cancelled. */
+  plans: (params: TripPlanListParams = {}) => requestPage<TripPlan>({ url: PLANS, params }),
+  plan: (id: string) => request<TripPlan>({ url: `${PLANS}/${id}` }),
+  createPlan: (values: CreateTripPlanValues) =>
+    request<TripPlan>({ method: "POST", url: PLANS, data: values }),
+  updatePlan: (id: string, values: UpdateTripPlanValues) =>
+    request<TripPlan>({ method: "PATCH", url: `${PLANS}/${id}`, data: values }),
+  setPlanCancelled: (id: string, cancelled: boolean) =>
+    request<TripPlan>({
+      method: "POST",
+      url: `${PLANS}/${id}/${cancelled ? "cancel" : "restore"}`,
+    }),
+  removePlan: (id: string) => request<void>({ method: "DELETE", url: `${PLANS}/${id}` }),
+  /** The plan happened: it becomes a trip (same id) with what actually happened. */
+  completePlan: (id: string, values: CompleteTripPlanValues) =>
+    request<Trip>({ method: "POST", url: `${PLANS}/${id}/complete`, data: values }),
+  /** Places for a typed search (explicit searches only: the provider forbids search-as-you-type). */
+  searchPlaces: (query: string) =>
+    request<PlaceResult[]>({ method: "POST", url: "/geocode/search", data: { query } }),
+  calculateRoute: (points: RoutePoint[]) =>
+    request<RouteResult>({ method: "POST", url: "/trips/routes/calculate", data: { points } }),
   /** A trip's costs (a handful; read whole). */
   costs: (tripId: string) => requestAllPages<TripCost>({ url: `/trips/${tripId}/costs` }),
   cost: (id: string) => request<TripCost>({ url: `/trip-costs/${id}` }),

@@ -38,6 +38,7 @@ import {
   tripFormSchema,
   type TripFormValues,
 } from "@/features/trips/components/trip-form-model";
+import { PlacesFields, RoutePreview } from "@/features/trips/components/trip-places";
 import { TripTypesDialog } from "@/features/trips/components/trip-types-dialog";
 import { METHOD_LABELS } from "@/features/trips/constants";
 import { useTripCategories } from "@/features/trips/hooks/use-trips";
@@ -49,6 +50,7 @@ import { formatDate, formatDistance, formatNumber } from "@/utils/format";
 const METHODS = [
   { value: "ODOMETER" as const, label: "Odometer" },
   { value: "DISTANCE" as const, label: "Distance" },
+  { value: "ROUTE" as const, label: "Route" },
 ];
 const iso = (date: Date | undefined) => (date ? format(date, "yyyy-MM-dd") : "");
 
@@ -61,12 +63,15 @@ export function TripForm({
   mode,
   vehicles,
   defaultValues,
+  storedRoute,
   backTo,
   onSave,
 }: {
   mode: "create" | "edit";
   vehicles: Vehicle[];
   defaultValues: TripFormValues;
+  /** Editing a route trip: the route it was measured on. */
+  storedRoute?: Trip["route"];
   backTo: string;
   onSave: (values: TripFormOutput) => Promise<Trip>;
 }) {
@@ -116,7 +121,7 @@ export function TripForm({
           onSubmit={submit}
           className="mx-auto grid w-full max-w-6xl items-start gap-6 p-4 pb-28 sm:p-6 sm:pb-28 lg:grid-cols-12"
         >
-          <TripFields creating={creating} vehicles={vehicles} />
+          <TripFields creating={creating} vehicles={vehicles} storedRoute={storedRoute} />
         </form>
       </FormProvider>
       <footer className="fixed inset-x-0 bottom-0 z-30 flex h-16 items-center justify-end gap-3 border-t bg-card px-4 sm:px-6">
@@ -133,7 +138,15 @@ export function TripForm({
   );
 }
 
-function TripFields({ creating, vehicles }: { creating: boolean; vehicles: Vehicle[] }) {
+function TripFields({
+  creating,
+  vehicles,
+  storedRoute,
+}: {
+  creating: boolean;
+  vehicles: Vehicle[];
+  storedRoute?: Trip["route"];
+}) {
   const form = useFormContext<TripFormValues>();
   const { control } = form;
   const values = useWatch({ control });
@@ -143,6 +156,7 @@ function TripFields({ creating, vehicles }: { creating: boolean; vehicles: Vehic
   const [managing, setManaging] = useState(false);
   const vehicle = vehicles.find((item) => item.id === values.vehicleId);
   const odometer = values.method === "ODOMETER";
+  const routed = values.method === "ROUTE";
 
   const toNumber = (value?: string) => (value ? Number(value.replace(/,/g, "")) : null);
   const distance = tripDistance({
@@ -312,8 +326,10 @@ function TripFields({ creating, vehicles }: { creating: boolean; vehicles: Vehic
           </div>
         </FormSection>
 
-        <FormSection step={3} title="Distance">
-          {odometer ? (
+        <FormSection step={3} title={routed ? "Route" : "Distance"}>
+          {routed ? (
+            <RoutePreview stored={storedRoute} />
+          ) : odometer ? (
             <div className="grid gap-4 sm:grid-cols-2">
               {reading(
                 "startKm",
@@ -350,22 +366,7 @@ function TripFields({ creating, vehicles }: { creating: boolean; vehicles: Vehic
         </FormSection>
 
         <FormSection step={4} title="Where">
-          <div className="grid gap-4 sm:grid-cols-2">
-            <FormField
-              control={control}
-              name="origin"
-              label="From"
-              optional
-              render={(field) => <Input {...field} placeholder="e.g. Gurugram" maxLength={120} />}
-            />
-            <FormField
-              control={control}
-              name="destination"
-              label="To"
-              optional
-              render={(field) => <Input {...field} placeholder="e.g. Jaipur" maxLength={120} />}
-            />
-          </div>
+          <PlacesFields />
           <FormField
             control={control}
             name="notes"
@@ -394,7 +395,7 @@ function TripFields({ creating, vehicles }: { creating: boolean; vehicles: Vehic
               ` · ${values.startTime}${values.endTime ? ` – ${values.endTime}` : ""}`}
           </SummaryRow>
           <SummaryRow label="Distance">
-            {distance !== null ? formatDistance(distance) : "—"}
+            {routed ? "From the route" : distance !== null ? formatDistance(distance) : "—"}
           </SummaryRow>
           <SummaryRow label="Measured">{METHOD_LABELS[values.method ?? "ODOMETER"]}</SummaryRow>
           <SummaryRow label="Duration">

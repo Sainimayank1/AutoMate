@@ -1,4 +1,6 @@
 import {
+  budgetListQuerySchema,
+  createBudgetSchema,
   createRecurringExpenseSchema,
   createVehicleLoanSchema,
   loanRateChangeSchema,
@@ -7,6 +9,7 @@ import {
   postponeRecurringSchema,
   recurringListQuerySchema,
   recurringPaymentsQuerySchema,
+  updateBudgetSchema,
   updateRecurringExpenseSchema,
   updateVehicleLoanSchema,
   vehicleLoanListQuerySchema,
@@ -25,3 +28,7 @@ export class UpdateVehicleLoanDto extends createZodDto(updateVehicleLoanSchema) 
 export class VehicleLoanListQueryDto extends createZodDto(vehicleLoanListQuerySchema) {}
 export class LoanRateChangeDto extends createZodDto(loanRateChangeSchema) {}
 export class LoanScheduleQueryDto extends createZodDto(paginationQuerySchema) {}
+
+export class CreateBudgetDto extends createZodDto(createBudgetSchema) {}
+export class UpdateBudgetDto extends createZodDto(updateBudgetSchema) {}
+export class BudgetListQueryDto extends createZodDto(budgetListQuerySchema) {}

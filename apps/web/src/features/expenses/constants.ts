@@ -1,4 +1,6 @@
 import {
+  type Budget,
+  BudgetState,
   CostClass,
   type ExpenseCategoryRef,
   type ExpenseIcon,
@@ -142,6 +144,37 @@ export const PAYMENT_STATE: Record<
   [PaymentState.PAID]: { label: "Paid", tone: "success", icon: CircleCheck },
   [PaymentState.SKIPPED]: { label: "Skipped", tone: "neutral", icon: SkipForward },
 };
+
+/** A budget's state (worked out by the API): the bar and the percent take its colour. */
+export const BUDGET_STATE: Record<
+  BudgetState,
+  { label: string; tone: StatusTone; icon: LucideIcon; bar: string; text: string }
+> = {
+  [BudgetState.OVER]: {
+    label: "Over budget",
+    tone: "destructive",
+    icon: CircleAlert,
+    bar: "*:data-[slot=progress-indicator]:bg-destructive",
+    text: "text-destructive",
+  },
+  [BudgetState.WARNING]: {
+    label: "Near the limit",
+    tone: "warning",
+    icon: Clock,
+    bar: "*:data-[slot=progress-indicator]:bg-warning",
+    text: "text-warning",
+  },
+  [BudgetState.ON_TRACK]: {
+    label: "On track",
+    tone: "neutral",
+    icon: CircleCheck,
+    bar: "",
+    text: "text-muted-foreground",
+  },
+};
+
+export const budgetTitle = (budget: Pick<Budget, "category">) =>
+  budget.category?.name ?? "Everything on this vehicle";
 
 export const RECURRING_STATUS: Record<
   RecurringStatus,
