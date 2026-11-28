@@ -21,7 +21,7 @@ Free tiers first ([TECH_STACK.md §9](../TECH_STACK.md#9-infrastructure--keep-it
    ]
    ```
 
-3. **Render** (API): New → Blueprint → this repository. Render reads `render.yaml` and asks for the `sync: false` values: `DATABASE_URL` (Neon), `FRONTEND_URL` (the Pages origin, e.g. `https://automate.pages.dev`; comma-separate several), and the four `STORAGE_*` values from R2. `JWT_ACCESS_SECRET` is generated. The first deploy builds, runs `prisma migrate deploy`, and serves `GET /api/v1/health`. Note the service URL (`https://automate-api.onrender.com`).
+3. **Render** (API): New → Blueprint → this repository. Render reads `render.yaml` and asks for the `sync: false` values: `DATABASE_URL` (Neon), `FRONTEND_URL` (the Pages origin, e.g. `https://automate.pages.dev`; comma-separate several), and the four `STORAGE_*` values from R2. `JWT_ACCESS_SECRET` is generated. The first deploy builds, runs `prisma migrate deploy` and the reference-data seed, and serves `GET /api/v1/health`. Note the service URL (`https://automate-api.onrender.com`).
 4. **Cloudflare Pages** (web): connect the repository with
    - build command: `corepack enable && pnpm install --frozen-lockfile && pnpm --filter @automate/web build`
    - build output directory: `apps/web/dist`
@@ -32,7 +32,7 @@ Free tiers first ([TECH_STACK.md §9](../TECH_STACK.md#9-infrastructure--keep-it
 ## 2. How the pieces fit
 
 - **Cookies across sites.** The web app and the API are on different sites, so the refresh cookie is `SameSite=None; Secure` (`REFRESH_COOKIE_SAMESITE=none` in `render.yaml`); the access token stays in memory. CORS allows only `FRONTEND_URL`, with credentials.
-- **Migrations** run on every API start (`prisma migrate deploy` is idempotent) because the free plan has no pre-deploy step. A migration that fails stops the start, and Render keeps the previous deploy serving.
+- **Migrations and the seed** run on every API start (`prisma migrate deploy`, then `prisma db seed` for the system expense categories that linked expenses need; both are idempotent) because the free plan has no pre-deploy step. A migration that fails stops the start, and Render keeps the previous deploy serving.
 - **Cold starts.** Free Render services sleep after inactivity; the first request after that takes up to a minute. The web app's requests simply wait.
 - **Files** never pass through the API: it signs short-lived R2 links (upload and download) and checks each upload's size and magic bytes on confirm. Production refuses local storage (env validation) unless `STORAGE_LOCAL_PERSISTENT=true` declares `STORAGE_LOCAL_DIR` a persistent, backed-up volume (a self-hosted server; Render's disk is not one). Without either, uploads answer 503 while the rest works.
 - **Secrets** live in Render (API) and, for scheduled jobs, in GitHub Actions secrets. `.env` files are local only and git-ignored.
