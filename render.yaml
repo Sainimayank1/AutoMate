@@ -24,6 +24,11 @@ services:
         value: "24"
       - key: NODE_ENV
         value: production
+      # Neon's pooled connection can strand Prisma's migration lock (P1002 on the next deploy).
+      # Only one instance migrates at a time here, so the lock isn't needed; move migrations to a
+      # pre-deploy step before running more than one instance.
+      - key: PRISMA_SCHEMA_DISABLE_ADVISORY_LOCK
+        value: "1"
       # Neon: the pooled connection string, with ?sslmode=require.
       - key: DATABASE_URL
         sync: false
